@@ -1,3 +1,4 @@
+import React from 'react';
 import { Sidebar } from './Sidebar';
 import { Bell, Search, User } from 'lucide-react';
 import { surgeryService } from '../../services/surgeryService';
