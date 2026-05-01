@@ -9,8 +9,9 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { StatusBadge } from '../components/ui/Badge';
 import { PageLoader, EmptyState } from '../components/ui/Spinner';
 import { SURGERY_STATUSES, PROCEDURE_TYPES } from '../data/catalogo';
-import { Stethoscope, Plus, Pencil, Trash2, Search, ChevronDown, Calendar, User, Building2, Package } from 'lucide-react';
+import { Stethoscope, Plus, Pencil, Trash2, Search, ChevronDown, Calendar, User, Building2, Package, Printer } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { printService } from '../services/printService';
 
 // ─── Surgery Form ────────────────────────────────────────────────────────────
 const SurgeryForm = ({ initial, surgeons, hospitals, onSave, onCancel, loading }) => {
@@ -310,6 +311,13 @@ export const Cirugias = () => {
                         </td>
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-1">
+                            <button 
+                              onClick={() => printService.generateDeliverySheet(s)} 
+                              title="Imprimir Hoja de Entrega"
+                              className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-900 transition-colors"
+                            >
+                              <Printer size={15} />
+                            </button>
                             <button onClick={() => setModal({ data: s })} className="p-2 hover:bg-blue-50 rounded-lg text-slate-400 hover:text-blue-600 transition-colors"><Pencil size={15} /></button>
                             <button onClick={() => setConfirm({ id: s.id, name: s.patient_name })} className="p-2 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={15} /></button>
                           </div>
