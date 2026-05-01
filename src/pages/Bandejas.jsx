@@ -5,7 +5,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { StatusBadge } from '../components/ui/Badge';
 import { PageLoader, EmptyState } from '../components/ui/Spinner';
 import { TRAY_STATUSES, MAX_STERILIZATIONS } from '../data/catalogo';
-import { Package, Plus, Pencil, Trash2, Search, AlertTriangle, Wrench } from 'lucide-react';
+import { Package, Plus, Pencil, Trash2, Search, AlertTriangle, Wrench, Stethoscope, MapPin } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 const TrayForm = ({ initial, onSave, onCancel, loading }) => {
@@ -158,8 +158,22 @@ export const Bandejas = () => {
                     </div>
                   </div>
                   <StatusBadge status={t.status} />
-                  {t.procedure_type && <p className="text-xs text-slate-500 mt-2">{t.procedure_type}</p>}
-                  {t.location && <p className="text-xs text-slate-400 mt-1 flex items-center gap-1"><Wrench size={10} />{t.location}</p>}
+                  
+                  <div className="flex items-center gap-4 mt-3 py-2 border-y border-slate-50">
+                    <div className="flex items-center gap-1.5" title="Cirugías realizadas">
+                      <Stethoscope size={14} className="text-primary" />
+                      <span className="text-sm font-bold text-slate-700">{t.usage_count}</span>
+                      <span className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">Usos</span>
+                    </div>
+                    {t.location && (
+                      <div className="flex items-center gap-1.5 border-l border-slate-100 pl-4">
+                        <MapPin size={14} className="text-slate-400" />
+                        <span className="text-xs text-slate-600 font-medium">{t.location}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {t.procedure_type && <p className="text-xs text-slate-500 mt-2 italic">{t.procedure_type}</p>}
 
                   {/* Sterilization meter */}
                   <div className="mt-4">

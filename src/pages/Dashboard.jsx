@@ -4,6 +4,7 @@ import { StatusBadge } from '../components/ui/Badge';
 import { PageLoader } from '../components/ui/Spinner';
 import { Stethoscope, Calendar, Package, AlertTriangle, TrendingUp, CheckCircle2, Clock } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '../utils/cn';
 
 const MetricCard = ({ icon: Icon, label, value, sub, color = 'text-primary', bg = 'bg-blue-50' }) => (
@@ -20,6 +21,7 @@ const MetricCard = ({ icon: Icon, label, value, sub, color = 'text-primary', bg 
 );
 
 export const Dashboard = () => {
+  const navigate = useNavigate();
   const [surgeries, setSurgeries] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -95,7 +97,14 @@ export const Dashboard = () => {
             ? <div className="card text-center py-8 text-slate-400"><CheckCircle2 size={32} className="mx-auto mb-2 text-green-400" /><p className="font-medium text-green-600">Sin alertas activas</p></div>
             : <div className="space-y-3">
                 {alerts.map(a => (
-                  <div key={a.id} className={cn('p-4 rounded-2xl border', a.alertType==='critical' ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200')}>
+                  <div 
+                    key={a.id} 
+                    onClick={() => navigate(`/cirugias?q=${encodeURIComponent(a.patient_name)}`)}
+                    className={cn(
+                      'p-4 rounded-2xl border cursor-pointer hover:shadow-md transition-all active:scale-[0.98]', 
+                      a.alertType==='critical' ? 'bg-red-50 border-red-200 hover:border-red-400' : 'bg-amber-50 border-amber-200 hover:border-amber-400'
+                    )}
+                  >
                     <div className="flex items-center justify-between mb-2">
                       <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider text-white', a.alertType==='critical' ? 'bg-red-500' : 'bg-amber-500')}>
                         {a.alertType==='critical' ? 'Crítico' : 'Urgente'}
@@ -148,8 +157,12 @@ export const Dashboard = () => {
                   {next7.map(s => {
                     const diff = Math.ceil((new Date(s.surgery_date) - now) / 86400000);
                     return (
-                      <tr key={s.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-5 py-3.5 font-semibold text-slate-900">{s.patient_name}</td>
+                      <tr 
+                        key={s.id} 
+                        onClick={() => navigate(`/cirugias?q=${encodeURIComponent(s.patient_name)}`)}
+                        className="hover:bg-slate-50 transition-colors cursor-pointer group"
+                      >
+                        <td className="px-5 py-3.5 font-semibold text-slate-900 group-hover:text-primary transition-colors">{s.patient_name}</td>
                         <td className="px-5 py-3.5 text-sm text-slate-600 max-w-[180px] truncate">{s.procedure_type}</td>
                         <td className="px-5 py-3.5 text-sm text-slate-700 whitespace-nowrap">{s.surgeon?.full_name || '—'}</td>
                         <td className="px-5 py-3.5 text-sm text-slate-700 whitespace-nowrap">{s.hospital?.name || '—'}</td>

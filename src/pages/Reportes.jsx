@@ -8,7 +8,8 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-import { BarChart3, Download, Calendar, Users, Building2, Package } from 'lucide-react';
+import { BarChart3, Download, Calendar, Users, Building2, Package, FileSpreadsheet } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { cn } from '../utils/cn';
 
 const COLORS = ['#1e40af','#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899'];
@@ -39,6 +40,8 @@ export const Reportes = () => {
   const [trays, setTrays]         = useState([]);
   const [loading, setLoading]     = useState(true);
   const [period, setPeriod]       = useState('month'); // 'week' | 'month' | 'year'
+  const [filterSpecialty, setFilterSpecialty] = useState('');
+  const [filterHospital, setFilterHospital] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -56,15 +59,32 @@ export const Reportes = () => {
 
   const now = new Date();
 
-  // ── Filter by period ──────────────────────────────────────────
-  const filterByPeriod = (arr) => {
+  // ── Advanced Filtering ──────────────────────────────────────────
+  const applyFilters = (arr) => {
+    let result = [...arr];
+    
+    // Period filter
     const cutoff = new Date();
     if (period === 'week')  cutoff.setDate(now.getDate() - 7);
     if (period === 'month') cutoff.setDate(now.getDate() - 30);
     if (period === 'year')  cutoff.setDate(now.getDate() - 365);
-    return arr.filter(s => new Date(s.surgery_date) >= cutoff);
+    result = result.filter(s => new Date(s.surgery_date) >= cutoff);
+
+    // Specialty filter
+    if (filterSpecialty) {
+      result = result.filter(s => s.procedure_type?.toLowerCase().includes(filterSpecialty.toLowerCase()));
+    }
+
+    // Hospital filter
+    if (filterHospital) {
+      result = result.filter(s => s.hospital_id === filterHospital);
+    }
+
+    return result;
   };
-  const filtered = filterByPeriod(surgeries);
+
+  const filtered = applyFilters(surgeries);
+  const specialties = [...new Set(surgeries.map(s => s.procedure_type))].filter(Boolean);
 
   // ── By Status ─────────────────────────────────────────────────
   const byStatus = ['Pendiente','En preparación','Lista','En tránsito','Entregada','Completada'].map(status => ({
@@ -99,25 +119,27 @@ export const Reportes = () => {
     return { name: label, cirugías: surgeries.filter(s => { const dt = new Date(s.surgery_date); return dt >= start && dt <= end; }).length };
   });
 
-  // ── CSV Export ────────────────────────────────────────────────
-  const exportCSV = () => {
-    const rows = [
-      ['Paciente','Procedimiento','Cirujano','Hospital','Fecha','Estado'],
-      ...filtered.map(s => [
-        s.patient_name,
-        s.procedure_type,
-        s.surgeon?.full_name || '',
-        s.hospital?.name || '',
-        new Date(s.surgery_date).toLocaleDateString('es-ES'),
-        s.status,
-      ])
-    ];
-    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url;
-    a.download = `medops_reporte_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click(); URL.revokeObjectURL(url);
+  // ── Excel Export ────────────────────────────────────────────────
+  const exportExcel = () => {
+    const data = filtered.map(s => ({
+      'Fecha': new Date(s.surgery_date).toLocaleDateString('es-ES'),
+      'Paciente': s.patient_name,
+      'Procedimiento': s.procedure_type,
+      'Cirujano': s.surgeon?.full_name || 'N/A',
+      'Hospital': s.hospital?.name || 'N/A',
+      'Estado': s.status,
+      'Bandejas': s.surgery_trays?.map(st => st.tray?.name).join(', ') || ''
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Cirugías");
+
+    // Auto-size columns
+    const max_width = data.reduce((w, r) => Math.max(w, r.Paciente.length, r.Procedimiento.length), 10);
+    worksheet["!cols"] = [ { wch: 12 }, { wch: 25 }, { wch: 30 }, { wch: 25 }, { wch: 25 }, { wch: 15 }, { wch: 40 } ];
+
+    XLSX.writeFile(workbook, `Reporte_MedOps_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const completed   = filtered.filter(s => s.status === 'Completada').length;
@@ -131,19 +153,41 @@ export const Reportes = () => {
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Reportes y Estadísticas</h1>
           <p className="text-slate-500">Análisis operacional del sistema</p>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Period selector */}
-          <div className="flex bg-slate-100 rounded-xl p-1 gap-1">
-            {[['week','7 días'],['month','30 días'],['year','1 año']].map(([key, label]) => (
-              <button key={key} onClick={() => setPeriod(key)}
-                className={cn('px-3 py-1.5 rounded-lg text-sm font-semibold transition-all',
-                  period === key ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700')}>
-                {label}
-              </button>
-            ))}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Filters Toolbar */}
+          <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200 shadow-sm">
+            <select 
+              className="bg-transparent text-xs font-bold text-slate-600 px-2 py-1 outline-none border-r border-slate-200"
+              value={filterSpecialty}
+              onChange={e => setFilterSpecialty(e.target.value)}
+            >
+              <option value="">Especialidades</option>
+              {specialties.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+
+            <select 
+              className="bg-transparent text-xs font-bold text-slate-600 px-2 py-1 outline-none border-r border-slate-200 max-w-[150px]"
+              value={filterHospital}
+              onChange={e => setFilterHospital(e.target.value)}
+            >
+              <option value="">Hospitales</option>
+              {hospitals.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+            </select>
+
+            {/* Period selector */}
+            <div className="flex gap-1 ml-1">
+              {[['week','7D'],['month','30D'],['year','1A']].map(([key, label]) => (
+                <button key={key} onClick={() => setPeriod(key)}
+                  className={cn('px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all',
+                    period === key ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600')}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
-          <button onClick={exportCSV} className="btn btn-secondary gap-2 text-sm">
-            <Download size={16} />Exportar CSV
+
+          <button onClick={exportExcel} className="btn btn-primary gap-2 text-sm shadow-md shadow-primary/10">
+            <FileSpreadsheet size={16} />Exportar Excel
           </button>
         </div>
       </div>

@@ -3,9 +3,14 @@ import { supabase } from '../lib/supabase';
 export const trayService = {
   async getAll() {
     const { data, error } = await supabase
-      .from('trays').select('*').order('name');
+      .from('trays')
+      .select('*, surgery_trays(count)')
+      .order('name');
     if (error) throw error;
-    return data;
+    return (data || []).map(t => ({ 
+      ...t, 
+      usage_count: t.surgery_trays?.[0]?.count || 0 
+    }));
   },
   async create(tray) {
     const { data, error } = await supabase
