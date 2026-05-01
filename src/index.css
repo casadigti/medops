@@ -1,34 +1,54 @@
+/* Google Fonts — must be first */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* Tailwind v4 — processed by @tailwindcss/vite plugin */
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #1e40af;
-  --color-secondary: #64748b;
-  --color-accent: #3b82f6;
-  --color-danger: #ef4444;
-  --color-warning: #f59e0b;
-  --color-success: #10b981;
+  --color-primary:   #1e40af;
+  --color-accent:    #3b82f6;
+  --color-danger:    #ef4444;
+  --color-warning:   #f59e0b;
+  --color-success:   #10b981;
 }
 
-@layer base {
-  body {
-    @apply bg-slate-50 text-slate-900 font-sans;
-  }
-}
+/* ── Base ─────────────────────────────────────────── */
+* { box-sizing: border-box; }
+body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
 
-@layer components {
-  .btn {
-    @apply px-4 py-2 rounded-lg font-medium transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2;
-  }
-  .btn-primary {
-    @apply bg-primary text-white hover:bg-primary/90 shadow-sm;
-  }
-  .btn-secondary {
-    @apply bg-white border border-slate-200 text-slate-700 hover:bg-slate-50;
-  }
-  .card {
-    @apply bg-white rounded-xl border border-slate-200 shadow-sm p-6 transition-shadow hover:shadow-md;
-  }
-  .input {
-    @apply w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all;
-  }
+/* ── Reusable components ──────────────────────────── */
+.card {
+  background: #fff;
+  border-radius: 1rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(0,0,0,.05);
+  padding: 1.5rem;
+  transition: box-shadow .2s;
 }
+.card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  padding: .5rem 1rem; border-radius: .75rem; font-weight: 600; font-size: .875rem;
+  transition: all .15s; cursor: pointer; border: none; outline: none;
+}
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .5; cursor: not-allowed; pointer-events: none; }
+
+.btn-primary { background: #1e40af; color: #fff; }
+.btn-primary:hover { background: #1d3a9e; box-shadow: 0 4px 12px rgba(30,64,175,.3); }
+
+.btn-secondary { background: #fff; color: #374151; border: 1px solid #e2e8f0; }
+.btn-secondary:hover { background: #f8fafc; }
+
+.input {
+  width: 100%; padding: .5rem .75rem; background: #fff;
+  border: 1px solid #cbd5e1; border-radius: .625rem; font-size: .875rem;
+  transition: all .15s; outline: none; color: #0f172a;
+  font-family: inherit;
+}
+.input:focus { border-color: #1e40af; box-shadow: 0 0 0 3px rgba(30,64,175,.1); }
+.input::placeholder { color: #94a3b8; }
+
+select.input { appearance: auto; }
+textarea.input { resize: none; }
