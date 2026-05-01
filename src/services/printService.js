@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 export const printService = {
   generateDeliverySheet: (surgery) => {
@@ -67,7 +67,7 @@ export const printService = {
       'OK'
     ]);
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: infoY + 38,
       head: [['Código', 'Descripción del Set', 'Especialidad', 'Estado']],
       body: trays.length ? trays : [['-', 'No hay bandejas asignadas', '-', '-']],
