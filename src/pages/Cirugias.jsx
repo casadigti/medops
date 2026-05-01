@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { surgeryService } from '../services/surgeryService';
 import { surgeonService } from '../services/surgeonService';
 import { hospitalService } from '../services/hospitalService';
@@ -175,12 +176,13 @@ const StatusMenu = ({ surgery, onUpdate }) => {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export const Cirugias = () => {
+  const [searchParams] = useSearchParams();
   const [surgeries, setSurgeries] = useState([]);
   const [surgeons, setSurgeons]   = useState([]);
   const [hospitals, setHospitals] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
-  const [search, setSearch]       = useState('');
+  const [search, setSearch]       = useState(searchParams.get('q') || '');
   const [filterStatus, setFilterStatus] = useState('');
   const [modal, setModal]         = useState(null);
   const [confirm, setConfirm]     = useState(null);
@@ -190,7 +192,14 @@ export const Cirugias = () => {
     const [surg, sur, hosp] = await Promise.all([surgeryService.getAll(), surgeonService.getAll(), hospitalService.getAll()]);
     setSurgeries(surg); setSurgeons(sur); setHospitals(hosp); setLoading(false);
   };
+
   useEffect(() => { fetchAll(); }, []);
+
+  // Sync search state if URL param changes (e.g. from global search)
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q !== null) setSearch(q);
+  }, [searchParams]);
 
   const filtered = surgeries.filter(s => {
     const q = search.toLowerCase();
