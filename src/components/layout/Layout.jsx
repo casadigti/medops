@@ -3,6 +3,13 @@ import { Sidebar } from './Sidebar';
 import { Bell, Search, User } from 'lucide-react';
 
 export const Layout = ({ children }) => {
+  const [time, setTime] = React.useState(new Date());
+
+  React.useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-50 flex">
       <Sidebar />
@@ -30,8 +37,12 @@ export const Layout = ({ children }) => {
             <div className="h-8 w-px bg-slate-200 mx-2" />
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
-                <p className="text-xs text-slate-500 font-medium">{new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-                <p className="text-sm font-bold text-slate-900">14:30 PM</p>
+                <p className="text-xs text-slate-500 font-medium capitalize">
+                  {time.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </p>
+                <p className="text-sm font-bold text-slate-900 uppercase">
+                  {time.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                </p>
               </div>
             </div>
           </div>

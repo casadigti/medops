@@ -57,14 +57,14 @@ export const Sidebar = () => {
 
       <div className="p-4 mt-auto border-t border-slate-100">
         <div className="bg-slate-50 rounded-2xl p-4 flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold">
-            JL
+          <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-bold shadow-sm">
+            CT
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-900 truncate">Jose Luis</p>
-            <p className="text-xs text-slate-500 truncate">Administrador</p>
+            <p className="text-sm font-semibold text-slate-900 truncate">Casadig TI</p>
+            <p className="text-[10px] text-slate-500 truncate">informatica@casadigrd.com</p>
           </div>
-          <button className="text-slate-400 hover:text-primary transition-colors">
+          <button className="text-slate-400 hover:text-primary transition-colors p-1.5 hover:bg-white rounded-lg shadow-sm">
             <Settings size={18} />
           </button>
         </div>
