@@ -9,13 +9,15 @@ import {
   Settings,
   Bell,
   LogOut,
-  Wrench
+  Wrench,
+  CalendarDays
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { supabase } from '../../lib/supabase';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
+  { icon: CalendarDays, label: 'Calendario', path: '/calendario', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
   { icon: Stethoscope, label: 'Cirugías', path: '/cirugias', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
   { icon: Package, label: 'Bandejas / Sets', path: '/bandejas', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
   { icon: Wrench, label: 'Mantenimiento', path: '/mantenimiento', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },

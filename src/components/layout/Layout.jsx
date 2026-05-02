@@ -1,6 +1,6 @@
 import React from 'react';
 import { Sidebar } from './Sidebar';
-import { Bell, Search, LayoutDashboard, Calendar, Package, Users, BarChart3, Settings, Shield, Wrench } from 'lucide-react';
+import { Bell, Search, LayoutDashboard, Calendar, CalendarDays, Stethoscope, Package, Users, BarChart3, Settings, Shield, Wrench } from 'lucide-react';
 import { surgeryService } from '../../services/surgeryService';
 import { cn } from '../../utils/cn';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
@@ -10,7 +10,8 @@ const MobileNav = ({ role }) => {
   const { pathname } = useLocation();
   const navItems = [
     { icon: LayoutDashboard, path: '/', label: 'Inicio', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
-    { icon: Calendar, path: '/cirugias', label: 'Cirugías', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
+    { icon: CalendarDays, path: '/calendario', label: 'Agenda', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
+    { icon: Stethoscope, path: '/cirugias', label: 'Cirugías', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
     { icon: Package, path: '/bandejas', label: 'Sets', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
     { icon: Wrench, path: '/mantenimiento', label: 'Mant.', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
     { icon: Users, path: '/directorio', label: 'Dir.', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },

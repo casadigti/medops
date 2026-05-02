@@ -47,6 +47,12 @@ export const surgeryService = {
     if (error) throw error;
     return data;
   },
+  async updateDate(id, newDate) {
+    const { data, error } = await supabase
+      .from('surgeries').update({ surgery_date: newDate }).eq('id', id).select().single();
+    if (error) throw error;
+    return data;
+  },
   async delete(id) {
     const { error } = await supabase.from('surgeries').delete().eq('id', id);
     if (error) throw error;

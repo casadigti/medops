@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { supabase } from './lib/supabase';
 import { Layout } from './components/layout/Layout';
 import { Dashboard } from './pages/Dashboard';
+import { Calendario } from './pages/Calendario';
 import { Cirugias } from './pages/Cirugias';
 import { Bandejas } from './pages/Bandejas';
 import { Mantenimiento } from './pages/Mantenimiento';
@@ -45,6 +46,7 @@ function App() {
             <Layout>
               <Routes>
                 <Route path="/" element={<Dashboard />} />
+                <Route path="/calendario" element={<Calendario />} />
                 <Route path="/cirugias" element={<Cirugias />} />
                 <Route path="/bandejas" element={<Bandejas />} />
                 <Route path="/mantenimiento" element={<Mantenimiento />} />
