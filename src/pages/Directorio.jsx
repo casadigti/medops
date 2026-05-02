@@ -8,7 +8,7 @@ import { PageLoader, EmptyState } from '../components/ui/Spinner';
 import { SPECIALTIES } from '../data/catalogo';
 import { 
   Users, Building2, Plus, Pencil, Trash2, Phone, Mail, 
-  MapPin, Search, Calendar, Package, ClipboardList, TrendingUp, Info
+  MapPin, Search, Calendar, Package, ClipboardList, TrendingUp, Info, Shield
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -308,6 +308,8 @@ export const Directorio = () => {
     h.address?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const [portalCredentials, setPortalCredentials] = useState(null); // { name, email, tempPassword }
+
   const handleSaveSurgeon = async (data) => {
     setSaving(true);
     try {
@@ -315,20 +317,33 @@ export const Directorio = () => {
       const enablePortal = finalData._enablePortal;
       delete finalData._enablePortal;
 
-      // Logic for Portal Access
       if (enablePortal && !finalData.user_id) {
-        // 1. Check if user already exists by email
+        if (!finalData.email) {
+          alert('Para habilitar el portal, el cirujano debe tener un correo electrónico.');
+          setSaving(false);
+          return;
+        }
+
+        // Check if a profile already exists for this email
         let existingUser = await surgeonService.getUserByEmail(finalData.email);
         
-        if (!existingUser && finalData.email) {
-          // 2. Create the profile if it doesn't exist
-          const newProfile = await surgeonService.createPortalUser({
+        if (existingUser) {
+          // User already exists — just link them
+          finalData.user_id = existingUser.id;
+        } else {
+          // Create real auth user + set Cirujano role
+          const { userId, tempPassword } = await surgeonService.createPortalUser({
             full_name: finalData.full_name,
             email: finalData.email
           });
-          finalData.user_id = newProfile.id;
-        } else if (existingUser) {
-          finalData.user_id = existingUser.id;
+          finalData.user_id = userId;
+
+          // Show temp credentials to admin after save
+          setPortalCredentials({
+            name: finalData.full_name,
+            email: finalData.email,
+            tempPassword
+          });
         }
       } else if (!enablePortal) {
         finalData.user_id = null;
@@ -341,7 +356,7 @@ export const Directorio = () => {
       fetchAll();
     } catch (err) {
       console.error('Error saving surgeon:', err);
-      alert('Error al guardar el cirujano.');
+      alert(`Error al guardar el cirujano: ${err.message}`);
     } finally { 
       setSaving(false); 
     }
@@ -508,6 +523,62 @@ export const Directorio = () => {
         isOpen={!!confirm} onClose={() => setConfirm(null)} onConfirm={handleDelete}
         title="¿Eliminar registro?" message={`¿Estás seguro de eliminar "${confirm?.name}"? Esta acción no se puede deshacer.`}
       />
+
+      {/* Modal: Credenciales del Portal */}
+      {portalCredentials && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setPortalCredentials(null)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300">
+            {/* Header */}
+            <div className="bg-gradient-to-br from-primary to-blue-700 p-6 text-white text-center">
+              <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
+                <Shield size={28} className="text-white" />
+              </div>
+              <h2 className="text-xl font-black">¡Portal Habilitado!</h2>
+              <p className="text-blue-100 text-sm mt-1">Comparte estas credenciales con el cirujano</p>
+            </div>
+
+            {/* Credentials */}
+            <div className="p-6 space-y-4">
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Cirujano</p>
+                  <p className="font-bold text-slate-900">{portalCredentials.name}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Correo de acceso</p>
+                  <p className="font-mono text-sm font-bold text-primary bg-primary/5 px-3 py-2 rounded-xl">{portalCredentials.email}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Contraseña temporal</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-mono text-lg font-black text-slate-900 bg-amber-50 border border-amber-200 px-3 py-2 rounded-xl flex-1 tracking-widest">{portalCredentials.tempPassword}</p>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(portalCredentials.tempPassword)}
+                      className="p-2.5 bg-slate-100 hover:bg-primary hover:text-white rounded-xl transition-colors text-slate-500"
+                      title="Copiar contraseña"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500 shrink-0 mt-0.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                <p className="text-xs text-amber-700 font-medium">Guarda esta contraseña ahora. No se volverá a mostrar. El cirujano puede cambiarla en Configuración.</p>
+              </div>
+
+              <button
+                onClick={() => setPortalCredentials(null)}
+                className="w-full bg-primary text-white py-3 rounded-xl font-bold text-sm hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
+              >
+                Entendido, ya guardé las credenciales
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

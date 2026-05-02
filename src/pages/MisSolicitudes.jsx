@@ -29,40 +29,66 @@ export const MisSolicitudes = () => {
     notes: ''
   });
 
-  const fetchData = async () => {
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+  const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  const fetchData = async (mounted) => {
     try {
       setLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
 
-      // 1. Get the surgeon ID linked to this user
-      const { data: surgeonData } = await supabase
-        .from('surgeons')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .maybeSingle();
-      
+      // Get session token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || !mounted) return;
+
+      const token = session.access_token;
+      const userId = session.user.id;
+      const headers = {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      };
+
+      // 1. Get surgeon profile linked to this user — via direct REST
+      const surgeonRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/surgeons?user_id=eq.${userId}&select=*&limit=1`,
+        { headers }
+      );
+      const surgeonArr = await surgeonRes.json();
+      const surgeonData = Array.isArray(surgeonArr) && surgeonArr.length > 0 ? surgeonArr[0] : null;
+      if (!mounted) return;
       setSurgeonProfile(surgeonData);
 
       if (surgeonData) {
-        // 2. Get their surgeries
-        const allSurgeries = await surgeryService.getAll();
-        setSurgeries(allSurgeries.filter(s => s.surgeon_id === surgeonData.id));
+        // 2. Get their surgeries — via direct REST
+        const surgeriesRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/surgeries?surgeon_id=eq.${surgeonData.id}&select=*,hospital:hospitals(id,name)&order=surgery_date.asc`,
+          { headers }
+        );
+        const surgeriesArr = await surgeriesRes.json();
+        if (!mounted) return;
+        setSurgeries(Array.isArray(surgeriesArr) ? surgeriesArr : []);
       }
 
-      // 3. Get hospitals for the form
-      const h = await hospitalService.getAll();
-      setHospitals(h);
+      // 3. Get hospitals for the form — via direct REST
+      const hospitalsRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/hospitals?select=id,name&order=name.asc`,
+        { headers }
+      );
+      const hospitalsArr = await hospitalsRes.json();
+      if (!mounted) return;
+      setHospitals(Array.isArray(hospitalsArr) ? hospitalsArr : []);
 
     } catch (error) {
-      console.error('Error fetching portal data:', error);
+      console.error('MisSolicitudes: Error fetching portal data:', error);
     } finally {
-      setLoading(false);
+      if (mounted) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    let mounted = true;
+    fetchData(mounted);
+    return () => { mounted = false; };
   }, []);
 
   const handleCreateRequest = async (e) => {

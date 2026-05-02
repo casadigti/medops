@@ -3,6 +3,7 @@ import { Settings, User, Building2, Palette, Shield, Mail, Save, Image as ImageI
 import { cn } from '../utils/cn';
 import { configService } from '../services/configService';
 import { Modal } from '../components/ui/Modal';
+import { supabase } from '../lib/supabase';
 
 const UserForm = ({ onSave, onCancel, loading }) => {
   const [form, setForm] = React.useState({
@@ -61,7 +62,7 @@ const ConfigCard = ({ children, className }) => (
   </div>
 );
 
-export const Configuracion = () => {
+export const Configuracion = ({ userProfile: profile }) => {
   const [isLoading, setIsLoading] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState('identity');
   const [orgName, setOrgName] = React.useState('Casadig TI');
@@ -109,7 +110,12 @@ export const Configuracion = () => {
       }
     }
     loadData();
-  }, []);
+    
+    // Set default tab based on role
+    if (profile?.role === 'Cirujano') {
+      setActiveTab('security');
+    }
+  }, [profile]);
 
   const handleCreateUser = async (data) => {
     setIsCreatingUser(true);
@@ -135,7 +141,7 @@ export const Configuracion = () => {
         must_change_password: user.isTemporal
       });
       setEditingUser(null);
-      await fetchUsers(); // Recargar datos limpios
+      await fetchUsers();
     } catch (error) {
       console.error('Error actualizando usuario:', error);
       alert('Error al actualizar el usuario.');
@@ -168,43 +174,53 @@ export const Configuracion = () => {
   const handleSave = async () => {
     try {
       setIsLoading(true);
-      
-      // 1. Guardar Identidad Corporativa
-      const orgPromise = configService.updateSettings({
+      await configService.updateSettings({
         name: orgName,
         primary_color: primaryColor,
         logo_url: logoPreview
       });
-
-      // 2. Guardar Cambios en Usuarios (solo los que se editaron o todos para asegurar consistencia)
-      const userPromises = users.map(u => 
-        configService.updateUser(u.id, {
-          full_name: u.name,
-          email: u.email,
-          role: u.role,
-          is_active: u.status === 'Activo',
-          must_change_password: u.isTemporal
-        })
-      );
-
-      await Promise.all([orgPromise, ...userPromises]);
-      
-      setEditingUser(null);
-      alert('¡Configuración guardada correctamente en la base de datos!');
+      alert('¡Configuración guardada correctamente!');
     } catch (error) {
       console.error('Error al guardar:', error);
-      alert('Error al sincronizar con la base de datos. Revisa la consola.');
+      alert('Error al guardar configuración.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const tabs = [
-    { id: 'identity', label: 'Identidad Corporativa', icon: Building2 },
-    { id: 'users', label: 'Usuarios y Roles', icon: Shield },
-    { id: 'security', label: 'Mi Seguridad', icon: Shield },
-    { id: 'system', label: 'Sistema y Alertas', icon: Settings },
+    { id: 'identity', label: 'Identidad Corporativa', icon: Building2, roles: ['Superadmin', 'Administrador'] },
+    { id: 'users', label: 'Usuarios y Roles', icon: Shield, roles: ['Superadmin', 'Administrador'] },
+    { id: 'security', label: 'Mi Seguridad', icon: Shield, roles: ['Superadmin', 'Administrador', 'Cirujano', 'Editor', 'Técnico', 'Lector'] },
+    { id: 'system', label: 'Sistema y Alertas', icon: Settings, roles: ['Superadmin', 'Administrador'] },
   ];
+
+  const filteredTabs = tabs.filter(t => !t.roles || t.roles.includes(profile?.role));
+
+  // Password Change State
+  const [passForm, setPassForm] = React.useState({ new: '', confirm: '' });
+  const [passLoading, setPassLoading] = React.useState(false);
+
+  const handlePasswordUpdate = async (e) => {
+    e.preventDefault();
+    if (passForm.new !== passForm.confirm) return alert('Las contraseñas no coinciden');
+    if (passForm.new.length < 6) return alert('La contraseña debe tener al menos 6 caracteres');
+
+    setPassLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: passForm.new });
+      if (error) throw error;
+      
+      await supabase.from('profiles').update({ must_change_password: false }).eq('id', profile.id);
+      
+      setPassForm({ new: '', confirm: '' });
+      alert('Contraseña actualizada correctamente');
+    } catch (err) {
+      alert(err.message || 'Error al actualizar contraseña');
+    } finally {
+      setPassLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -213,15 +229,16 @@ export const Configuracion = () => {
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Configuración</h1>
           <p className="text-slate-500">Gestiona las preferencias y la identidad de tu plataforma</p>
         </div>
-        <button className="btn btn-primary flex items-center gap-2 shadow-lg shadow-primary/30" onClick={handleSave}>
-          <Save size={18} /> Guardar Cambios
-        </button>
+        {filteredTabs.some(t => t.id === 'identity') && (
+          <button className="btn btn-primary flex items-center gap-2 shadow-lg shadow-primary/30" onClick={handleSave}>
+            <Save size={18} /> Guardar Cambios
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
-        {/* Sidebar de navegación interna */}
         <aside className="lg:w-64 space-y-1">
-          {tabs.map((tab) => (
+          {filteredTabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -238,70 +255,27 @@ export const Configuracion = () => {
           ))}
         </aside>
 
-        {/* Contenido principal */}
         <div className="flex-1">
           {activeTab === 'identity' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
               <ConfigCard>
-                <SectionHeader 
-                  title="Branding General" 
-                  description="Personaliza cómo se ve tu plataforma ante los usuarios." 
-                />
+                <SectionHeader title="Branding General" description="Personaliza cómo se ve tu plataforma ante los usuarios." />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <div>
                       <label className="text-xs font-black text-slate-400 uppercase tracking-wider mb-1 block">Nombre de la Organización</label>
-                      <input type="text" className="input" placeholder="Ej: Medical Core Dominicana" defaultValue="MedOps Dominicana" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-black text-slate-400 uppercase tracking-wider mb-1 block">Eslogan / Subtítulo</label>
-                      <input type="text" className="input" placeholder="Gestión Médica Especializada" defaultValue="Gestión Médica Especializada" />
+                      <input type="text" className="input" value={orgName} onChange={e => setOrgName(e.target.value)} />
                     </div>
                   </div>
-                  
-                  <div 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl p-6 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer group overflow-hidden relative"
-                  >
-                    <input 
-                      type="file" 
-                      ref={fileInputRef} 
-                      className="hidden" 
-                      accept="image/*" 
-                      onChange={handleLogoUpload} 
-                    />
+                  <div onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl p-6 bg-slate-50 hover:bg-slate-100 cursor-pointer group relative">
+                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
                     {logoPreview ? (
-                      <img src={logoPreview} alt="Logo Preview" className="max-h-24 object-contain mb-2 animate-in fade-in zoom-in-95" />
+                      <img src={logoPreview} alt="Logo" className="max-h-24 object-contain mb-2" />
                     ) : (
-                      <div className="w-16 h-16 bg-white rounded-xl shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform text-slate-400">
-                        <ImageIcon size={32} />
-                      </div>
+                      <div className="w-16 h-16 bg-white rounded-xl shadow-sm flex items-center justify-center mb-3 text-slate-400"><ImageIcon size={32} /></div>
                     )}
-                    <p className="text-sm font-bold text-slate-900">{logoPreview ? 'Cambiar Logotipo' : 'Subir Logotipo'}</p>
-                    <p className="text-[10px] text-slate-400">PNG o SVG (Max. 2MB)</p>
+                    <p className="text-sm font-bold text-slate-900">Subir Logotipo</p>
                   </div>
-                </div>
-              </ConfigCard>
-
-              <ConfigCard>
-                <SectionHeader 
-                  title="Paleta de Colores" 
-                  description="Define los colores principales de la interfaz." 
-                />
-                <div className="flex flex-wrap gap-4">
-                  {[
-                    { label: 'Color Primario', color: '#1e40af' },
-                    { label: 'Color Secundario', color: '#64748b' },
-                    { label: 'Acento', color: '#0ea5e9' }
-                  ].map((c) => (
-                    <div key={c.label} className="flex-1 min-w-[200px] p-4 bg-slate-50 rounded-xl border border-slate-200">
-                      <p className="text-xs font-bold text-slate-600 mb-3">{c.label}</p>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg shadow-inner" style={{ backgroundColor: c.color }} />
-                        <code className="text-sm font-mono text-slate-500 uppercase">{c.color}</code>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </ConfigCard>
             </div>
@@ -311,21 +285,14 @@ export const Configuracion = () => {
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
               <ConfigCard className="p-0">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-                  <SectionHeader 
-                    title="Usuarios del Sistema" 
-                    description="Administra quién tiene acceso y qué permisos posee." 
-                  />
-                  <button className="btn btn-primary btn-sm flex items-center gap-2" onClick={() => setIsUserModalOpen(true)}>
-                    <User size={16} /> Nuevo Usuario
-                  </button>
+                  <SectionHeader title="Usuarios del Sistema" description="Administra quién tiene acceso y qué permisos posee." />
+                  <button className="btn btn-primary btn-sm flex items-center gap-2" onClick={() => setIsUserModalOpen(true)}><User size={16} /> Nuevo Usuario</button>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead className="bg-slate-50">
                       <tr>
-                        <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center w-16">Avatar</th>
                         <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Usuario / Email</th>
-                        <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Contraseña</th>
                         <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Rol</th>
                         <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Estado</th>
                         <th className="px-6 py-3"></th>
@@ -335,142 +302,20 @@ export const Configuracion = () => {
                       {users.map((u) => (
                         <tr key={u.id} className="hover:bg-slate-50 transition-colors">
                           <td className="px-6 py-4">
-                            <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-400 border border-slate-200">
-                              {u.name.substring(0, 2).toUpperCase()}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            {editingUser === u.id ? (
-                              <div className="space-y-1">
-                                <input 
-                                  className="input py-1 text-sm h-8" 
-                                  defaultValue={u.name} 
-                                  onChange={(e) => {
-                                    setUsers(users.map(user => user.id === u.id ? {...user, name: e.target.value} : user));
-                                  }}
-                                  autoFocus
-                                />
-                                <input 
-                                  className="input py-0.5 text-[11px] h-6 bg-slate-50 border-slate-100" 
-                                  defaultValue={u.email} 
-                                  onChange={(e) => {
-                                    setUsers(users.map(user => user.id === u.id ? {...user, email: e.target.value} : user));
-                                  }}
-                                />
-                              </div>
-                            ) : (
-                              <>
-                                <p className="font-bold text-slate-900">{u.name}</p>
-                                <p className="text-xs text-slate-500">{u.email}</p>
-                              </>
-                            )}
+                            <p className="font-bold text-slate-900">{u.name}</p>
+                            <p className="text-xs text-slate-500">{u.email}</p>
                           </td>
                           <td className="px-6 py-4 text-center">
-                            {editingUser === u.id ? (
-                              <div className="flex flex-col items-center gap-1">
-                                <input 
-                                  type="password"
-                                  className="input py-1 text-xs h-8 w-24 mx-auto text-center" 
-                                  placeholder="Nueva clave"
-                                  onChange={(e) => {
-                                    setUsers(users.map(user => user.id === u.id ? {...user, password: e.target.value} : user));
-                                  }}
-                                />
-                                <label className="flex items-center gap-1 cursor-pointer">
-                                  <input 
-                                    type="checkbox" 
-                                    checked={u.isTemporal} 
-                                    onChange={(e) => {
-                                      setUsers(users.map(user => user.id === u.id ? {...user, isTemporal: e.target.checked} : user));
-                                    }}
-                                    className="w-3 h-3 accent-primary"
-                                  />
-                                  <span className="text-[10px] text-slate-500 font-bold uppercase">Temporal</span>
-                                </label>
-                              </div>
-                            ) : (
-                              <div className="flex flex-col items-center gap-1">
-                                <span className="text-slate-300 font-mono tracking-tighter">{u.password}</span>
-                                {u.isTemporal && (
-                                  <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[9px] font-black uppercase">Temporal</span>
-                                )}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            {editingUser === u.id ? (
-                              <select 
-                                className="input py-1 text-xs h-8 w-32 mx-auto" 
-                                defaultValue={u.role}
-                                onChange={(e) => {
-                                  setUsers(users.map(user => user.id === u.id ? {...user, role: e.target.value} : user));
-                                }}
-                              >
-                                <option value="Superadmin">Superadmin</option>
-                                <option value="Administrador">Administrador</option>
-                                <option value="Editor">Editor</option>
-                                <option value="Técnico">Técnico (Almacén)</option>
-                                <option value="Cirujano">Cirujano (Doctor)</option>
-                                <option value="Lector">Lector</option>
-                              </select>
-                            ) : (
-                              <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-[11px] font-bold uppercase">{u.role}</span>
-                            )}
+                            <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-[11px] font-bold uppercase">{u.role}</span>
                           </td>
                           <td className="px-6 py-4 text-center">
                             <div className="flex items-center justify-center gap-2">
-                              {editingUser === u.id ? (
-                                <button 
-                                  onClick={() => {
-                                    const nextStatus = u.status === 'Activo' ? 'Inactivo' : 'Activo';
-                                    setUsers(users.map(user => user.id === u.id ? {...user, status: nextStatus} : user));
-                                  }}
-                                  className={cn(
-                                    "px-3 py-1 rounded-full text-[10px] font-black uppercase transition-all",
-                                    u.status === 'Activo' ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"
-                                  )}
-                                >
-                                  {u.status}
-                                </button>
-                              ) : (
-                                <>
-                                  <div className={cn("w-2 h-2 rounded-full", u.status === 'Activo' ? "bg-green-500" : "bg-slate-300")} />
-                                  <span className="font-medium text-slate-700">{u.status}</span>
-                                </>
-                              )}
+                              <div className={cn("w-2 h-2 rounded-full", u.status === 'Activo' ? "bg-green-500" : "bg-slate-300")} />
+                              <span className="font-medium text-slate-700">{u.status}</span>
                             </div>
                           </td>
                           <td className="px-6 py-4 text-right">
-                            {editingUser === u.id ? (
-                              <div className="flex items-center justify-end gap-3">
-                                <button 
-                                  onClick={() => handleDeleteUser(u.id)}
-                                  className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
-                                  title="Eliminar usuario"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                                <button 
-                                  onClick={() => handleUpdateUser(u)}
-                                  className="text-white bg-primary px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-primary-600 shadow-sm transition-colors"
-                                >
-                                  Guardar
-                                </button>
-                                <button 
-                                  onClick={() => setEditingUser(null)}
-                                  className="text-slate-400 hover:text-slate-600 text-xs font-bold"
-                                >
-                                  Cancelar
-                                </button>
-                              </div>
-                            ) : (
-                              <button 
-                                onClick={() => setEditingUser(u.id)}
-                                className="text-primary font-bold hover:underline"
-                              >
-                                Editar
-                              </button>
-                            )}
+                            <button onClick={() => setEditingUser(u.id)} className="text-primary font-bold hover:underline">Editar</button>
                           </td>
                         </tr>
                       ))}
@@ -484,37 +329,27 @@ export const Configuracion = () => {
           {activeTab === 'security' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
               <ConfigCard>
-                <SectionHeader 
-                  title="Cambiar Contraseña" 
-                  description="Actualiza tus credenciales de acceso para mantener tu cuenta segura." 
-                />
-                
-                {/* Alerta de Contraseña Temporal (Simulada para el usuario actual) */}
-                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex gap-3 items-start animate-pulse">
-                  <Shield className="text-amber-600 shrink-0" size={20} />
-                  <div>
-                    <p className="text-sm font-bold text-amber-900">Tu contraseña es temporal</p>
-                    <p className="text-xs text-amber-700">Por seguridad, debes cambiar tu contraseña inicial por una definitiva para seguir operando en el sistema.</p>
+                <SectionHeader title="Cambiar Contraseña" description="Actualiza tus credenciales de acceso para mantener tu cuenta segura." />
+                {profile?.must_change_password && (
+                  <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex gap-3 items-start animate-pulse">
+                    <Shield className="text-amber-600 shrink-0" size={20} />
+                    <div>
+                      <p className="text-sm font-bold text-amber-900">Tu contraseña es temporal</p>
+                      <p className="text-xs text-amber-700">Debes cambiar tu contraseña por una definitiva.</p>
+                    </div>
                   </div>
-                </div>
-
-                <div className="max-w-md space-y-4">
-                  <div>
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-wider mb-1 block">Contraseña Actual</label>
-                    <input type="password" placeholder="••••••••" className="input" />
-                  </div>
+                )}
+                <form onSubmit={handlePasswordUpdate} className="max-w-md space-y-4">
                   <div>
                     <label className="text-xs font-black text-slate-400 uppercase tracking-wider mb-1 block">Nueva Contraseña</label>
-                    <input type="password" placeholder="Mínimo 8 caracteres" className="input" />
+                    <input required type="password" placeholder="Mínimo 6 caracteres" className="input" value={passForm.new} onChange={(e) => setPassForm(p => ({ ...p, new: e.target.value }))} />
                   </div>
                   <div>
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-wider mb-1 block">Confirmar Nueva Contraseña</label>
-                    <input type="password" placeholder="Repite la nueva contraseña" className="input" />
+                    <label className="text-xs font-black text-slate-400 uppercase tracking-wider mb-1 block">Confirmar Contraseña</label>
+                    <input required type="password" placeholder="Repite la contraseña" className="input" value={passForm.confirm} onChange={(e) => setPassForm(p => ({ ...p, confirm: e.target.value }))} />
                   </div>
-                  <button className="btn btn-primary w-full shadow-lg shadow-primary/20 mt-4">
-                    Actualizar Credenciales
-                  </button>
-                </div>
+                  <button type="submit" disabled={passLoading} className="btn btn-primary w-full mt-4">{passLoading ? 'Actualizando...' : 'Actualizar Credenciales'}</button>
+                </form>
               </ConfigCard>
             </div>
           )}
@@ -522,35 +357,8 @@ export const Configuracion = () => {
           {activeTab === 'system' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
               <ConfigCard>
-                <SectionHeader 
-                  title="Conectividad de Email" 
-                  description="Configuración de notificaciones automáticas vía Resend." 
-                />
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-wider mb-1 block">Resend API Key</label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                      <input 
-                        type="password" 
-                        className="input pl-10" 
-                        defaultValue="re_xxxxxxxxxxxxxxxxxxxxxx" 
-                        readOnly
-                      />
-                    </div>
-                    <p className="mt-2 text-[11px] text-slate-400 italic">La clave está encriptada y se gestiona a través de Supabase Secrets por seguridad.</p>
-                  </div>
-                </div>
-              </ConfigCard>
-
-              <ConfigCard className="border-danger/20 bg-danger/[0.02]">
-                <SectionHeader 
-                  title="Zona de Peligro" 
-                  description="Acciones irreversibles sobre el sistema." 
-                />
-                <button className="btn bg-white border-danger text-danger hover:bg-danger hover:text-white transition-all font-bold">
-                  Reiniciar Base de Datos
-                </button>
+                <SectionHeader title="Zona de Peligro" description="Acciones irreversibles sobre el sistema." />
+                <button className="btn bg-white border-danger text-danger hover:bg-danger hover:text-white transition-all font-bold">Reiniciar Base de Datos</button>
               </ConfigCard>
             </div>
           )}

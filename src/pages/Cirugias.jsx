@@ -176,7 +176,7 @@ const StatusMenu = ({ surgery, onUpdate }) => {
 };
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-export const Cirugias = () => {
+export const Cirugias = ({ userProfile }) => {
   const [searchParams] = useSearchParams();
   const [surgeries, setSurgeries] = useState([]);
   const [surgeons, setSurgeons]   = useState([]);
@@ -188,13 +188,26 @@ export const Cirugias = () => {
   const [modal, setModal]         = useState(null);
   const [confirm, setConfirm]     = useState(null);
 
+  const isSurgeon = userProfile?.role === 'Cirujano';
+  const mySurgeonId = userProfile?.surgeon_id;
+
   const fetchAll = async () => {
     setLoading(true);
-    const [surg, sur, hosp] = await Promise.all([surgeryService.getAll(), surgeonService.getAll(), hospitalService.getAll()]);
-    setSurgeries(surg); setSurgeons(sur); setHospitals(hosp); setLoading(false);
+    // If surgeon, filter data fetching at service level
+    const [surg, sur, hosp] = await Promise.all([
+      surgeryService.getAll(isSurgeon ? mySurgeonId : null), 
+      surgeonService.getAll(), 
+      hospitalService.getAll()
+    ]);
+    setSurgeries(surg); 
+    setSurgeons(sur); 
+    setHospitals(hosp); 
+    setLoading(false);
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { 
+    if (userProfile) fetchAll(); 
+  }, [userProfile]);
 
   // Sync search state if URL param changes (e.g. from global search)
   useEffect(() => {
@@ -214,15 +227,18 @@ export const Cirugias = () => {
   const handleSave = async (data, trayIds) => {
     setSaving(true);
     try {
+      let finalData = { ...data };
+      // Force current surgeon if role is Cirujano
+      if (isSurgeon) finalData.surgeon_id = mySurgeonId;
+
       if (modal.data?.id) {
-        await surgeryService.update(modal.data.id, data, trayIds);
+        await surgeryService.update(modal.data.id, finalData, trayIds);
       } else {
-        const newSurgery = await surgeryService.create(data, trayIds);
+        const newSurgery = await surgeryService.create(finalData, trayIds);
         
         // Determinar si es urgente (próximas 48 horas)
-        const diffDays = (new Date(data.surgery_date) - new Date()) / 86400000;
-        if (diffDays <= 2 && data.status === 'Pendiente') {
-          // Enviar alerta por correo (Edge Function)
+        const diffDays = (new Date(finalData.surgery_date) - new Date()) / 86400000;
+        if (diffDays <= 2 && finalData.status === 'Pendiente') {
           try {
             await surgeryService.sendAlert(newSurgery, 'casadigti@gmail.com');
             console.log('Alerta de cirugía urgente enviada al almacén.');
@@ -240,6 +256,7 @@ export const Cirugias = () => {
     setSurgeries(prev => prev.map(s => s.id === id ? { ...s, status } : s));
   };
   const handleDelete = async () => {
+    if (isSurgeon) return; // Protection
     await surgeryService.delete(confirm.id);
     setConfirm(null); fetchAll();
   };

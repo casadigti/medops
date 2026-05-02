@@ -10,25 +10,33 @@ import {
   Bell,
   LogOut,
   Wrench,
-  CalendarDays
+  CalendarDays,
+  Shield
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { supabase } from '../../lib/supabase';
 
 const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor', 'Lector'], labelFn: (role) => role === 'Cirujano' ? 'Mi Portal' : 'Dashboard' },
-  { icon: LayoutDashboard, label: 'Mi Portal', path: '/', roles: ['Cirujano'] },
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor', 'Lector'] },
+  { icon: LayoutDashboard, label: 'Mi Portal', path: '/mis-solicitudes', roles: ['Cirujano'] },
   { icon: CalendarDays, label: 'Calendario', path: '/calendario', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
   { icon: Stethoscope, label: 'Cirugías', path: '/cirugias', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
   { icon: Package, label: 'Bandejas / Sets', path: '/bandejas', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
   { icon: Wrench, label: 'Mantenimiento', path: '/mantenimiento', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
-  { icon: Users, label: 'Directorio', path: '/directorio', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
+  { icon: Users, label: 'Directorio', path: '/directorio', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor', 'Lector'] },
   { icon: BarChart3, label: 'Reportes', path: '/reportes', roles: ['Superadmin', 'Administrador'] },
   { icon: Settings, label: 'Configuración', path: '/configuracion', roles: ['Superadmin', 'Administrador'] },
+  // Vista de previsualización del portal del cirujano (solo admins)
+  { icon: Shield, label: 'Portal Cirujano', path: '/mis-solicitudes', roles: ['Superadmin', 'Administrador'], isPreview: true },
 ];
 
 export const Sidebar = ({ className, role, profile }) => {
-  const filteredNavItems = navItems.filter(item => !role || item.roles.includes(role));
+  // Show items that match the role. If role is null (profile still loading),
+  // show all non-Cirujano-exclusive items so the UI doesn't appear broken.
+  const filteredNavItems = navItems.filter(item => {
+    if (!role) return item.roles.some(r => r !== 'Cirujano');
+    return item.roles.includes(role);
+  });
 
   const getInitials = (name) => {
     if (!name) return 'U';
@@ -51,25 +59,40 @@ export const Sidebar = ({ className, role, profile }) => {
         </div>
       </div>
 
-      <nav className="flex-1 px-4 space-y-1">
-        {filteredNavItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) => cn(
-              "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
-              isActive 
-                ? "bg-primary text-white shadow-md shadow-primary/20" 
-                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
-            )}
-          >
-            <item.icon size={20} className={cn(
-              "transition-transform group-hover:scale-110",
-              "opacity-80 group-hover:opacity-100"
-            )} />
-            <span className="font-medium">{item.label}</span>
-          </NavLink>
-        ))}
+      <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
+        {filteredNavItems.map((item, index) => {
+          const prevItem = filteredNavItems[index - 1];
+          const showSeparator = item.isPreview && prevItem && !prevItem.isPreview;
+          return (
+            <React.Fragment key={`${item.path}-${item.label}`}>
+              {showSeparator && (
+                <div className="pt-2 pb-1">
+                  <div className="border-t border-slate-100 mb-2" />
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-4">Vista Previa</p>
+                </div>
+              )}
+              <NavLink
+                to={item.path}
+                className={({ isActive }) => cn(
+                  "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+                  item.isPreview
+                    ? isActive
+                      ? "bg-violet-600 text-white shadow-md shadow-violet-200"
+                      : "text-violet-600 hover:bg-violet-50 hover:text-violet-700"
+                    : isActive
+                      ? "bg-primary text-white shadow-md shadow-primary/20"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-primary"
+                )}
+              >
+                <item.icon size={20} className="transition-transform group-hover:scale-110 opacity-80 group-hover:opacity-100" />
+                <span className="font-medium">{item.label}</span>
+                {item.isPreview && (
+                  <span className="ml-auto text-[9px] font-bold bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-full">ADMIN</span>
+                )}
+              </NavLink>
+            </React.Fragment>
+          );
+        })}
       </nav>
 
       <div className="p-4 mt-auto border-t border-slate-100">

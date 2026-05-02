@@ -25,22 +25,55 @@ export const Dashboard = () => {
   const navigate = useNavigate();
   const [surgeries, setSurgeries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Carga inicial
-    surgeryService.getAll().then(d => { setSurgeries(d); setLoading(false); });
+    let mounted = true;
 
-    // Suscripción en Tiempo Real a la tabla surgeries
-    const channel = supabase
-      .channel('dashboard-surgeries')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'surgeries' }, () => {
-        // Al ocurrir cualquier cambio (Insert, Update, Delete), recargamos la data.
-        surgeryService.getAll().then(d => setSurgeries(d));
-      })
-      .subscribe();
+    const loadData = async () => {
+      try {
+        setError(null);
+        const data = await surgeryService.getAll();
+        if (mounted) {
+          setSurgeries(data || []);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Dashboard: Error loading surgeries:', err);
+        if (mounted) {
+          setError('No se pudieron cargar los datos. Intenta recargar.');
+          setSurgeries([]);
+          setLoading(false);
+        }
+      }
+    };
+
+    loadData();
+
+    // Realtime subscription — only set up after initial load
+    let channel = null;
+    const setupRealtime = () => {
+      channel = supabase
+        .channel(`dashboard-surgeries-${Date.now()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'surgeries' }, () => {
+          if (mounted) {
+            surgeryService.getAll()
+              .then(d => { if (mounted) setSurgeries(d || []); })
+              .catch(console.error);
+          }
+        })
+        .subscribe((status) => {
+          console.log('Dashboard: Realtime status:', status);
+        });
+    };
+
+    // Delay realtime subscription to avoid interfering with initial auth/load
+    const realtimeTimer = setTimeout(setupRealtime, 2000);
 
     return () => {
-      supabase.removeChannel(channel);
+      mounted = false;
+      clearTimeout(realtimeTimer);
+      if (channel) supabase.removeChannel(channel);
     };
   }, []);
 
@@ -80,6 +113,21 @@ export const Dashboard = () => {
 
   if (loading) return <PageLoader />;
 
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <AlertTriangle size={48} className="text-amber-400" />
+        <p className="text-slate-600 font-medium">{error}</p>
+        <button
+          onClick={() => { setLoading(true); setError(null); surgeryService.getAll().then(d => { setSurgeries(d || []); setLoading(false); }).catch(() => { setError('Error al recargar.'); setLoading(false); }); }}
+          className="px-6 py-2 bg-primary text-white rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -112,11 +160,11 @@ export const Dashboard = () => {
             ? <div className="card text-center py-8 text-slate-400"><CheckCircle2 size={32} className="mx-auto mb-2 text-green-400" /><p className="font-medium text-green-600">Sin alertas activas</p></div>
             : <div className="space-y-3">
                 {alerts.map(a => (
-                  <div 
-                    key={a.id} 
+                  <div
+                    key={a.id}
                     onClick={() => navigate(`/cirugias?q=${encodeURIComponent(a.patient_name)}`)}
                     className={cn(
-                      'p-4 rounded-2xl border cursor-pointer hover:shadow-md transition-all active:scale-[0.98]', 
+                      'p-4 rounded-2xl border cursor-pointer hover:shadow-md transition-all active:scale-[0.98]',
                       a.alertType==='critical' ? 'bg-red-50 border-red-200 hover:border-red-400' : 'bg-amber-50 border-amber-200 hover:border-amber-400'
                     )}
                   >
@@ -172,8 +220,8 @@ export const Dashboard = () => {
                   {next7.map(s => {
                     const diff = Math.ceil((new Date(s.surgery_date) - now) / 86400000);
                     return (
-                      <tr 
-                        key={s.id} 
+                      <tr
+                        key={s.id}
                         onClick={() => navigate(`/cirugias?q=${encodeURIComponent(s.patient_name)}`)}
                         className="hover:bg-slate-50 transition-colors cursor-pointer group"
                       >

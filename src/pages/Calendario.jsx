@@ -8,17 +8,21 @@ import { surgeryService } from '../services/surgeryService';
 import { Calendar, Stethoscope, AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
-export const Calendario = () => {
+export const Calendario = ({ userProfile }) => {
   const [surgeries, setSurgeries] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const isSurgeon = userProfile?.role === 'Cirujano';
+  const mySurgeonId = userProfile?.surgeon_id;
+
   useEffect(() => {
-    fetchSurgeries();
-  }, []);
+    if (userProfile) fetchSurgeries();
+  }, [userProfile]);
 
   const fetchSurgeries = async () => {
     try {
-      const data = await surgeryService.getAll();
+      // If surgeon, filter data fetching at service level
+      const data = await surgeryService.getAll(isSurgeon ? mySurgeonId : null);
       setSurgeries(data);
     } catch (error) {
       console.error('Error fetching surgeries:', error);
@@ -121,8 +125,8 @@ export const Calendario = () => {
                 list: 'Agenda'
               }}
               events={events}
-              editable={true} // Habilita Drag & Drop
-              droppable={true}
+              editable={!isSurgeon} // Habilita Drag & Drop solo para admins
+              droppable={!isSurgeon}
               eventDrop={handleEventDrop}
               eventContent={renderEventContent}
               height="100%"
