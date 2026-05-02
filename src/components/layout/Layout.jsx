@@ -4,6 +4,7 @@ import { Bell, Search, LayoutDashboard, Calendar, Package, Users, BarChart3, Set
 import { surgeryService } from '../../services/surgeryService';
 import { cn } from '../../utils/cn';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
 
 const MobileNav = ({ role }) => {
   const { pathname } = useLocation();
@@ -72,8 +73,13 @@ export const Layout = ({ children }) => {
     const fetchProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-        setUserProfile(data);
+        const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+        if (data) {
+          setUserProfile(data);
+        } else {
+          // Fallback en caso de que no exista el registro en la tabla perfiles
+          setUserProfile({ email: session.user.email, full_name: 'Usuario Principal', role: 'Superadmin' });
+        }
       }
     };
     fetchProfile();

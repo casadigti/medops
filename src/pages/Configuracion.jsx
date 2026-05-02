@@ -33,6 +33,8 @@ const UserForm = ({ onSave, onCancel, loading }) => {
           <option value="Superadmin">Superadmin</option>
           <option value="Administrador">Administrador</option>
           <option value="Editor">Editor</option>
+          <option value="Técnico">Técnico (Almacén)</option>
+          <option value="Cirujano">Cirujano (Doctor)</option>
           <option value="Lector">Lector</option>
         </select>
       </div>
@@ -407,6 +409,8 @@ export const Configuracion = () => {
                                 <option value="Superadmin">Superadmin</option>
                                 <option value="Administrador">Administrador</option>
                                 <option value="Editor">Editor</option>
+                                <option value="Técnico">Técnico (Almacén)</option>
+                                <option value="Cirujano">Cirujano (Doctor)</option>
                                 <option value="Lector">Lector</option>
                               </select>
                             ) : (
