@@ -8,7 +8,8 @@ import {
   BarChart3, 
   Settings,
   Bell,
-  LogOut
+  LogOut,
+  Wrench
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { supabase } from '../../lib/supabase';
@@ -17,6 +18,7 @@ const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
   { icon: Stethoscope, label: 'Cirugías', path: '/cirugias' },
   { icon: Package, label: 'Bandejas / Sets', path: '/bandejas' },
+  { icon: Wrench, label: 'Mantenimiento', path: '/mantenimiento' },
   { icon: Users, label: 'Directorio', path: '/directorio' },
   { icon: BarChart3, label: 'Reportes', path: '/reportes' },
   { icon: Settings, label: 'Configuración', path: '/configuracion' },

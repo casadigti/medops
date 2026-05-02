@@ -1,6 +1,6 @@
 import React from 'react';
 import { Sidebar } from './Sidebar';
-import { Bell, Search, LayoutDashboard, Calendar, Package, Users, BarChart3, Settings, Shield } from 'lucide-react';
+import { Bell, Search, LayoutDashboard, Calendar, Package, Users, BarChart3, Settings, Shield, Wrench } from 'lucide-react';
 import { surgeryService } from '../../services/surgeryService';
 import { cn } from '../../utils/cn';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
@@ -11,7 +11,8 @@ const MobileNav = () => {
     { icon: LayoutDashboard, path: '/', label: 'Inicio' },
     { icon: Calendar, path: '/cirugias', label: 'Cirugías' },
     { icon: Package, path: '/bandejas', label: 'Sets' },
-    { icon: Users, path: '/directorio', label: 'Directorio' },
+    { icon: Wrench, path: '/mantenimiento', label: 'Mant.' },
+    { icon: Users, path: '/directorio', label: 'Dir.' },
     { icon: BarChart3, path: '/reportes', label: 'Reportes' },
     { icon: Settings, path: '/configuracion', label: 'Ajustes' },
   ];

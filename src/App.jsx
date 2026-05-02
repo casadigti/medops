@@ -5,6 +5,7 @@ import { Layout } from './components/layout/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Cirugias } from './pages/Cirugias';
 import { Bandejas } from './pages/Bandejas';
+import { Mantenimiento } from './pages/Mantenimiento';
 import { Directorio } from './pages/Directorio';
 import { Reportes } from './pages/Reportes';
 import { Configuracion } from './pages/Configuracion';
@@ -46,6 +47,7 @@ function App() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/cirugias" element={<Cirugias />} />
                 <Route path="/bandejas" element={<Bandejas />} />
+                <Route path="/mantenimiento" element={<Mantenimiento />} />
                 <Route path="/directorio" element={<Directorio />} />
                 <Route path="/reportes" element={<Reportes />} />
                 <Route path="/configuracion" element={<Configuracion />} />

@@ -46,4 +46,19 @@ export const trayService = {
     if (error) throw error;
     return (data || []).map(t => ({ ...t, busy: busyTrayIds.includes(t.id) }));
   },
+  async getMaintenanceLogs(trayId) {
+    const { data, error } = await supabase
+      .from('maintenance_logs')
+      .select('*')
+      .eq('tray_id', trayId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+  async logMaintenance(trayId, action, notes, performedBy) {
+    const { error } = await supabase
+      .from('maintenance_logs')
+      .insert({ tray_id: trayId, action, notes, performed_by: performedBy });
+    if (error) throw error;
+  }
 };
