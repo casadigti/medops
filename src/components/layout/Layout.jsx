@@ -1,6 +1,6 @@
 import React from 'react';
 import { Sidebar } from './Sidebar';
-import { Bell, Search, LayoutDashboard, Calendar, Package, Users, BarChart3 } from 'lucide-react';
+import { Bell, Search, LayoutDashboard, Calendar, Package, Users, BarChart3, Settings } from 'lucide-react';
 import { surgeryService } from '../../services/surgeryService';
 import { cn } from '../../utils/cn';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
@@ -13,6 +13,7 @@ const MobileNav = () => {
     { icon: Package, path: '/bandejas', label: 'Sets' },
     { icon: Users, path: '/directorio', label: 'Directorio' },
     { icon: BarChart3, path: '/reportes', label: 'Reportes' },
+    { icon: Settings, path: '/configuracion', label: 'Ajustes' },
   ];
 
   return (
@@ -44,7 +45,14 @@ export const Layout = ({ children }) => {
   const [time, setTime] = React.useState(new Date());
   const [alerts, setAlerts] = React.useState([]);
   const [showNotifs, setShowNotifs] = React.useState(false);
-  const [dismissedAlerts, setDismissedAlerts] = React.useState([]);
+  const [dismissedAlerts, setDismissedAlerts] = React.useState(() => {
+    const saved = localStorage.getItem('medops_dismissed_alerts');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem('medops_dismissed_alerts', JSON.stringify(dismissedAlerts));
+  }, [dismissedAlerts]);
 
   const activeAlerts = alerts.filter(a => !dismissedAlerts.includes(a.id));
 

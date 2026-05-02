@@ -6,6 +6,7 @@ import { Cirugias } from './pages/Cirugias';
 import { Bandejas } from './pages/Bandejas';
 import { Directorio } from './pages/Directorio';
 import { Reportes } from './pages/Reportes';
+import { Configuracion } from './pages/Configuracion';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Route path="/bandejas" element={<Bandejas />} />
           <Route path="/directorio" element={<Directorio />} />
           <Route path="/reportes" element={<Reportes />} />
+          <Route path="/configuracion" element={<Configuracion />} />
         </Routes>
       </Layout>
     </Router>

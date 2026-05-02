@@ -17,6 +17,7 @@ const navItems = [
   { icon: Package, label: 'Bandejas / Sets', path: '/bandejas' },
   { icon: Users, label: 'Directorio', path: '/directorio' },
   { icon: BarChart3, label: 'Reportes', path: '/reportes' },
+  { icon: Settings, label: 'Configuración', path: '/configuracion' },
 ];
 
 export const Sidebar = ({ className }) => {
@@ -64,9 +65,9 @@ export const Sidebar = ({ className }) => {
             <p className="text-sm font-semibold text-slate-900 truncate">Casadig TI</p>
             <p className="text-[10px] text-slate-500 truncate">informatica@casadigrd.com</p>
           </div>
-          <button className="text-slate-400 hover:text-primary transition-colors p-1.5 hover:bg-white rounded-lg shadow-sm">
+          <NavLink to="/configuracion" className="text-slate-400 hover:text-primary transition-colors p-1.5 hover:bg-white rounded-lg shadow-sm">
             <Settings size={18} />
-          </button>
+          </NavLink>
         </div>
       </div>
     </aside>
