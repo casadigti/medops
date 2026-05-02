@@ -39,11 +39,43 @@ const SurgeonProfile = ({ surgeon, surgeries }) => {
           <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-1">Cirugías</p>
           <p className="text-2xl font-black text-slate-900">{mySurgeries.length}</p>
         </div>
-        <div className="bg-teal-50 p-4 rounded-2xl border border-teal-100 col-span-2">
+        <div className="bg-teal-50 p-4 rounded-2xl border border-teal-100">
           <p className="text-[10px] font-bold text-teal-600 uppercase tracking-wider mb-1">Hospital más frecuente</p>
           <p className="text-sm font-bold text-slate-900 truncate">{topHospital ? topHospital[0] : 'Sin historial'}</p>
         </div>
+        <div className={cn(
+          "p-4 rounded-2xl border flex flex-col justify-center",
+          surgeon.user_id ? "bg-primary/5 border-primary/10" : "bg-slate-50 border-slate-100"
+        )}>
+          <p className={cn(
+            "text-[10px] font-bold uppercase tracking-wider mb-1",
+            surgeon.user_id ? "text-primary" : "text-slate-400"
+          )}>Acceso Portal</p>
+          {surgeon.user_id ? (
+            <div className="flex items-center gap-1.5 text-primary">
+              <Shield size={14} />
+              <span className="text-xs font-black uppercase tracking-tighter">Activado</span>
+            </div>
+          ) : (
+            <span className="text-xs font-bold text-slate-400">Desactivado</span>
+          )}
+        </div>
       </div>
+
+      {surgeon.user_id && (
+        <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-primary border border-slate-200">
+              <Mail size={16} />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cuenta Vinculada</p>
+              <p className="text-sm font-bold text-slate-700">{surgeon.email}</p>
+            </div>
+          </div>
+          <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-[10px] font-black uppercase">Activo</span>
+        </div>
+      )}
 
       <div className="space-y-4">
         <div>
@@ -114,9 +146,15 @@ const HospitalProfile = ({ hospital, surgeries }) => {
 
 // ── Surgeon Form ────────────────────────────────────────────────
 const SurgeonForm = ({ initial, onSave, onCancel, loading }) => {
-  const [form, setForm] = useState(initial || { full_name:'', specialty:'', phone:'', email:'', preferences:'' });
+  const [form, setForm] = useState(initial || { full_name:'', specialty:'', phone:'', email:'', preferences:'', user_id: null });
+  const [hasPortalAccess, setHasPortalAccess] = useState(!!(initial?.user_id));
+  
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const submit = e => { e.preventDefault(); onSave(form); };
+  const submit = e => { 
+    e.preventDefault(); 
+    onSave({ ...form, _enablePortal: hasPortalAccess }); 
+  };
+
   return (
     <form onSubmit={submit} className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -139,6 +177,37 @@ const SurgeonForm = ({ initial, onSave, onCancel, loading }) => {
           <label className="block text-sm font-semibold text-slate-700 mb-1">Correo electrónico</label>
           <input type="email" className="input" value={form.email} onChange={e => set('email', e.target.value)} placeholder="dr@hospital.com" />
         </div>
+
+        <div className="sm:col-span-2 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
+                hasPortalAccess ? "bg-primary text-white" : "bg-slate-200 text-slate-500"
+              )}>
+                <Shield size={20} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-900">Habilitar acceso al Portal</p>
+                <p className="text-[11px] text-slate-500">Permitir que el doctor solicite equipos por la web</p>
+              </div>
+            </div>
+            <button 
+              type="button"
+              onClick={() => setHasPortalAccess(!hasPortalAccess)}
+              className={cn(
+                "w-12 h-6 rounded-full transition-all relative p-1",
+                hasPortalAccess ? "bg-primary" : "bg-slate-300"
+              )}
+            >
+              <div className={cn(
+                "w-4 h-4 bg-white rounded-full shadow-sm transition-transform",
+                hasPortalAccess ? "translate-x-6" : "translate-x-0"
+              )} />
+            </button>
+          </div>
+        </div>
+
         <div className="sm:col-span-2">
           <label className="block text-sm font-semibold text-slate-700 mb-1">Preferencias / Notas</label>
           <textarea rows={3} className="input resize-none" value={form.preferences} onChange={e => set('preferences', e.target.value)} placeholder="Sets preferidos, implantes específicos..." />
@@ -242,10 +311,40 @@ export const Directorio = () => {
   const handleSaveSurgeon = async (data) => {
     setSaving(true);
     try {
-      if (modal.data?.id) await surgeonService.update(modal.data.id, data);
-      else await surgeonService.create(data);
-      setModal(null); fetchAll();
-    } finally { setSaving(false); }
+      let finalData = { ...data };
+      const enablePortal = finalData._enablePortal;
+      delete finalData._enablePortal;
+
+      // Logic for Portal Access
+      if (enablePortal && !finalData.user_id) {
+        // 1. Check if user already exists by email
+        let existingUser = await surgeonService.getUserByEmail(finalData.email);
+        
+        if (!existingUser && finalData.email) {
+          // 2. Create the profile if it doesn't exist
+          const newProfile = await surgeonService.createPortalUser({
+            full_name: finalData.full_name,
+            email: finalData.email
+          });
+          finalData.user_id = newProfile.id;
+        } else if (existingUser) {
+          finalData.user_id = existingUser.id;
+        }
+      } else if (!enablePortal) {
+        finalData.user_id = null;
+      }
+
+      if (modal.data?.id) await surgeonService.update(modal.data.id, finalData);
+      else await surgeonService.create(finalData);
+      
+      setModal(null); 
+      fetchAll();
+    } catch (err) {
+      console.error('Error saving surgeon:', err);
+      alert('Error al guardar el cirujano.');
+    } finally { 
+      setSaving(false); 
+    }
   };
   const handleSaveHospital = async (data) => {
     setSaving(true);
@@ -316,7 +415,14 @@ export const Directorio = () => {
                             <p className="font-bold text-slate-900 leading-tight flex items-center gap-1.5">
                               {s.full_name} <Info size={12} className="text-slate-300" />
                             </p>
-                            <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mt-0.5">{s.specialty || 'General'}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">{s.specialty || 'General'}</p>
+                              {s.user_id && (
+                                <span className="flex items-center gap-1 px-1.5 py-0.5 bg-primary/10 text-primary rounded text-[9px] font-black uppercase">
+                                  <Shield size={10} /> Portal
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

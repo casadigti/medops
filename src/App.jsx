@@ -12,20 +12,35 @@ import { Reportes } from './pages/Reportes';
 import { Configuracion } from './pages/Configuracion';
 import { Login } from './pages/Login';
 
+import { MisSolicitudes } from './pages/MisSolicitudes';
+
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    async function fetchSession() {
+      const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
+      if (session?.user) {
+        const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).maybeSingle();
+        setUserRole(data?.role);
+      }
       setLoading(false);
-    });
+    }
+    fetchSession();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
+      if (session?.user) {
+        const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).maybeSingle();
+        setUserRole(data?.role);
+      } else {
+        setUserRole(null);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -45,7 +60,7 @@ function App() {
           session ? (
             <Layout>
               <Routes>
-                <Route path="/" element={<Dashboard />} />
+                <Route path="/" element={userRole === 'Cirujano' ? <MisSolicitudes /> : <Dashboard />} />
                 <Route path="/calendario" element={<Calendario />} />
                 <Route path="/cirugias" element={<Cirugias />} />
                 <Route path="/bandejas" element={<Bandejas />} />
@@ -53,6 +68,7 @@ function App() {
                 <Route path="/directorio" element={<Directorio />} />
                 <Route path="/reportes" element={<Reportes />} />
                 <Route path="/configuracion" element={<Configuracion />} />
+                <Route path="/mis-solicitudes" element={<MisSolicitudes />} />
               </Routes>
             </Layout>
           ) : (

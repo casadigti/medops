@@ -16,7 +16,8 @@ import { cn } from '../../utils/cn';
 import { supabase } from '../../lib/supabase';
 
 const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor', 'Lector'], labelFn: (role) => role === 'Cirujano' ? 'Mi Portal' : 'Dashboard' },
+  { icon: LayoutDashboard, label: 'Mi Portal', path: '/', roles: ['Cirujano'] },
   { icon: CalendarDays, label: 'Calendario', path: '/calendario', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
   { icon: Stethoscope, label: 'Cirugías', path: '/cirugias', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
   { icon: Package, label: 'Bandejas / Sets', path: '/bandejas', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
