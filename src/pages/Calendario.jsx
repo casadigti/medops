@@ -65,6 +65,8 @@ export const Calendario = () => {
     id: s.id,
     title: `${s.patient_name} - ${s.surgeon?.full_name || 'Sin Asignar'}`,
     start: s.surgery_date,
+    display: 'block', // Fuerza a que sea un bloque de color sólido
+    textColor: '#ffffff', // Texto en blanco para contrastar
     backgroundColor: getStatusColor(s.status),
     borderColor: getStatusColor(s.status),
     extendedProps: {
