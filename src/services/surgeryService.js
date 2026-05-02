@@ -51,4 +51,11 @@ export const surgeryService = {
     const { error } = await supabase.from('surgeries').delete().eq('id', id);
     if (error) throw error;
   },
+  async sendAlert(surgery, recipientEmail) {
+    const { data, error } = await supabase.functions.invoke('send-surgery-alert', {
+      body: { surgery, recipientEmail }
+    });
+    if (error) throw error;
+    return data;
+  }
 };
