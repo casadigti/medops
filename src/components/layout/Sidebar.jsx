@@ -19,9 +19,9 @@ const navItems = [
   { icon: BarChart3, label: 'Reportes', path: '/reportes' },
 ];
 
-export const Sidebar = () => {
+export const Sidebar = ({ className }) => {
   return (
-    <aside className="w-64 h-screen bg-white border-r border-slate-200 flex flex-col fixed left-0 top-0 z-50">
+    <aside className={cn("w-64 h-screen bg-white border-r border-slate-200 flex-col fixed left-0 top-0 z-50 hidden lg:flex", className)}>
       <div className="p-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/20">

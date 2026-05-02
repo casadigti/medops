@@ -128,7 +128,7 @@ export const Bandejas = () => {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <input className="input pl-9 text-sm" placeholder="Buscar por nombre o código..." value={search} onChange={e => setSearch(e.target.value)} />
+          <input className="input input-search text-sm" placeholder="Buscar por nombre o código..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <select className="input max-w-[200px] text-sm" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
           <option value="">Todos los estados</option>

@@ -291,7 +291,7 @@ export const Directorio = () => {
         </div>
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <input className="input pl-9 text-sm" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} />
+          <input className="input input-search text-sm" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
       </div>
 
