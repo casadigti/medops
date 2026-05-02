@@ -5,21 +5,23 @@ import { surgeryService } from '../../services/surgeryService';
 import { cn } from '../../utils/cn';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 
-const MobileNav = () => {
+const MobileNav = ({ role }) => {
   const { pathname } = useLocation();
   const navItems = [
-    { icon: LayoutDashboard, path: '/', label: 'Inicio' },
-    { icon: Calendar, path: '/cirugias', label: 'Cirugías' },
-    { icon: Package, path: '/bandejas', label: 'Sets' },
-    { icon: Wrench, path: '/mantenimiento', label: 'Mant.' },
-    { icon: Users, path: '/directorio', label: 'Dir.' },
-    { icon: BarChart3, path: '/reportes', label: 'Reportes' },
-    { icon: Settings, path: '/configuracion', label: 'Ajustes' },
+    { icon: LayoutDashboard, path: '/', label: 'Inicio', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
+    { icon: Calendar, path: '/cirugias', label: 'Cirugías', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
+    { icon: Package, path: '/bandejas', label: 'Sets', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
+    { icon: Wrench, path: '/mantenimiento', label: 'Mant.', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
+    { icon: Users, path: '/directorio', label: 'Dir.', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
+    { icon: BarChart3, path: '/reportes', label: 'Reportes', roles: ['Superadmin', 'Administrador'] },
+    { icon: Settings, path: '/configuracion', label: 'Ajustes', roles: ['Superadmin', 'Administrador'] },
   ];
+
+  const filteredNavItems = navItems.filter(item => !role || item.roles.includes(role));
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 py-2 flex justify-around items-center z-50 pb-safe">
-      {navItems.map((item) => {
+      {filteredNavItems.map((item) => {
         const active = pathname === item.path;
         return (
           <Link 
@@ -64,6 +66,19 @@ export const Layout = ({ children }) => {
     }
   };
 
+  const [userProfile, setUserProfile] = React.useState(null);
+  
+  React.useEffect(() => {
+    const fetchProfile = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+        setUserProfile(data);
+      }
+    };
+    fetchProfile();
+  }, []);
+
   React.useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 60000);
     
@@ -93,7 +108,7 @@ export const Layout = ({ children }) => {
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans selection:bg-primary/10 selection:text-primary">
       {/* Sidebar - Desktop */}
-      <Sidebar className="hidden lg:flex" />
+      <Sidebar className="hidden lg:flex" role={userProfile?.role} profile={userProfile} />
 
       {/* Bloqueo de Seguridad - Cambio Obligatorio */}
       {showForceChange && (
@@ -249,7 +264,7 @@ export const Layout = ({ children }) => {
           {children}
         </div>
 
-        <MobileNav />
+        <MobileNav role={userProfile?.role} />
       </main>
     </div>
   );
