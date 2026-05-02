@@ -214,9 +214,25 @@ export const Cirugias = () => {
   const handleSave = async (data, trayIds) => {
     setSaving(true);
     try {
-      if (modal.data?.id) await surgeryService.update(modal.data.id, data, trayIds);
-      else await surgeryService.create(data, trayIds);
-      setModal(null); fetchAll();
+      if (modal.data?.id) {
+        await surgeryService.update(modal.data.id, data, trayIds);
+      } else {
+        const newSurgery = await surgeryService.create(data, trayIds);
+        
+        // Determinar si es urgente (próximas 48 horas)
+        const diffDays = (new Date(data.surgery_date) - new Date()) / 86400000;
+        if (diffDays <= 2 && data.status === 'Pendiente') {
+          // Enviar alerta por correo (Edge Function)
+          try {
+            await surgeryService.sendAlert(newSurgery, 'casadigti@gmail.com');
+            console.log('Alerta de cirugía urgente enviada al almacén.');
+          } catch (alertError) {
+            console.error('Error al enviar la alerta de correo:', alertError);
+          }
+        }
+      }
+      setModal(null); 
+      fetchAll();
     } finally { setSaving(false); }
   };
   const handleStatusUpdate = async (id, status) => {

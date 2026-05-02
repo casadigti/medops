@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,7 +16,27 @@ serve(async (req) => {
   }
 
   try {
-    const { surgery, recipientEmail } = await req.json()
+    const { surgery } = await req.json()
+
+    // 1. Conectar a Supabase como Administrador (Service Role)
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+    // 2. Buscar todos los usuarios que sean 'Superadmin' o 'Administrador'
+    const { data: admins, error: dbError } = await supabase
+      .from('profiles')
+      .select('email')
+      .in('role', ['Superadmin', 'Administrador'])
+      .eq('is_active', true)
+
+    if (dbError) throw dbError
+
+    // 3. Extraer solo los correos
+    let emails = admins?.map(a => a.email).filter(Boolean) || []
+    
+    // Si por alguna razón no hay admins configurados, usa un fallback
+    if (emails.length === 0) {
+      emails = ['casadigti@gmail.com']
+    }
 
     const subject = `🚨 ALERTA: Nueva Cirugía - ${surgery.patient_name}`
     const html = `
@@ -35,6 +58,7 @@ serve(async (req) => {
       </div>
     `
 
+    // 4. Enviar el correo a toda la lista de emails
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -43,7 +67,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         from: 'MedOps <onboarding@resend.dev>',
-        to: [recipientEmail || 'casadigti@gmail.com'],
+        to: emails,
         subject: subject,
         html: html,
       }),

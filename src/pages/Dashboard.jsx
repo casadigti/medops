@@ -6,6 +6,7 @@ import { Stethoscope, Calendar, Package, AlertTriangle, TrendingUp, CheckCircle2
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../utils/cn';
+import { supabase } from '../lib/supabase';
 
 const MetricCard = ({ icon: Icon, label, value, sub, color = 'text-primary', bg = 'bg-blue-50' }) => (
   <div className="card flex items-center gap-4">
@@ -26,7 +27,21 @@ export const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Carga inicial
     surgeryService.getAll().then(d => { setSurgeries(d); setLoading(false); });
+
+    // Suscripción en Tiempo Real a la tabla surgeries
+    const channel = supabase
+      .channel('dashboard-surgeries')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'surgeries' }, () => {
+        // Al ocurrir cualquier cambio (Insert, Update, Delete), recargamos la data.
+        surgeryService.getAll().then(d => setSurgeries(d));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const now = new Date();
