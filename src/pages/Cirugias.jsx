@@ -8,7 +8,7 @@ import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { StatusBadge } from '../components/ui/Badge';
 import { PageLoader, EmptyState } from '../components/ui/Spinner';
-import { SURGERY_STATUSES, PROCEDURE_TYPES } from '../data/catalogo';
+import { SURGERY_STATUSES, PROCEDURE_TYPES, STATUS_COLORS } from '../data/catalogo';
 import { Stethoscope, Plus, Pencil, Trash2, Search, ChevronDown, Calendar, User, Building2, Package, Printer } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { printService } from '../services/printService';
@@ -154,24 +154,24 @@ const SurgeryForm = ({ initial, surgeons, hospitals, onSave, onCancel, loading }
 
 // ─── Status Quick-Change Menu ─────────────────────────────────────────────────
 const StatusMenu = ({ surgery, onUpdate }) => {
-  const [open, setOpen] = useState(false);
+  const colors = STATUS_COLORS[surgery.status] || { bg: 'bg-slate-100', text: 'text-slate-600' };
   return (
-    <div className="relative">
-      <button onClick={() => setOpen(o => !o)} className="flex items-center gap-1 hover:opacity-80 transition-opacity">
-        <StatusBadge status={surgery.status} />
-        <ChevronDown size={14} className="text-slate-400" />
-      </button>
-      {open && (
-        <div className="absolute top-full left-0 mt-1 bg-white rounded-xl border border-slate-200 shadow-lg z-10 py-1 min-w-[160px]">
-          {SURGERY_STATUSES.map(s => (
-            <button key={s} className={cn('w-full text-left px-4 py-2 text-sm hover:bg-slate-50 transition-colors', s === surgery.status && 'font-bold')}
-              onClick={() => { onUpdate(surgery.id, s); setOpen(false); }}>
-              {s}
-            </button>
-          ))}
-        </div>
+    <select 
+      value={surgery.status} 
+      onChange={(e) => onUpdate(surgery.id, e.target.value)}
+      className={cn(
+        "text-[11px] font-bold px-2.5 py-1 rounded-full cursor-pointer outline-none transition-all appearance-none pr-6 border-2 border-transparent focus:border-primary/20",
+        colors.bg, colors.text
       )}
-    </div>
+      style={{ 
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+        backgroundPosition: 'right 6px center', 
+        backgroundRepeat: 'no-repeat', 
+        backgroundSize: '12px' 
+      }}
+    >
+      {SURGERY_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+    </select>
   );
 };
 

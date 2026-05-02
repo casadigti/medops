@@ -7,9 +7,11 @@ import {
   Users, 
   BarChart3, 
   Settings,
-  Bell
+  Bell,
+  LogOut
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { supabase } from '../../lib/supabase';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
@@ -68,6 +70,17 @@ export const Sidebar = ({ className }) => {
           <NavLink to="/configuracion" className="text-slate-400 hover:text-primary transition-colors p-1.5 hover:bg-white rounded-lg shadow-sm">
             <Settings size={18} />
           </NavLink>
+          <button 
+            onClick={async () => {
+              if(confirm('¿Deseas cerrar sesión?')) {
+                await supabase.auth.signOut();
+                // El useEffect de App.jsx detectará el cambio y redirigirá al login automáticamente
+              }
+            }}
+            className="text-slate-400 hover:text-danger transition-colors p-1.5 hover:bg-white rounded-lg shadow-sm"
+          >
+            <LogOut size={18} />
+          </button>
         </div>
       </div>
     </aside>

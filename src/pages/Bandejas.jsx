@@ -94,6 +94,15 @@ export const Bandejas = () => {
       setModal(null); fetchTrays();
     } finally { setSaving(false); }
   };
+  const handleStatusUpdate = async (id, status) => {
+    try {
+      await trayService.update(id, { status });
+      setTrays(prev => prev.map(t => t.id === id ? { ...t, status } : t));
+    } catch (error) {
+      console.error('Error al actualizar estado:', error);
+    }
+  };
+
   const handleDelete = async () => {
     await trayService.delete(confirm.id);
     setConfirm(null); fetchTrays();
@@ -157,7 +166,20 @@ export const Bandejas = () => {
                       <button onClick={() => setConfirm({ id: t.id, name: t.name })} className="p-2 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
                     </div>
                   </div>
-                  <StatusBadge status={t.status} />
+                  <div className="mt-1">
+                    <select 
+                      value={t.status} 
+                      onChange={(e) => handleStatusUpdate(t.id, e.target.value)}
+                      className={cn(
+                        "text-[10px] font-black uppercase px-2 py-0.5 rounded-md border cursor-pointer focus:ring-2 focus:ring-primary/20 outline-none transition-all",
+                        t.status === 'Disponible' ? "bg-green-50 text-green-700 border-green-200" :
+                        t.status === 'En Uso' ? "bg-blue-50 text-blue-700 border-blue-200" :
+                        "bg-amber-50 text-amber-700 border-amber-200"
+                      )}
+                    >
+                      {TRAY_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
                   
                   <div className="flex items-center gap-4 mt-3 py-2 border-y border-slate-50">
                     <div className="flex items-center gap-1.5" title="Cirugías realizadas">

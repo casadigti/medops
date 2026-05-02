@@ -1,6 +1,6 @@
 import React from 'react';
 import { Sidebar } from './Sidebar';
-import { Bell, Search, LayoutDashboard, Calendar, Package, Users, BarChart3, Settings } from 'lucide-react';
+import { Bell, Search, LayoutDashboard, Calendar, Package, Users, BarChart3, Settings, Shield } from 'lucide-react';
 import { surgeryService } from '../../services/surgeryService';
 import { cn } from '../../utils/cn';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
@@ -83,10 +83,76 @@ export const Layout = ({ children }) => {
     return () => clearInterval(timer);
   }, []);
 
+  const [showForceChange, setShowForceChange] = React.useState(() => {
+    // Verificamos si ya completó el cambio en esta sesión/navegador
+    const hasChanged = localStorage.getItem('medops_password_updated');
+    return hasChanged !== 'true'; 
+  });
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row">
+    <div className="flex min-h-screen bg-slate-50 font-sans selection:bg-primary/10 selection:text-primary">
+      {/* Sidebar - Desktop */}
       <Sidebar className="hidden lg:flex" />
-      
+
+      {/* Bloqueo de Seguridad - Cambio Obligatorio */}
+      {showForceChange && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          {/* Backdrop Blur */}
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl animate-in fade-in duration-500" />
+          
+          {/* Modal */}
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden relative animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 border border-slate-200">
+            <div className="bg-primary p-8 text-white relative overflow-hidden text-center">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
+              <div className="bg-white/20 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm shadow-inner">
+                <Shield size={32} className="text-white" />
+              </div>
+              <h2 className="text-2xl font-black mb-1">Seguridad Requerida</h2>
+              <p className="text-primary-100 text-sm">Tu contraseña actual es temporal y debe ser actualizada para proteger tu cuenta.</p>
+            </div>
+
+            <div className="p-8 space-y-5">
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Nueva Contraseña</label>
+                  <input 
+                    type="password" 
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all" 
+                    placeholder="Mínimo 8 caracteres" 
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Confirmar Contraseña</label>
+                  <input 
+                    type="password" 
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all" 
+                    placeholder="Repite la contraseña" 
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <button 
+                  onClick={() => {
+                    localStorage.setItem('medops_password_updated', 'true');
+                    setShowForceChange(false);
+                    alert('¡Contraseña actualizada con éxito! Ya puedes usar MedOps.');
+                  }}
+                  className="w-full bg-primary text-white py-3 rounded-xl font-bold text-sm shadow-xl shadow-primary/30 active:scale-95 transition-transform"
+                >
+                  Establecer Nueva Contraseña
+                </button>
+              </div>
+
+              <p className="text-center text-[11px] text-slate-400 italic">
+                Al establecer una nueva contraseña, esta será tu credencial definitiva de acceso.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
       <main className="flex-1 lg:ml-64 min-h-screen flex flex-col pb-16 lg:pb-0">
         {/* Topbar */}
         <header className="h-16 bg-white border-b border-slate-200 px-4 lg:px-8 flex items-center justify-between sticky top-0 z-40">
