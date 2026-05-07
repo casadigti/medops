@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { auditService } from './auditService';
 
 export const configService = {
   // --- IDENTIDAD CORPORATIVA ---
@@ -57,6 +58,9 @@ export const configService = {
 
     if (pError) throw pError;
 
+    // Registrar en auditoría
+    await auditService.log('USER_CREATE', 'profiles', userId, { name: userData.full_name, role: userData.role });
+
     // Si es cirujano, crear su registro
     if (userData.role === 'Cirujano') {
       await supabase.from('surgeons').insert({
@@ -90,6 +94,10 @@ export const configService = {
       .select();
 
     if (pError) throw pError;
+
+    // Registrar en auditoría
+    await auditService.log('USER_UPDATE', 'profiles', userId, updates);
+
     return profile;
   },
 
@@ -100,6 +108,9 @@ export const configService = {
     });
 
     if (error) throw error;
+
+    // Registrar en auditoría
+    await auditService.log('USER_DELETE', 'profiles', userId, { note: 'Usuario eliminado permanentemente' });
 
     // Borrado del perfil (el ON DELETE CASCADE se encarga del resto en DB)
     const { error: pError } = await supabase

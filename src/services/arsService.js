@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { auditService } from './auditService';
 
 export const arsService = {
   async getAll() {
@@ -20,6 +21,7 @@ export const arsService = {
       .single();
     
     if (error) throw error;
+    await auditService.log('ARS_CREATE', 'ars', data.id, { name });
     return data;
   },
 
@@ -31,6 +33,7 @@ export const arsService = {
       .select();
     
     if (error) throw error;
+    await auditService.log('ARS_UPDATE', 'ars', id, updates);
     return data;
   },
 
@@ -41,6 +44,7 @@ export const arsService = {
       .eq('id', id);
     
     if (error) throw error;
+    await auditService.log('ARS_DELETE', 'ars', id, { note: 'Aseguradora eliminada' });
     return true;
   }
 };

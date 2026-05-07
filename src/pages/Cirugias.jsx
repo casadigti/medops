@@ -20,7 +20,9 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, 
     patient_name: '', surgery_date: '', surgeon_id: '', hospital_id: '',
     operating_room: '', procedure_type: '', status: 'Pendiente',
     delivery_responsible: '', notes: '', ars_id: '',
-    ...(initial || {})
+    ...(initial || {}),
+    // Asegurar que ars_id no sea null para el select
+    ars_id: initial?.ars_id || ''
   }));
   const [selectedTrayIds, setSelectedTrayIds] = useState([]);
   const [availableTrays, setAvailableTrays] = useState([]);
@@ -229,9 +231,9 @@ export const Cirugias = ({ userProfile }) => {
   const filtered = surgeries.filter(s => {
     const q = search.toLowerCase();
     const matchSearch = s.patient_name?.toLowerCase().includes(q) ||
-      s.surgeon?.full_name?.toLowerCase().includes(q) ||
-      s.hospital?.name?.toLowerCase().includes(q) ||
-      s.procedure_type?.toLowerCase().includes(q);
+      (s.surgeon?.full_name || '').toLowerCase().includes(q) ||
+      (s.hospital?.name || '').toLowerCase().includes(q) ||
+      (s.procedure_type || '').toLowerCase().includes(q);
     return matchSearch && (!filterStatus || s.status === filterStatus);
   });
 

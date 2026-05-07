@@ -5,6 +5,7 @@ import { configService } from '../services/configService';
 import { Modal } from '../components/ui/Modal';
 import { supabase } from '../lib/supabase';
 import { arsService } from '../services/arsService';
+import { auditService } from '../services/auditService';
 
 const UserForm = ({ onSave, onCancel, loading, initialData }) => {
   const [form, setForm] = React.useState({
@@ -117,6 +118,8 @@ export const Configuracion = ({ userProfile: profile }) => {
   const [editingArsId, setEditingArsId] = React.useState(null);
   const [editingArsName, setEditingArsName] = React.useState('');
   const [isArsLoading, setIsArsLoading] = React.useState(false);
+  const [logs, setLogs] = React.useState([]);
+  const [isLogsLoading, setIsLogsLoading] = React.useState(false);
 
   const fetchUsers = async () => {
     try {
@@ -146,6 +149,19 @@ export const Configuracion = ({ userProfile: profile }) => {
     }
   };
 
+  const fetchLogs = async () => {
+    if (profile?.role !== 'Superadmin') return;
+    try {
+      setIsLogsLoading(true);
+      const data = await auditService.getAll();
+      setLogs(data || []);
+    } catch (error) {
+      console.error('Error fetching logs:', error);
+    } finally {
+      setIsLogsLoading(false);
+    }
+  };
+
   useEffect(() => {
     async function loadData() {
       try {
@@ -156,7 +172,7 @@ export const Configuracion = ({ userProfile: profile }) => {
           setPrimaryColor(settings.primary_color || '#1e40af');
           setLogoPreview(settings.logo_url);
         }
-        await Promise.all([fetchUsers(), fetchArs()]);
+        await Promise.all([fetchUsers(), fetchArs(), fetchLogs()]);
       } catch (error) {
         console.error('Error cargando configuración:', error);
       } finally {
@@ -291,6 +307,7 @@ export const Configuracion = ({ userProfile: profile }) => {
     { id: 'identity', label: 'Identidad Corporativa', icon: Building2, roles: ['Superadmin', 'Administrador'] },
     { id: 'users', label: 'Usuarios y Roles', icon: Shield, roles: ['Superadmin', 'Administrador'] },
     { id: 'ars', label: 'Catálogo ARS', icon: Palette, roles: ['Superadmin', 'Administrador'] },
+    { id: 'logs', label: 'Logs del Sistema', icon: Bell, roles: ['Superadmin'] },
     { id: 'security', label: 'Mi Seguridad', icon: Shield, roles: ['Superadmin', 'Administrador', 'Cirujano', 'Editor', 'Técnico', 'Lector'] },
     { id: 'system', label: 'Sistema y Alertas', icon: Settings, roles: ['Superadmin', 'Administrador'] },
   ];
@@ -539,6 +556,74 @@ export const Configuracion = ({ userProfile: profile }) => {
                         <tr>
                           <td colSpan="2" className="px-4 py-8 text-center text-slate-400 italic">No hay aseguradoras registradas.</td>
                         </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </ConfigCard>
+            </div>
+          )}
+
+          {activeTab === 'logs' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+              <ConfigCard className="p-0 overflow-hidden">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                  <SectionHeader 
+                    title="Historial de Auditoría" 
+                    description="Registro detallado de acciones críticas realizadas en la plataforma." 
+                  />
+                  <button onClick={fetchLogs} className="btn btn-secondary btn-sm flex items-center gap-2">
+                    Actualizar
+                  </button>
+                </div>
+                
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50 border-b border-slate-100">
+                      <tr>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Fecha / Hora</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Usuario</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Acción</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Detalles</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {isLogsLoading ? (
+                        <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-400 italic">Cargando historial...</td></tr>
+                      ) : logs.map(log => (
+                        <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <p className="text-sm font-medium text-slate-900">
+                              {new Date(log.created_at).toLocaleDateString('es-ES')}
+                            </p>
+                            <p className="text-[10px] text-slate-400">
+                              {new Date(log.created_at).toLocaleTimeString('es-ES')}
+                            </p>
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="text-sm font-bold text-slate-700">{log.user_email}</p>
+                            <p className="text-[10px] text-slate-400 font-mono uppercase">{log.entity_type}</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={cn(
+                              "text-[10px] font-black px-2 py-1 rounded-md uppercase",
+                              log.action.includes('CREATE') ? "bg-green-50 text-green-700" :
+                              log.action.includes('UPDATE') ? "bg-blue-50 text-blue-700" :
+                              log.action.includes('DELETE') ? "bg-red-50 text-red-700" :
+                              "bg-slate-100 text-slate-600"
+                            )}>
+                              {log.action}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-xs text-slate-500 font-mono">
+                            <div className="max-w-[300px] truncate" title={JSON.stringify(log.details)}>
+                              {JSON.stringify(log.details)}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {!isLogsLoading && logs.length === 0 && (
+                        <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-400 italic">No hay registros de actividad aún.</td></tr>
                       )}
                     </tbody>
                   </table>

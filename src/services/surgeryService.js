@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { auditService } from './auditService';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -68,20 +69,30 @@ export const surgeryService = {
   },
 
   async create(surgeryData, trayIds = []) {
+    // Sanitize data (remove joined objects)
+    const { surgeon, hospital, surgery_trays, ...cleanData } = surgeryData;
+    
     const { data: surgery, error } = await supabase
-      .from('surgeries').insert(surgeryData).select().single();
+      .from('surgeries').insert(cleanData).select().single();
     if (error) throw error;
     if (trayIds.length > 0) {
       const links = trayIds.map(tray_id => ({ surgery_id: surgery.id, tray_id }));
       const { error: linkErr } = await supabase.from('surgery_trays').insert(links);
       if (linkErr) throw linkErr;
     }
+    
+    // Registrar en auditoría
+    await auditService.log('SURGERY_CREATE', 'surgeries', surgery.id, { patient: cleanData.patient_name });
+
     return surgery;
   },
 
   async update(id, surgeryData, trayIds = []) {
+    // Sanitize data (remove joined objects)
+    const { surgeon, hospital, surgery_trays, ...cleanData } = surgeryData;
+
     const { data: surgery, error } = await supabase
-      .from('surgeries').update(surgeryData).eq('id', id).select().single();
+      .from('surgeries').update(cleanData).eq('id', id).select().single();
     if (error) throw error;
     // Replace tray assignments
     await supabase.from('surgery_trays').delete().eq('surgery_id', id);
@@ -90,6 +101,10 @@ export const surgeryService = {
       const { error: linkErr } = await supabase.from('surgery_trays').insert(links);
       if (linkErr) throw linkErr;
     }
+
+    // Registrar en auditoría
+    await auditService.log('SURGERY_UPDATE', 'surgeries', id, { patient: cleanData.patient_name });
+
     return surgery;
   },
 
@@ -110,6 +125,9 @@ export const surgeryService = {
   async delete(id) {
     const { error } = await supabase.from('surgeries').delete().eq('id', id);
     if (error) throw error;
+    
+    // Registrar en auditoría
+    await auditService.log('SURGERY_DELETE', 'surgeries', id, { note: 'Cirugía eliminada' });
   },
 
   async sendAlert(surgery, recipientEmail) {
