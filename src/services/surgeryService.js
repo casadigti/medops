@@ -69,8 +69,16 @@ export const surgeryService = {
   },
 
   async create(surgeryData, trayIds = []) {
-    // Sanitize data (remove joined objects)
-    const { surgeon, hospital, surgery_trays, ...cleanData } = surgeryData;
+    // Definir campos permitidos (evitar inyección de campos internos)
+    const allowedFields = [
+      'patient_name', 'surgery_date', 'surgeon_id', 'hospital_id', 
+      'operating_room', 'procedure_type', 'status', 'delivery_responsible', 'notes'
+    ];
+    
+    const cleanData = {};
+    allowedFields.forEach(field => {
+      if (surgeryData[field] !== undefined) cleanData[field] = surgeryData[field];
+    });
     
     const { data: surgery, error } = await supabase
       .from('surgeries').insert(cleanData).select().single();
@@ -88,8 +96,16 @@ export const surgeryService = {
   },
 
   async update(id, surgeryData, trayIds = []) {
-    // Sanitize data (remove joined objects)
-    const { surgeon, hospital, surgery_trays, ...cleanData } = surgeryData;
+    // Definir campos permitidos
+    const allowedFields = [
+      'patient_name', 'surgery_date', 'surgeon_id', 'hospital_id', 
+      'operating_room', 'procedure_type', 'status', 'delivery_responsible', 'notes'
+    ];
+    
+    const cleanData = {};
+    allowedFields.forEach(field => {
+      if (surgeryData[field] !== undefined) cleanData[field] = surgeryData[field];
+    });
 
     const { data: surgery, error } = await supabase
       .from('surgeries').update(cleanData).eq('id', id).select().single();

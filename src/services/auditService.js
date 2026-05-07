@@ -7,6 +7,16 @@ export const auditService = {
       const user = session?.user;
       if (!user) return;
 
+      // Sanitizar detalles (remover campos sensibles)
+      const sensitiveKeys = ['password', 'token', 'key', 'secret', 'auth', 'access_token'];
+      const sanitizedDetails = { ...details };
+      
+      Object.keys(sanitizedDetails).forEach(key => {
+        if (sensitiveKeys.some(sk => key.toLowerCase().includes(sk))) {
+          sanitizedDetails[key] = '[REDACTED]';
+        }
+      });
+
       const { error } = await supabase
         .from('audit_logs')
         .insert({
@@ -15,7 +25,7 @@ export const auditService = {
           action,
           entity_type: entityType,
           entity_id: entityId?.toString(),
-          details
+          details: sanitizedDetails
         });
       
       if (error) console.error('Error recording audit log:', error);
