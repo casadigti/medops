@@ -1,10 +1,8 @@
 -- =================================================================================
--- SCRIPT DE SEGURIDAD (RLS) - MEDOPS
--- Instrucciones: Ejecuta este código en el SQL Editor de Supabase
--- Objetivo: Bloquear el acceso público y requerir autenticación para ver/editar datos
+-- SCRIPT DE SEGURIDAD (RLS) - MEDOPS (HARDENED)
 -- =================================================================================
 
--- 1. Asegurarnos de que el RLS esté activo en todas las tablas principales
+-- 1. Asegurarnos de que el RLS esté activo
 ALTER TABLE hospitals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE surgeons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE trays ENABLE ROW LEVEL SECURITY;
@@ -13,60 +11,60 @@ ALTER TABLE surgery_trays ENABLE ROW LEVEL SECURITY;
 ALTER TABLE maintenance_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE organization_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
--- 2. Eliminar las políticas temporales de "Acceso Público" que teníamos antes
-DROP POLICY IF EXISTS "Public Access" ON hospitals;
-DROP POLICY IF EXISTS "Public Access" ON surgeons;
-DROP POLICY IF EXISTS "Public Access" ON trays;
-DROP POLICY IF EXISTS "Public Access" ON surgeries;
-DROP POLICY IF EXISTS "Public Access" ON surgery_trays;
-DROP POLICY IF EXISTS "Public Access" ON maintenance_logs;
-DROP POLICY IF EXISTS "Public Access" ON profiles;
-DROP POLICY IF EXISTS "Public Access" ON organization_settings;
+-- 2. Limpieza de políticas previas (incluyendo las públicas peligrosas)
+DO $$ 
+DECLARE 
+    r RECORD;
+BEGIN
+    FOR r IN (SELECT policyname, tablename FROM pg_policies WHERE schemaname = 'public') 
+    LOOP
+        EXECUTE 'DROP POLICY IF EXISTS ' || quote_ident(r.policyname) || ' ON ' || quote_ident(r.tablename);
+    END LOOP;
+END $$;
 
--- 3. Crear Políticas de "Acceso Autenticado" (Solo usuarios logueados)
--- HOSPITALS
-CREATE POLICY "Auth Users Can Read Hospitals" ON hospitals FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth Users Can Insert Hospitals" ON hospitals FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Auth Users Can Update Hospitals" ON hospitals FOR UPDATE USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth Users Can Delete Hospitals" ON hospitals FOR DELETE USING (auth.role() = 'authenticated');
+-- 3. Funciones Auxiliares para RLS
+CREATE OR REPLACE FUNCTION public.get_my_role()
+RETURNS TEXT AS $$
+  SELECT role FROM public.profiles WHERE id = auth.uid();
+$$ LANGUAGE sql SECURITY DEFINER;
 
--- SURGEONS
-CREATE POLICY "Auth Users Can Read Surgeons" ON surgeons FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth Users Can Insert Surgeons" ON surgeons FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Auth Users Can Update Surgeons" ON surgeons FOR UPDATE USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth Users Can Delete Surgeons" ON surgeons FOR DELETE USING (auth.role() = 'authenticated');
+-- 4. POLÍTICAS DE SEGURIDAD REFORZADAS
 
--- TRAYS
-CREATE POLICY "Auth Users Can Read Trays" ON trays FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth Users Can Insert Trays" ON trays FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Auth Users Can Update Trays" ON trays FOR UPDATE USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth Users Can Delete Trays" ON trays FOR DELETE USING (auth.role() = 'authenticated');
+-- PROFILES: Cada uno lee el suyo, Admins leen todos. Solo Admins editan roles.
+CREATE POLICY "Profiles_Select" ON profiles FOR SELECT USING (auth.uid() = id OR get_my_role() IN ('Superadmin', 'Administrador'));
+CREATE POLICY "Profiles_Update" ON profiles FOR UPDATE USING (auth.uid() = id OR get_my_role() IN ('Superadmin', 'Administrador'));
+CREATE POLICY "Profiles_Admin_All" ON profiles FOR ALL USING (get_my_role() IN ('Superadmin', 'Administrador'));
 
--- SURGERIES
-CREATE POLICY "Auth Users Can Read Surgeries" ON surgeries FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth Users Can Insert Surgeries" ON surgeries FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Auth Users Can Update Surgeries" ON surgeries FOR UPDATE USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth Users Can Delete Surgeries" ON surgeries FOR DELETE USING (auth.role() = 'authenticated');
+-- SURGERIES: Cirujanos solo ven lo suyo. Admins ven todo.
+CREATE POLICY "Surgeries_Select" ON surgeries FOR SELECT 
+USING (
+  get_my_role() IN ('Superadmin', 'Administrador', 'Editor', 'Técnico', 'Lector') OR 
+  surgeon_id IN (SELECT id FROM surgeons WHERE user_id = auth.uid())
+);
 
--- SURGERY_TRAYS
-CREATE POLICY "Auth Users Can Read SurgeryTrays" ON surgery_trays FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth Users Can Insert SurgeryTrays" ON surgery_trays FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Auth Users Can Update SurgeryTrays" ON surgery_trays FOR UPDATE USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth Users Can Delete SurgeryTrays" ON surgery_trays FOR DELETE USING (auth.role() = 'authenticated');
+CREATE POLICY "Surgeries_Write" ON surgeries FOR ALL 
+USING (get_my_role() IN ('Superadmin', 'Administrador', 'Editor'))
+WITH CHECK (get_my_role() IN ('Superadmin', 'Administrador', 'Editor'));
 
--- MAINTENANCE_LOGS
-CREATE POLICY "Auth Users Can Read Logs" ON maintenance_logs FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth Users Can Insert Logs" ON maintenance_logs FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+-- HOSPITALS, SURGEONS, TRAYS: Lectura para todos autenticados, Escritura solo Admins/Editores
+CREATE POLICY "General_Read" ON hospitals FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "General_Write" ON hospitals FOR ALL USING (get_my_role() IN ('Superadmin', 'Administrador', 'Editor'));
 
--- ORGANIZATION_SETTINGS (Solo Superadmin debería poder actualizar, pero para empezar lo limitamos a autenticados)
-CREATE POLICY "Auth Users Can Read Settings" ON organization_settings FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth Users Can Update Settings" ON organization_settings FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "Surgeons_Read" ON surgeons FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Surgeons_Write" ON surgeons FOR ALL USING (get_my_role() IN ('Superadmin', 'Administrador'));
 
--- PROFILES (Identidad)
-CREATE POLICY "Auth Users Can Read Profiles" ON profiles FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth Users Can Insert Profiles" ON profiles FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Auth Users Can Update Profiles" ON profiles FOR UPDATE USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth Users Can Delete Profiles" ON profiles FOR DELETE USING (auth.role() = 'authenticated');
+CREATE POLICY "Trays_Read" ON trays FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Trays_Write" ON trays FOR ALL USING (get_my_role() IN ('Superadmin', 'Administrador', 'Técnico'));
 
--- FIN DEL SCRIPT
+-- ORGANIZATION_SETTINGS: Solo Superadmin edita
+CREATE POLICY "Settings_Read" ON organization_settings FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Settings_Write" ON organization_settings FOR ALL USING (get_my_role() = 'Superadmin');
+
+-- AUDIT_LOGS: Solo Superadmin lee logs
+CREATE POLICY "Audit_Read" ON audit_logs FOR SELECT USING (get_my_role() = 'Superadmin');
+CREATE POLICY "Audit_Insert" ON audit_logs FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+-- 5. ACCIÓN MANUAL REQUERIDA
+-- Ejecutar este script en el SQL Editor de Supabase para aplicar los cambios.
