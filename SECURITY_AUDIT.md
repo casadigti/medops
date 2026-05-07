@@ -96,5 +96,8 @@
 4. **Mass Assignment (VULN-006)**: Se implementó un filtro de campos (DTO) en `surgeryService.js` para asegurar que solo los campos permitidos lleguen a la base de datos.
 
 ### ⚠️ Acciones Manuales Requeridas (Infraestructura)
-- **MFA (VULN-004)**: Debe habilitarse manualmente en el Dashboard de Supabase (Authentication -> Multi-factor Authentication). Se recomienda forzarlo para roles Administrativos.
-- **Secretos**: Se recomienda rotar cualquier `VITE_SUPABASE_SERVICE_ROLE_KEY` si alguna vez fue expuesta en el frontend (aunque no se detectó en esta auditoría).
+- **Seguridad de Base de Datos**: Ejecutar `apply_rls.sql` en el SQL Editor de Supabase.
+
+### 📋 Consideraciones Futuras (Postpuesto por Usuario)
+- **MFA (VULN-004)**: El segundo factor de autenticación se mantiene desactivado por decisión operativa actual. Se recomienda reconsiderar para roles de alta jerarquía en el futuro para mitigar riesgos de robo de credenciales.
+- **Rotación de Secretos**: Se recomienda rotar cualquier `VITE_SUPABASE_SERVICE_ROLE_KEY` si alguna vez fue expuesta.
