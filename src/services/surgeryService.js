@@ -7,12 +7,19 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 /**
  * Realiza una query REST nativa a Supabase (evita la cola interna del cliente JS).
  */
-async function restGet(table, queryParams = '', select = '*') {
+async function restGet(table, queryParams = {}, select = '*') {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token || '';
   
-  const qs = [select ? `select=${select}` : '', queryParams].filter(Boolean).join('&');
-  const url = `${SUPABASE_URL}/rest/v1/${table}${qs ? `?${qs}` : ''}`;
+  const params = new URLSearchParams();
+  if (select) params.append('select', select);
+  
+  // Agregar parámetros del objeto queryParams
+  Object.entries(queryParams).forEach(([key, value]) => {
+    params.append(key, value);
+  });
+
+  const url = `${SUPABASE_URL}/rest/v1/${table}${params.toString() ? `?${params.toString()}` : ''}`;
   
   const res = await fetch(url, {
     headers: {
@@ -51,9 +58,10 @@ export const surgeryService = {
       clearTimeout(timeout);
       if (err.name === 'AbortError') {
         console.warn('surgeryService.getAll: Supabase client timed out, falling back to REST...');
-        // Fallback: simple REST query without joins
-        const queryParams = surgeonId ? `surgeon_id=eq.${surgeonId}&order=surgery_date.asc` : 'order=surgery_date.asc';
-        return restGet('surgeries', queryParams, '*');
+        // Fallback: simple REST query without joins (VULN-006 fixed)
+        const params = { order: 'surgery_date.asc' };
+        if (surgeonId) params['surgeon_id'] = `eq.${surgeonId}`;
+        return restGet('surgeries', params, '*');
       }
       throw err;
     }

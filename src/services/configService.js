@@ -74,9 +74,17 @@ export const configService = {
   },
 
   async updateUser(userId, updates) {
+    // Definir campos permitidos para evitar Mass Assignment (VULN-003)
+    const allowedFields = ['full_name', 'email', 'role', 'is_active', 'password'];
+    const cleanUpdates = {};
+    
+    allowedFields.forEach(field => {
+      if (updates[field] !== undefined) cleanUpdates[field] = updates[field];
+    });
+
     // Usar la Edge Function para permitir cambios de password y email
     const { data, error } = await supabase.functions.invoke('manage-users', {
-      body: { action: 'update', userId, userData: updates }
+      body: { action: 'update', userId, userData: cleanUpdates }
     });
 
     if (error) throw error;

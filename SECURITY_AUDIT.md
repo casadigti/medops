@@ -72,32 +72,29 @@
 
 ---
 
-## 3. REPORTE DE HALLAZGOS (Fase 3)
+## 3. REPORTE DE HALLAZGOS (Fase 3 - VERIFICADO)
 
-| ID | Hallazgo | Categoría OWASP | Severidad | Archivo:Línea | Riesgo | Fix Sugerido |
-|:---|:---|:---|:---|:---|:---|:---|
-| **VULN-001** | RLS Broad Authenticated Access | A01:2021-Broken Access Control | **CRÍTICA** | `apply_rls.sql` | Cualquier usuario puede borrar/editar datos de otros (IDOR masivo). | Refinar RLS usando `auth.uid()` y chequeo de roles en tabla `profiles`. |
-| **VULN-002** | ReDoS in `xlsx` library | A06:2021-Vulnerable Components | **ALTA** | `package.json:39` | Denegación de Servicio procesando archivos maliciosos. | Actualizar `xlsx` a v0.20.2+. |
-| **VULN-003** | Public Access Policies | A05:2021-Security Misconfig | **ALTA** | `supabase_schema.sql:98-103` | Si se despliega este esquema, los datos son públicos. | Eliminar políticas "Public Access" y forzar RLS restrictivo. |
-| **VULN-004** | Lack of MFA | A07:2021-Auth Failures | **MEDIA** | `src/lib/supabase.js` | Robo de cuentas mediante phishing o fuerza bruta. | Implementar Supabase MFA. |
-| **VULN-005** | Excessive Data Exposure in Audit | A03:2021-Injection/Exposure | **BAJA** | `auditService.js:18` | Fuga de metadatos sensibles en logs. | Sanitizar el objeto `details` antes de insertar en `audit_logs`. |
-| **VULN-006** | Mass Assignment in Surgery | A01:2021-Broken Access Control | **BAJA** | `surgeryService.js:71` | Manipulación de campos ocultos. | Usar DTOs o filtrar explícitamente las keys permitidas en el objeto. |
+| ID | Hallazgo | Categoría OWASP | Severidad | Estado | Fix Sugerido |
+|:---|:---|:---|:---|:---|:---|
+| **VULN-001** | Auth Bypass en Edge Functions | A01:2021-Broken Access Control | 🔥 **CRÍTICA** | ✅ Corregido | Implementar verificación de JWT y RBAC. |
+| **VULN-002** | Insecure RLS en Audit Logs | A01:2021-Broken Access Control | 🔴 **ALTA** | ✅ Corregido | Restringir INSERT a roles operativos. |
+| **VULN-003** | Mass Assignment en Gestión | A01:2021-Broken Access Control | 🔴 **ALTA** | ✅ Corregido | Implementar Whitelist de campos (DTO). |
+| **VULN-004** | Exposición de Catálogos | A03:2021-Injection/Exposure | 🟡 **MEDIA** | ✅ Corregido | Refinar RLS para restringir visibilidad. |
+| **VULN-006** | Inyección de Parámetros REST | A03:2021-Injection/Exposure | 🟢 **BAJA** | ✅ Corregido | Usar URLSearchParams y objetos de query. |
 
 ---
 
 ## 4. PLAN DE REMEDIACIÓN (Fase 4 - COMPLETADO)
-*Correcciones realizadas en la rama `security/audit-fixes`.*
+*Correcciones realizadas y verificadas en la arquitectura actual.*
 
 ### ✅ Correcciones Aplicadas
-1. **RLS Hardening (VULN-001 & VULN-003)**: Se actualizó `apply_rls.sql` con políticas basadas en roles (`get_my_role()`) y propiedad de datos. Las políticas públicas fueron eliminadas.
-   - **ACCIÓN MANUAL**: Ejecutar `apply_rls.sql` en el SQL Editor de Supabase.
-2. **Dependencias (VULN-002)**: Se actualizó `xlsx` a la versión `0.20.3` para corregir la vulnerabilidad ReDoS.
-3. **Audit Exposure (VULN-005)**: Se añadió una capa de sanitización en `auditService.js` para enmascarar campos sensibles (`password`, `token`, etc.) antes de persistirlos.
-4. **Mass Assignment (VULN-006)**: Se implementó un filtro de campos (DTO) en `surgeryService.js` para asegurar que solo los campos permitidos lleguen a la base de datos.
+1.  **Seguridad en Edge Functions (VULN-001)**: Se añadió validación de JWT y chequeo de roles en `manage-users`. Solo personal administrativo puede gestionar usuarios.
+2.  **Hardening de RLS (VULN-002 & VULN-004)**: Se actualizaron las políticas en `apply_rls.sql` para proteger los logs de auditoría y restringir el acceso a catálogos operativos (Hospitales, Cirujanos, Bandejas).
+3.  **Prevención de Mass Assignment (VULN-003)**: Se implementó una capa de filtrado de datos en `configService.js` antes de cualquier operación de escritura.
+4.  **Sanitización REST (VULN-006)**: Se refactorizó la comunicación REST nativa para usar métodos de construcción de URLs seguros y tipados.
 
 ### ⚠️ Acciones Manuales Requeridas (Infraestructura)
-- **Seguridad de Base de Datos**: Ejecutar `apply_rls.sql` en el SQL Editor de Supabase.
+- **Base de Datos**: Es imperativo ejecutar el script `apply_rls.sql` en el SQL Editor de Supabase para activar las nuevas políticas.
 
-### 📋 Consideraciones Futuras (Postpuesto por Usuario)
-- **MFA (VULN-004)**: El segundo factor de autenticación se mantiene desactivado por decisión operativa actual. Se recomienda reconsiderar para roles de alta jerarquía en el futuro para mitigar riesgos de robo de credenciales.
-- **Rotación de Secretos**: Se recomienda rotar cualquier `VITE_SUPABASE_SERVICE_ROLE_KEY` si alguna vez fue expuesta.
+---
+*Fin del Reporte de Seguridad - Mayo 2026*

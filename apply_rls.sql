@@ -48,23 +48,23 @@ CREATE POLICY "Surgeries_Write" ON surgeries FOR ALL
 USING (get_my_role() IN ('Superadmin', 'Administrador', 'Editor'))
 WITH CHECK (get_my_role() IN ('Superadmin', 'Administrador', 'Editor'));
 
--- HOSPITALS, SURGEONS, TRAYS: Lectura para todos autenticados, Escritura solo Admins/Editores
-CREATE POLICY "General_Read" ON hospitals FOR SELECT USING (auth.role() = 'authenticated');
+-- HOSPITALS, SURGEONS, TRAYS: Lectura para personal interno, Escritura solo Admins
+CREATE POLICY "General_Read" ON hospitals FOR SELECT USING (get_my_role() IN ('Superadmin', 'Administrador', 'Editor', 'Técnico', 'Lector'));
 CREATE POLICY "General_Write" ON hospitals FOR ALL USING (get_my_role() IN ('Superadmin', 'Administrador', 'Editor'));
 
-CREATE POLICY "Surgeons_Read" ON surgeons FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Surgeons_Read" ON surgeons FOR SELECT USING (get_my_role() IN ('Superadmin', 'Administrador', 'Editor', 'Técnico', 'Lector'));
 CREATE POLICY "Surgeons_Write" ON surgeons FOR ALL USING (get_my_role() IN ('Superadmin', 'Administrador'));
 
-CREATE POLICY "Trays_Read" ON trays FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Trays_Read" ON trays FOR SELECT USING (get_my_role() IN ('Superadmin', 'Administrador', 'Editor', 'Técnico', 'Lector'));
 CREATE POLICY "Trays_Write" ON trays FOR ALL USING (get_my_role() IN ('Superadmin', 'Administrador', 'Técnico'));
 
 -- ORGANIZATION_SETTINGS: Solo Superadmin edita
 CREATE POLICY "Settings_Read" ON organization_settings FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "Settings_Write" ON organization_settings FOR ALL USING (get_my_role() = 'Superadmin');
 
--- AUDIT_LOGS: Solo Superadmin lee logs
+-- AUDIT_LOGS: Solo Superadmin lee logs. Insert restringido a personal autorizado.
 CREATE POLICY "Audit_Read" ON audit_logs FOR SELECT USING (get_my_role() = 'Superadmin');
-CREATE POLICY "Audit_Insert" ON audit_logs FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Audit_Insert" ON audit_logs FOR INSERT WITH CHECK (get_my_role() IN ('Superadmin', 'Administrador', 'Editor', 'Técnico'));
 
 -- 5. ACCIÓN MANUAL REQUERIDA
 -- Ejecutar este script en el SQL Editor de Supabase para aplicar los cambios.
