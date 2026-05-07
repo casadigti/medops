@@ -38,4 +38,19 @@ export default defineConfig({
       }
     })
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react')) return 'vendor-react';
+            if (id.includes('@supabase')) return 'vendor-supabase';
+            if (id.includes('lucide')) return 'vendor-icons';
+            if (id.includes('recharts') || id.includes('d3')) return 'vendor-charts';
+            return 'vendor-core';
+          }
+        }
+      }
+    }
+  }
 })
