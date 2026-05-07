@@ -85,5 +85,16 @@
 
 ---
 
-## 4. PLAN DE REMEDIACIÓN (Fase 4 - Pendiente OK)
-*Las correcciones se realizarán en la rama `security/audit-fixes` una vez aprobado el reporte.*
+## 4. PLAN DE REMEDIACIÓN (Fase 4 - COMPLETADO)
+*Correcciones realizadas en la rama `security/audit-fixes`.*
+
+### ✅ Correcciones Aplicadas
+1. **RLS Hardening (VULN-001 & VULN-003)**: Se actualizó `apply_rls.sql` con políticas basadas en roles (`get_my_role()`) y propiedad de datos. Las políticas públicas fueron eliminadas.
+   - **ACCIÓN MANUAL**: Ejecutar `apply_rls.sql` en el SQL Editor de Supabase.
+2. **Dependencias (VULN-002)**: Se actualizó `xlsx` a la versión `0.20.3` para corregir la vulnerabilidad ReDoS.
+3. **Audit Exposure (VULN-005)**: Se añadió una capa de sanitización en `auditService.js` para enmascarar campos sensibles (`password`, `token`, etc.) antes de persistirlos.
+4. **Mass Assignment (VULN-006)**: Se implementó un filtro de campos (DTO) en `surgeryService.js` para asegurar que solo los campos permitidos lleguen a la base de datos.
+
+### ⚠️ Acciones Manuales Requeridas (Infraestructura)
+- **MFA (VULN-004)**: Debe habilitarse manualmente en el Dashboard de Supabase (Authentication -> Multi-factor Authentication). Se recomienda forzarlo para roles Administrativos.
+- **Secretos**: Se recomienda rotar cualquier `VITE_SUPABASE_SERVICE_ROLE_KEY` si alguna vez fue expuesta en el frontend (aunque no se detectó en esta auditoría).
