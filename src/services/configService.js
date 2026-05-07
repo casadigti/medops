@@ -34,39 +34,81 @@ export const configService = {
   },
 
   async createUser(userData) {
-    const newId = crypto.randomUUID();
-    const { data, error } = await supabase
-      .from('profiles')
-      .insert({
-        id: newId,
-        ...userData
-      })
-      .select()
-      .single();
-    
+    // Llamar a la Edge Function para crear el usuario sin perder la sesión del Admin
+    const { data, error } = await supabase.functions.invoke('manage-users', {
+      body: { action: 'create', userData }
+    });
+
     if (error) throw error;
-    return data;
+
+    // Crear el perfil en la tabla de MedOps (el trigger de Auth puede tardar)
+    const userId = data.user.id;
+    const { data: profile, error: pError } = await supabase
+      .from('profiles')
+      .upsert({
+        id: userId,
+        full_name: userData.full_name,
+        email: userData.email,
+        role: userData.role,
+        is_active: true,
+        must_change_password: true
+      })
+      .select().single();
+
+    if (pError) throw pError;
+
+    // Si es cirujano, crear su registro
+    if (userData.role === 'Cirujano') {
+      await supabase.from('surgeons').insert({
+        user_id: userId,
+        name: userData.full_name,
+        email: userData.email
+      });
+    }
+
+    return profile;
   },
 
   async updateUser(userId, updates) {
-    const { data, error } = await supabase
+    // Usar la Edge Function para permitir cambios de password y email
+    const { data, error } = await supabase.functions.invoke('manage-users', {
+      body: { action: 'update', userId, userData: updates }
+    });
+
+    if (error) throw error;
+
+    // Actualizar el perfil local
+    const { data: profile, error: pError } = await supabase
       .from('profiles')
-      .update(updates)
+      .update({
+        full_name: updates.full_name,
+        email: updates.email,
+        role: updates.role,
+        is_active: updates.is_active
+      })
       .eq('id', userId)
       .select();
-    
-    if (error) throw error;
-    return data;
+
+    if (pError) throw pError;
+    return profile;
   },
 
   async deleteUser(userId) {
-    const { data, error } = await supabase
+    // Borrado real de Auth a través de la Edge Function
+    const { error } = await supabase.functions.invoke('manage-users', {
+      body: { action: 'delete', userId }
+    });
+
+    if (error) throw error;
+
+    // Borrado del perfil (el ON DELETE CASCADE se encarga del resto en DB)
+    const { error: pError } = await supabase
       .from('profiles')
       .delete()
       .eq('id', userId);
     
-    if (error) throw error;
-    return data;
+    if (pError) throw pError;
+    return true;
   },
 
   // --- SEGURIDAD ---

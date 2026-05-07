@@ -4,6 +4,7 @@ import { surgeryService } from '../services/surgeryService';
 import { surgeonService } from '../services/surgeonService';
 import { hospitalService } from '../services/hospitalService';
 import { trayService } from '../services/trayService';
+import { arsService } from '../services/arsService';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { StatusBadge } from '../components/ui/Badge';
@@ -14,11 +15,11 @@ import { cn } from '../utils/cn';
 import { printService } from '../services/printService';
 
 // ─── Surgery Form ────────────────────────────────────────────────────────────
-const SurgeryForm = ({ initial, surgeons, hospitals, onSave, onCancel, loading }) => {
+const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, loading }) => {
   const [form, setForm] = useState(() => ({
     patient_name: '', surgery_date: '', surgeon_id: '', hospital_id: '',
     operating_room: '', procedure_type: '', status: 'Pendiente',
-    delivery_responsible: '', notes: '',
+    delivery_responsible: '', notes: '', ars_id: '',
     ...(initial || {})
   }));
   const [selectedTrayIds, setSelectedTrayIds] = useState([]);
@@ -64,6 +65,13 @@ const SurgeryForm = ({ initial, surgeons, hospitals, onSave, onCancel, loading }
           <label className="block text-sm font-semibold text-slate-700 mb-1">Estado</label>
           <select className="input" value={form.status} onChange={e => set('status', e.target.value)}>
             {SURGERY_STATUSES.map(s => <option key={s}>{s}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-1">Aseguradora (ARS) *</label>
+          <select required className="input" value={form.ars_id} onChange={e => set('ars_id', e.target.value)}>
+            <option value="">Seleccionar ARS...</option>
+            {arsList.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
         </div>
       </div>
@@ -181,6 +189,7 @@ export const Cirugias = ({ userProfile }) => {
   const [surgeries, setSurgeries] = useState([]);
   const [surgeons, setSurgeons]   = useState([]);
   const [hospitals, setHospitals] = useState([]);
+  const [arsList, setArsList]     = useState([]);
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
   const [search, setSearch]       = useState(searchParams.get('q') || '');
@@ -194,14 +203,16 @@ export const Cirugias = ({ userProfile }) => {
   const fetchAll = async () => {
     setLoading(true);
     // If surgeon, filter data fetching at service level
-    const [surg, sur, hosp] = await Promise.all([
+    const [surg, sur, hosp, ars] = await Promise.all([
       surgeryService.getAll(isSurgeon ? mySurgeonId : null), 
       surgeonService.getAll(), 
-      hospitalService.getAll()
+      hospitalService.getAll(),
+      arsService.getAll()
     ]);
     setSurgeries(surg); 
     setSurgeons(sur); 
     setHospitals(hosp); 
+    setArsList(ars);
     setLoading(false);
   };
 
@@ -303,7 +314,7 @@ export const Cirugias = ({ userProfile }) => {
               <table className="w-full text-left">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    {['Paciente','Procedimiento','Cirujano','Hospital','Fecha','Estado','Bandejas','Acciones'].map(h => (
+                    {['Paciente','ARS','Procedimiento','Cirujano','Hospital','Fecha','Estado','Bandejas','Acciones'].map(h => (
                       <th key={h} className="px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -316,6 +327,11 @@ export const Cirugias = ({ userProfile }) => {
                         <td className="px-4 py-3.5">
                           <p className="font-semibold text-slate-900 whitespace-nowrap">{s.patient_name}</p>
                           {s.operating_room && <p className="text-xs text-slate-400">Qx: {s.operating_room}</p>}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <span className="text-[11px] font-bold px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md whitespace-nowrap uppercase">
+                            {arsList.find(a => a.id === s.ars_id)?.name || 'Sin ARS'}
+                          </span>
                         </td>
                         <td className="px-4 py-3.5 text-sm text-slate-600 max-w-[200px]">
                           <p className="truncate" title={s.procedure_type}>{s.procedure_type}</p>
@@ -365,7 +381,7 @@ export const Cirugias = ({ userProfile }) => {
         )}
 
       <Modal isOpen={!!modal} onClose={() => setModal(null)} title={modal?.data ? 'Editar Cirugía' : 'Nueva Cirugía'} size="lg">
-        <SurgeryForm initial={modal?.data} surgeons={surgeons} hospitals={hospitals} onSave={handleSave} onCancel={() => setModal(null)} loading={saving} />
+        <SurgeryForm initial={modal?.data} surgeons={surgeons} hospitals={hospitals} arsList={arsList} onSave={handleSave} onCancel={() => setModal(null)} loading={saving} />
       </Modal>
       <ConfirmDialog
         isOpen={!!confirm} onClose={() => setConfirm(null)} onConfirm={handleDelete}

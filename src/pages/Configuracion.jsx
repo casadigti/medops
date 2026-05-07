@@ -1,17 +1,30 @@
 import React, { useEffect } from 'react';
-import { Settings, User, Building2, Palette, Shield, Mail, Save, Image as ImageIcon, Bell, Edit2, Check, X, Upload, Lock, Trash2 } from 'lucide-react';
+import { Settings, User, Building2, Palette, Shield, Mail, Save, Image as ImageIcon, Bell, Edit2, Check, X, Upload, Lock, Trash2, Plus } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { configService } from '../services/configService';
 import { Modal } from '../components/ui/Modal';
 import { supabase } from '../lib/supabase';
+import { arsService } from '../services/arsService';
 
-const UserForm = ({ onSave, onCancel, loading }) => {
+const UserForm = ({ onSave, onCancel, loading, initialData }) => {
   const [form, setForm] = React.useState({
-    full_name: '', email: '', password: '', role: 'Editor', is_active: true, must_change_password: true
+    full_name: initialData?.name || '', 
+    email: initialData?.email || '', 
+    password: '', 
+    role: initialData?.role || 'Editor', 
+    is_active: initialData?.status === 'Activo', 
+    must_change_password: initialData?.isTemporal ?? true
   });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   
-  const submit = e => { e.preventDefault(); onSave(form); };
+  const submit = e => { 
+    e.preventDefault(); 
+    if (initialData) {
+      onSave({ ...initialData, ...form });
+    } else {
+      onSave(form); 
+    }
+  };
   
   return (
     <form onSubmit={submit} className="space-y-4">
@@ -23,11 +36,13 @@ const UserForm = ({ onSave, onCancel, loading }) => {
         <label className="block text-sm font-semibold text-slate-700 mb-1">Correo Electrónico *</label>
         <input required type="email" className="input" value={form.email} onChange={e => set('email', e.target.value)} placeholder="correo@ejemplo.com" />
       </div>
-      <div>
-        <label className="block text-sm font-semibold text-slate-700 mb-1">Contraseña Temporal *</label>
-        <input required type="text" className="input" value={form.password} onChange={e => set('password', e.target.value)} placeholder="Ej: temporal123" />
-        <p className="text-[10px] text-slate-400 mt-1">El usuario deberá cambiarla obligatoriamente al iniciar sesión.</p>
-      </div>
+      {!initialData && (
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-1">Contraseña Temporal *</label>
+          <input required type="text" className="input" value={form.password} onChange={e => set('password', e.target.value)} placeholder="Ej: temporal123" />
+          <p className="text-[10px] text-slate-400 mt-1">El usuario deberá cambiarla obligatoriamente al iniciar sesión.</p>
+        </div>
+      )}
       <div>
         <label className="block text-sm font-semibold text-slate-700 mb-1">Rol en el Sistema</label>
         <select className="input" value={form.role} onChange={e => set('role', e.target.value)}>
@@ -39,10 +54,35 @@ const UserForm = ({ onSave, onCancel, loading }) => {
           <option value="Lector">Lector</option>
         </select>
       </div>
+      <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl">
+        <input 
+          type="checkbox" 
+          id="is_active"
+          className="w-4 h-4 text-primary rounded border-slate-300" 
+          checked={form.is_active} 
+          onChange={e => set('is_active', e.target.checked)} 
+        />
+        <label htmlFor="is_active" className="text-sm font-bold text-slate-700 cursor-pointer">Usuario Activo</label>
+      </div>
+      {initialData && (
+        <div className="p-3 border border-amber-100 bg-amber-50 rounded-xl">
+          <label className="block text-[10px] font-black text-amber-600 uppercase mb-2">Reset de Seguridad</label>
+          <div className="flex gap-2">
+            <input 
+              type="text" 
+              className="input bg-white text-xs" 
+              placeholder="Nueva temporal (opcional)" 
+              value={form.password} 
+              onChange={e => set('password', e.target.value)} 
+            />
+          </div>
+          <p className="text-[10px] text-amber-700 mt-1">Si escribes una contraseña, se forzará el cambio al entrar.</p>
+        </div>
+      )}
       <div className="flex gap-3 pt-2">
         <button type="button" onClick={onCancel} className="btn btn-secondary flex-1">Cancelar</button>
         <button type="submit" disabled={loading} className="btn btn-primary flex-1">
-          {loading ? 'Guardando...' : 'Crear Usuario'}
+          {loading ? 'Guardando...' : initialData ? 'Guardar Cambios' : 'Crear Usuario'}
         </button>
       </div>
     </form>
@@ -72,6 +112,11 @@ export const Configuracion = ({ userProfile: profile }) => {
   const [users, setUsers] = React.useState([]);
   const [isUserModalOpen, setIsUserModalOpen] = React.useState(false);
   const [isCreatingUser, setIsCreatingUser] = React.useState(false);
+  const [arsList, setArsList] = React.useState([]);
+  const [newArsName, setNewArsName] = React.useState('');
+  const [editingArsId, setEditingArsId] = React.useState(null);
+  const [editingArsName, setEditingArsName] = React.useState('');
+  const [isArsLoading, setIsArsLoading] = React.useState(false);
 
   const fetchUsers = async () => {
     try {
@@ -92,6 +137,15 @@ export const Configuracion = ({ userProfile: profile }) => {
     }
   };
 
+  const fetchArs = async () => {
+    try {
+      const data = await arsService.getAll();
+      setArsList(data || []);
+    } catch (error) {
+      console.error('Error fetching ARS:', error);
+    }
+  };
+
   useEffect(() => {
     async function loadData() {
       try {
@@ -102,7 +156,7 @@ export const Configuracion = ({ userProfile: profile }) => {
           setPrimaryColor(settings.primary_color || '#1e40af');
           setLogoPreview(settings.logo_url);
         }
-        await fetchUsers();
+        await Promise.all([fetchUsers(), fetchArs()]);
       } catch (error) {
         console.error('Error cargando configuración:', error);
       } finally {
@@ -133,13 +187,22 @@ export const Configuracion = ({ userProfile: profile }) => {
 
   const handleUpdateUser = async (user) => {
     try {
-      await configService.updateUser(user.id, {
-        full_name: user.name,
+      const updates = {
+        full_name: user.full_name,
         email: user.email,
         role: user.role,
-        is_active: user.status === 'Activo',
-        must_change_password: user.isTemporal
-      });
+        is_active: user.is_active,
+      };
+
+      // Si se definió una nueva contraseña desde el admin
+      if (user.password) {
+        // Nota: En una app real esto requeriría una Edge Function de Admin
+        // Por ahora lo marcamos para que el sistema le pida cambio
+        updates.must_change_password = true;
+        alert('Para cambiar la contraseña de otro usuario se requiere configuración de Admin en Supabase. Se ha marcado para cambio obligatorio.');
+      }
+
+      await configService.updateUser(user.id, updates);
       setEditingUser(null);
       await fetchUsers();
     } catch (error) {
@@ -157,6 +220,42 @@ export const Configuracion = ({ userProfile: profile }) => {
         console.error('Error eliminando usuario:', error);
         alert('Error al eliminar el usuario.');
       }
+    }
+  };
+
+  const handleAddArs = async (e) => {
+    e.preventDefault();
+    if (!newArsName.trim()) return;
+    setIsArsLoading(true);
+    try {
+      await arsService.create(newArsName.trim());
+      setNewArsName('');
+      await fetchArs();
+    } catch (error) {
+      alert('Error al agregar ARS: ' + error.message);
+    } finally {
+      setIsArsLoading(false);
+    }
+  };
+
+  const handleDeleteArs = async (id) => {
+    if (!confirm('¿Eliminar esta aseguradora?')) return;
+    try {
+      await arsService.delete(id);
+      await fetchArs();
+    } catch (error) {
+      alert('Error al eliminar: ' + error.message);
+    }
+  };
+
+  const handleUpdateArs = async (id) => {
+    if (!editingArsName.trim()) return;
+    try {
+      await arsService.update(id, { name: editingArsName.trim() });
+      setEditingArsId(null);
+      await fetchArs();
+    } catch (error) {
+      alert('Error al actualizar: ' + error.message);
     }
   };
 
@@ -191,6 +290,7 @@ export const Configuracion = ({ userProfile: profile }) => {
   const tabs = [
     { id: 'identity', label: 'Identidad Corporativa', icon: Building2, roles: ['Superadmin', 'Administrador'] },
     { id: 'users', label: 'Usuarios y Roles', icon: Shield, roles: ['Superadmin', 'Administrador'] },
+    { id: 'ars', label: 'Catálogo ARS', icon: Palette, roles: ['Superadmin', 'Administrador'] },
     { id: 'security', label: 'Mi Seguridad', icon: Shield, roles: ['Superadmin', 'Administrador', 'Cirujano', 'Editor', 'Técnico', 'Lector'] },
     { id: 'system', label: 'Sistema y Alertas', icon: Settings, roles: ['Superadmin', 'Administrador'] },
   ];
@@ -315,7 +415,12 @@ export const Configuracion = ({ userProfile: profile }) => {
                             </div>
                           </td>
                           <td className="px-6 py-4 text-right">
-                            <button onClick={() => setEditingUser(u.id)} className="text-primary font-bold hover:underline">Editar</button>
+                            <div className="flex justify-end items-center gap-3">
+                              <button onClick={() => setEditingUser(u)} className="text-primary font-bold hover:underline">Editar</button>
+                              <button onClick={() => handleDeleteUser(u.id)} className="text-slate-300 hover:text-danger transition-colors">
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -362,11 +467,99 @@ export const Configuracion = ({ userProfile: profile }) => {
               </ConfigCard>
             </div>
           )}
+
+          {activeTab === 'ars' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+              <ConfigCard>
+                <SectionHeader title="Gestión de Aseguradoras (ARS)" description="Administra las compañías de seguros que aparecen en el formulario de cirugías." />
+                
+                <form onSubmit={handleAddArs} className="flex gap-2 mb-6">
+                  <input 
+                    type="text" 
+                    placeholder="Nombre de la ARS (ej: ARS Humano)" 
+                    className="input flex-1"
+                    value={newArsName}
+                    onChange={e => setNewArsName(e.target.value)}
+                    required
+                  />
+                  <button type="submit" disabled={isArsLoading} className="btn btn-primary">
+                    <Plus size={18} /> Agregar
+                  </button>
+                </form>
+
+                <div className="border border-slate-100 rounded-xl overflow-hidden">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Aseguradora</th>
+                        <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {arsList.map(ars => (
+                        <tr key={ars.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-3 text-sm font-bold text-slate-700">
+                            {editingArsId === ars.id ? (
+                              <input 
+                                className="input h-8 text-sm" 
+                                value={editingArsName} 
+                                onChange={e => setEditingArsName(e.target.value)}
+                                autoFocus
+                              />
+                            ) : (
+                              ars.name
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex justify-end gap-2">
+                              {editingArsId === ars.id ? (
+                                <>
+                                  <button onClick={() => handleUpdateArs(ars.id)} className="text-green-600 hover:bg-green-50 p-1 rounded-md transition-all">
+                                    <Check size={16} />
+                                  </button>
+                                  <button onClick={() => setEditingArsId(null)} className="text-slate-400 hover:bg-slate-100 p-1 rounded-md transition-all">
+                                    <X size={16} />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button onClick={() => { setEditingArsId(ars.id); setEditingArsName(ars.name); }} className="text-slate-300 hover:text-primary transition-all">
+                                    <Edit2 size={16} />
+                                  </button>
+                                  <button onClick={() => handleDeleteArs(ars.id)} className="text-slate-300 hover:text-danger transition-all">
+                                    <Trash2 size={16} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {arsList.length === 0 && (
+                        <tr>
+                          <td colSpan="2" className="px-4 py-8 text-center text-slate-400 italic">No hay aseguradoras registradas.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </ConfigCard>
+            </div>
+          )}
         </div>
       </div>
 
       <Modal isOpen={isUserModalOpen} onClose={() => setIsUserModalOpen(false)} title="Nuevo Usuario">
         <UserForm onSave={handleCreateUser} onCancel={() => setIsUserModalOpen(false)} loading={isCreatingUser} />
+      </Modal>
+
+      <Modal isOpen={!!editingUser} onClose={() => setEditingUser(null)} title="Editar Usuario">
+        <UserForm 
+          initialData={editingUser}
+          onSave={handleUpdateUser} 
+          onCancel={() => setEditingUser(null)} 
+          loading={isCreatingUser} 
+        />
       </Modal>
     </div>
   );
