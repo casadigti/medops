@@ -12,6 +12,7 @@ ALTER TABLE maintenance_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE organization_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 -- 2. Limpieza de políticas previas (incluyendo las públicas peligrosas)
 DO $$ 
@@ -70,9 +71,29 @@ CREATE POLICY "Maintenance_Write" ON maintenance_logs FOR INSERT WITH CHECK (get
 CREATE POLICY "Settings_Read" ON organization_settings FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "Settings_Write" ON organization_settings FOR ALL USING (get_my_role() = 'Superadmin');
 
--- AUDIT_LOGS: Solo Superadmin lee logs. Insert restringido a personal autorizado.
 CREATE POLICY "Audit_Read" ON audit_logs FOR SELECT USING (get_my_role() = 'Superadmin');
 CREATE POLICY "Audit_Insert" ON audit_logs FOR INSERT WITH CHECK (get_my_role() IN ('Superadmin', 'Administrador', 'Editor', 'Técnico'));
 
--- 5. ACCIÓN MANUAL REQUERIDA
--- Ejecutar este script en el SQL Editor de Supabase para aplicar los cambios.
+-- NOTIFICATIONS: Cada usuario ve lo suyo
+CREATE POLICY "Notifications_Select" ON notifications FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Notifications_Update" ON notifications FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- 5. SEGURIDAD DE TRIGGERS (SECURITY DEFINER)
+-- Esto permite que los procesos automáticos inserten notificaciones o actualicen datos
+-- sin que las políticas RLS los bloqueen.
+
+CREATE OR REPLACE FUNCTION public.notify_surgery_status_change()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF OLD.status IS DISTINCT FROM NEW.status THEN
+    INSERT INTO public.notifications (user_id, title, message, type, entity_id, entity_type)
+    SELECT id, 'Actualización de Cirugía', 'La cirugía de ' || NEW.patient_name || ' cambió a ' || NEW.status, 'surgery_status', NEW.id::text, 'surgeries'
+    FROM public.profiles WHERE role IN ('Superadmin', 'Administrador');
+  END IF;
+  RETURN NEW;
+END; $$;
+
+ALTER FUNCTION public.increment_tray_wear_on_surgery_complete() SECURITY DEFINER;
+
+-- 6. ACCIÓN MANUAL REQUERIDA
+-- Ejecutar este script en el SQL Editor de Supabase para aplicar los cambios finales.
