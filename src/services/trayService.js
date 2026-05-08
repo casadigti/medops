@@ -46,7 +46,21 @@ export const trayService = {
 
     const { data, error } = await supabase.from('trays').select('*').order('name');
     if (error) throw error;
-    return (data || []).map(t => ({ ...t, busy: busyTrayIds.includes(t.id) }));
+    
+    return (data || []).map(t => {
+      const isBusy = busyTrayIds.includes(t.id);
+      const isNotAvailable = t.status !== 'Disponible';
+      
+      let reason = null;
+      if (isBusy) reason = 'Ocupada este día';
+      else if (isNotAvailable) reason = t.status; // 'En limpieza', 'En reparación', etc.
+      
+      return { 
+        ...t, 
+        busy: isBusy || isNotAvailable,
+        unavailable_reason: reason
+      };
+    });
   },
   async getMaintenanceLogs(trayId) {
     const { data, error } = await supabase

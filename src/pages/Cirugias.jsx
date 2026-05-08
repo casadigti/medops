@@ -139,7 +139,9 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, 
                     />
                     <div>
                       <p className="text-sm font-semibold text-slate-800">{t.name}</p>
-                      <p className="text-xs text-slate-400">{t.code} {t.busy ? '— Ocupada este día' : ''}</p>
+                      <p className="text-xs text-slate-400">
+                        {t.code} {t.unavailable_reason ? `— ${t.unavailable_reason}` : ''}
+                      </p>
                     </div>
                   </label>
                 ))}
