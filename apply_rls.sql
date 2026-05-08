@@ -58,6 +58,14 @@ CREATE POLICY "Surgeons_Write" ON surgeons FOR ALL USING (get_my_role() IN ('Sup
 CREATE POLICY "Trays_Read" ON trays FOR SELECT USING (get_my_role() IN ('Superadmin', 'Administrador', 'Editor', 'Técnico', 'Lector'));
 CREATE POLICY "Trays_Write" ON trays FOR ALL USING (get_my_role() IN ('Superadmin', 'Administrador', 'Técnico'));
 
+-- SURGERY_TRAYS: Personal interno gestiona asignaciones
+CREATE POLICY "SurgeryTrays_Read" ON surgery_trays FOR SELECT USING (get_my_role() IN ('Superadmin', 'Administrador', 'Editor', 'Técnico', 'Lector'));
+CREATE POLICY "SurgeryTrays_Write" ON surgery_trays FOR ALL USING (get_my_role() IN ('Superadmin', 'Administrador', 'Editor', 'Técnico'));
+
+-- MAINTENANCE_LOGS: Registro de mantenimiento por Admins y Técnicos
+CREATE POLICY "Maintenance_Read" ON maintenance_logs FOR SELECT USING (get_my_role() IN ('Superadmin', 'Administrador', 'Editor', 'Técnico', 'Lector'));
+CREATE POLICY "Maintenance_Write" ON maintenance_logs FOR INSERT WITH CHECK (get_my_role() IN ('Superadmin', 'Administrador', 'Técnico'));
+
 -- ORGANIZATION_SETTINGS: Solo Superadmin edita
 CREATE POLICY "Settings_Read" ON organization_settings FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "Settings_Write" ON organization_settings FOR ALL USING (get_my_role() = 'Superadmin');
