@@ -75,7 +75,7 @@ export const configService = {
 
   async updateUser(userId, updates) {
     // Definir campos permitidos para evitar Mass Assignment (VULN-003)
-    const allowedFields = ['full_name', 'email', 'role', 'is_active', 'password'];
+    const allowedFields = ['full_name', 'email', 'role', 'is_active', 'password', 'must_change_password'];
     const cleanUpdates = {};
     
     allowedFields.forEach(field => {
@@ -90,21 +90,34 @@ export const configService = {
     if (error) throw error;
 
     // Actualizar el perfil local
+    const profileUpdate = {
+      full_name: updates.full_name,
+      email: updates.email,
+      role: updates.role,
+      is_active: updates.is_active,
+    };
+
+    // Si se resetea la contraseña, forzar cambio en el próximo login
+    if (updates.password) {
+      profileUpdate.must_change_password = true;
+    }
+
     const { data: profile, error: pError } = await supabase
       .from('profiles')
-      .update({
-        full_name: updates.full_name,
-        email: updates.email,
-        role: updates.role,
-        is_active: updates.is_active
-      })
+      .update(profileUpdate)
       .eq('id', userId)
       .select();
 
     if (pError) throw pError;
 
-    // Registrar en auditoría
-    await auditService.log('USER_UPDATE', 'profiles', userId, updates);
+    // Registrar en auditoría (sin incluir la contraseña en el log)
+    const auditDetails = {
+      name: updates.full_name,
+      role: updates.role,
+      is_active: updates.is_active,
+      password_reset: !!updates.password,
+    };
+    await auditService.log('USER_UPDATE', 'profiles', userId, auditDetails);
 
     return profile;
   },

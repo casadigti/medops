@@ -210,12 +210,10 @@ export const Configuracion = ({ userProfile: profile }) => {
         is_active: user.is_active,
       };
 
-      // Si se definió una nueva contraseña desde el admin
-      if (user.password) {
-        // Nota: En una app real esto requeriría una Edge Function de Admin
-        // Por ahora lo marcamos para que el sistema le pida cambio
+      // Si se definió una nueva contraseña, incluirla en la llamada a la Edge Function
+      if (user.password && user.password.trim() !== '') {
+        updates.password = user.password.trim();
         updates.must_change_password = true;
-        alert('Para cambiar la contraseña de otro usuario se requiere configuración de Admin en Supabase. Se ha marcado para cambio obligatorio.');
       }
 
       await configService.updateUser(user.id, updates);
@@ -223,7 +221,7 @@ export const Configuracion = ({ userProfile: profile }) => {
       await fetchUsers();
     } catch (error) {
       console.error('Error actualizando usuario:', error);
-      alert('Error al actualizar el usuario.');
+      alert('Error al actualizar el usuario: ' + (error.message || 'Error desconocido'));
     }
   };
 
