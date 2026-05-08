@@ -136,6 +136,10 @@ export const surgeryService = {
     const { data, error } = await supabase
       .from('surgeries').update({ status }).eq('id', id).select().single();
     if (error) throw error;
+
+    // Registrar en auditoría
+    await auditService.log('SURGERY_STATUS_CHANGE', 'surgeries', id, { new_status: status });
+
     return data;
   },
 
@@ -143,6 +147,10 @@ export const surgeryService = {
     const { data, error } = await supabase
       .from('surgeries').update({ surgery_date: newDate }).eq('id', id).select().single();
     if (error) throw error;
+
+    // Registrar en auditoría
+    await auditService.log('SURGERY_DATE_CHANGE', 'surgeries', id, { new_date: newDate });
+
     return data;
   },
 

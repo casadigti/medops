@@ -54,15 +54,18 @@ function App() {
         return profile;
       }
 
+      // Perfil no encontrado en DB — asignar rol mínimo por defecto (fail-safe)
+      console.warn('App: Profile not found in DB for user:', sessionObj.user.id);
       return {
         id: sessionObj.user.id,
         email: sessionObj.user.email,
         full_name: sessionObj.user.user_metadata?.full_name || sessionObj.user.email,
-        role: 'Superadmin',
+        role: 'Lector',
       };
     } catch (err) {
       console.error('App: Error fetching profile:', err);
-      return { id: sessionObj.user.id, email: sessionObj.user.email, full_name: sessionObj.user.email, role: 'Superadmin' };
+      // Error de red — fail-safe con privilegio mínimo
+      return { id: sessionObj.user.id, email: sessionObj.user.email, full_name: sessionObj.user.email, role: 'Lector' };
     }
   };
 

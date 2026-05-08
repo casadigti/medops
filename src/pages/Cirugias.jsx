@@ -10,7 +10,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { StatusBadge } from '../components/ui/Badge';
 import { PageLoader, EmptyState } from '../components/ui/Spinner';
 import { SURGERY_STATUSES, PROCEDURE_TYPES, STATUS_COLORS } from '../data/catalogo';
-import { Stethoscope, Plus, Pencil, Trash2, Search, ChevronDown, Calendar, User, Building2, Package, Printer } from 'lucide-react';
+import { Stethoscope, Plus, Pencil, Trash2, Search, ChevronDown, Calendar, User, Building2, Package, Printer, AlertTriangle } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { printService } from '../services/printService';
 
@@ -202,20 +202,29 @@ export const Cirugias = ({ userProfile }) => {
   const isSurgeon = userProfile?.role === 'Cirujano';
   const mySurgeonId = userProfile?.surgeon_id;
 
+  const [fetchError, setFetchError] = useState(null);
+
   const fetchAll = async () => {
     setLoading(true);
-    // If surgeon, filter data fetching at service level
-    const [surg, sur, hosp, ars] = await Promise.all([
-      surgeryService.getAll(isSurgeon ? mySurgeonId : null), 
-      surgeonService.getAll(), 
-      hospitalService.getAll(),
-      arsService.getAll()
-    ]);
-    setSurgeries(surg); 
-    setSurgeons(sur); 
-    setHospitals(hosp); 
-    setArsList(ars);
-    setLoading(false);
+    setFetchError(null);
+    try {
+      // If surgeon, filter data fetching at service level
+      const [surg, sur, hosp, ars] = await Promise.all([
+        surgeryService.getAll(isSurgeon ? mySurgeonId : null), 
+        surgeonService.getAll(), 
+        hospitalService.getAll(),
+        arsService.getAll()
+      ]);
+      setSurgeries(surg || []); 
+      setSurgeons(sur || []); 
+      setHospitals(hosp || []); 
+      setArsList(ars || []);
+    } catch (err) {
+      console.error('Cirugias: Error cargando datos:', err);
+      setFetchError('No se pudieron cargar los datos. Intenta recargar.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { 
@@ -265,8 +274,12 @@ export const Cirugias = ({ userProfile }) => {
     } finally { setSaving(false); }
   };
   const handleStatusUpdate = async (id, status) => {
-    await surgeryService.updateStatus(id, status);
-    setSurgeries(prev => prev.map(s => s.id === id ? { ...s, status } : s));
+    try {
+      await surgeryService.updateStatus(id, status);
+      setSurgeries(prev => prev.map(s => s.id === id ? { ...s, status } : s));
+    } catch (err) {
+      console.error('Error actualizando estado:', err);
+    }
   };
   const handleDelete = async () => {
     if (isSurgeon) return; // Protection
@@ -284,6 +297,15 @@ export const Cirugias = ({ userProfile }) => {
 
   return (
     <div className="space-y-6">
+      {fetchError && (
+        <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl text-sm">
+          <AlertTriangle size={18} className="text-red-500 shrink-0" />
+          <p className="text-red-700 font-medium flex-1">{fetchError}</p>
+          <button onClick={fetchAll} className="text-xs font-bold text-red-600 underline hover:no-underline">
+            Reintentar
+          </button>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Gestión de Cirugías</h1>
