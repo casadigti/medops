@@ -121,7 +121,13 @@ export const Configuracion = ({ userProfile: profile }) => {
   const [editingArsName, setEditingArsName] = React.useState('');
   const [isArsLoading, setIsArsLoading] = React.useState(false);
   const [logs, setLogs] = React.useState([]);
+  const [logsCount, setLogsCount] = React.useState(0);
   const [isLogsLoading, setIsLogsLoading] = React.useState(false);
+  const [logPage, setLogPage] = React.useState(0);
+  const [logDateFrom, setLogDateFrom] = React.useState('');
+  const [logDateTo, setLogDateTo] = React.useState('');
+  const [logActionFilter, setLogActionFilter] = React.useState('');
+  const LOG_PAGE_SIZE = 25;
 
   const fetchUsers = async () => {
     try {
@@ -151,18 +157,26 @@ export const Configuracion = ({ userProfile: profile }) => {
     }
   };
 
-  const fetchLogs = async () => {
+  const fetchLogs = React.useCallback(async (page = 0) => {
     if (profile?.role !== 'Superadmin') return;
     try {
       setIsLogsLoading(true);
-      const data = await auditService.getAll();
-      setLogs(data || []);
+      const { data, count } = await auditService.getFiltered({
+        dateFrom: logDateFrom || undefined,
+        dateTo: logDateTo || undefined,
+        action: logActionFilter || undefined,
+        limit: LOG_PAGE_SIZE,
+        offset: page * LOG_PAGE_SIZE,
+      });
+      setLogs(data);
+      setLogsCount(count);
+      setLogPage(page);
     } catch (error) {
       console.error('Error fetching logs:', error);
     } finally {
       setIsLogsLoading(false);
     }
-  };
+  }, [profile, logDateFrom, logDateTo, logActionFilter]);
 
   useEffect(() => {
     async function loadData() {
@@ -573,16 +587,65 @@ export const Configuracion = ({ userProfile: profile }) => {
           {activeTab === 'logs' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
               <ConfigCard className="p-0 overflow-hidden">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                  <SectionHeader 
-                    title="Historial de Auditoría" 
-                    description="Registro detallado de acciones críticas realizadas en la plataforma." 
-                  />
-                  <button onClick={fetchLogs} className="btn btn-secondary btn-sm flex items-center gap-2">
-                    Actualizar
-                  </button>
+                <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                  <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                    <SectionHeader 
+                      title="Historial de Auditoría" 
+                      description={`${logsCount} registros totales · mostrando ${LOG_PAGE_SIZE} por página`}
+                    />
+                    <button onClick={() => fetchLogs(0)} className="btn btn-secondary btn-sm flex items-center gap-2 shrink-0">
+                      Actualizar
+                    </button>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Desde</label>
+                      <input
+                        type="date"
+                        value={logDateFrom}
+                        onChange={e => setLogDateFrom(e.target.value)}
+                        className="input text-sm py-1.5 w-36"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Hasta</label>
+                      <input
+                        type="date"
+                        value={logDateTo}
+                        onChange={e => setLogDateTo(e.target.value)}
+                        className="input text-sm py-1.5 w-36"
+                      />
+                    </div>
+                    <select
+                      value={logActionFilter}
+                      onChange={e => setLogActionFilter(e.target.value)}
+                      className="input text-sm py-1.5 w-44"
+                    >
+                      <option value="">Todas las acciones</option>
+                      <option value="CREATE">CREATE</option>
+                      <option value="UPDATE">UPDATE</option>
+                      <option value="DELETE">DELETE</option>
+                      <option value="PASSWORD">PASSWORD RESET</option>
+                      <option value="SURGERY">SURGERY</option>
+                    </select>
+                    <button
+                      onClick={() => fetchLogs(0)}
+                      className="btn btn-primary text-sm py-1.5 px-4"
+                    >
+                      Filtrar
+                    </button>
+                    {(logDateFrom || logDateTo || logActionFilter) && (
+                      <button
+                        onClick={() => { setLogDateFrom(''); setLogDateTo(''); setLogActionFilter(''); }}
+                        className="text-xs text-slate-400 hover:text-slate-600 underline"
+                      >
+                        Limpiar filtros
+                      </button>
+                    )}
+                  </div>
                 </div>
-                
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead className="bg-slate-50 border-b border-slate-100">
@@ -596,6 +659,8 @@ export const Configuracion = ({ userProfile: profile }) => {
                     <tbody className="divide-y divide-slate-100">
                       {isLogsLoading ? (
                         <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-400 italic">Cargando historial...</td></tr>
+                      ) : logs.length === 0 ? (
+                        <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-400 italic">No hay registros para los filtros seleccionados.</td></tr>
                       ) : logs.map(log => (
                         <tr key={log.id} className="hover:bg-slate-50 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -614,8 +679,9 @@ export const Configuracion = ({ userProfile: profile }) => {
                             <span className={cn(
                               "text-[10px] font-black px-2 py-1 rounded-md uppercase",
                               log.action.includes('CREATE') ? "bg-green-50 text-green-700" :
-                              log.action.includes('UPDATE') ? "bg-blue-50 text-blue-700" :
+                              log.action.includes('UPDATE') || log.action.includes('CHANGE') ? "bg-blue-50 text-blue-700" :
                               log.action.includes('DELETE') ? "bg-red-50 text-red-700" :
+                              log.action.includes('PASSWORD') ? "bg-amber-50 text-amber-700" :
                               "bg-slate-100 text-slate-600"
                             )}>
                               {log.action}
@@ -628,12 +694,33 @@ export const Configuracion = ({ userProfile: profile }) => {
                           </td>
                         </tr>
                       ))}
-                      {!isLogsLoading && logs.length === 0 && (
-                        <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-400 italic">No hay registros de actividad aún.</td></tr>
-                      )}
                     </tbody>
                   </table>
                 </div>
+
+                {logsCount > LOG_PAGE_SIZE && (
+                  <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+                    <p className="text-xs text-slate-500">
+                      Mostrando {logPage * LOG_PAGE_SIZE + 1}–{Math.min((logPage + 1) * LOG_PAGE_SIZE, logsCount)} de {logsCount}
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        disabled={logPage === 0}
+                        onClick={() => fetchLogs(logPage - 1)}
+                        className="btn btn-secondary text-xs py-1.5 px-3 disabled:opacity-40"
+                      >
+                        ← Anterior
+                      </button>
+                      <button
+                        disabled={(logPage + 1) * LOG_PAGE_SIZE >= logsCount}
+                        onClick={() => fetchLogs(logPage + 1)}
+                        className="btn btn-secondary text-xs py-1.5 px-3 disabled:opacity-40"
+                      >
+                        Siguiente →
+                      </button>
+                    </div>
+                  </div>
+                )}
               </ConfigCard>
             </div>
           )}
