@@ -7,6 +7,7 @@ import { PageLoader, EmptyState } from '../components/ui/Spinner';
 import { TRAY_STATUSES, MAX_STERILIZATIONS } from '../data/catalogo';
 import { Package, Plus, Pencil, Trash2, Search, AlertTriangle, Wrench, Stethoscope, MapPin } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { useToast } from '../components/ui/Toast';
 
 const TrayForm = ({ initial, onSave, onCancel, loading }) => {
   const [form, setForm] = useState(initial || {
@@ -69,6 +70,7 @@ const TrayForm = ({ initial, onSave, onCancel, loading }) => {
 };
 
 export const Bandejas = () => {
+  const toast = useToast();
   const [trays, setTrays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -91,21 +93,37 @@ export const Bandejas = () => {
     try {
       if (modal.data?.id) await trayService.update(modal.data.id, data);
       else await trayService.create(data);
-      setModal(null); fetchTrays();
-    } finally { setSaving(false); }
+      setModal(null); 
+      fetchTrays();
+      toast.success(modal.data?.id ? 'Bandeja actualizada' : 'Bandeja creada');
+    } catch (err) {
+      console.error('Error saving tray:', err);
+      toast.error('Error al guardar la bandeja: ' + (err.message || ''));
+    } finally { 
+      setSaving(false); 
+    }
   };
   const handleStatusUpdate = async (id, status) => {
     try {
       await trayService.update(id, { status });
       setTrays(prev => prev.map(t => t.id === id ? { ...t, status } : t));
+      toast.success(`Estado de bandeja: ${status}`);
     } catch (error) {
       console.error('Error al actualizar estado:', error);
+      toast.error('Error al cambiar estado de bandeja');
     }
   };
 
   const handleDelete = async () => {
-    await trayService.delete(confirm.id);
-    setConfirm(null); fetchTrays();
+    try {
+      await trayService.delete(confirm.id);
+      setConfirm(null); 
+      fetchTrays();
+      toast.success('Bandeja eliminada');
+    } catch (err) {
+      console.error('Error deleting tray:', err);
+      toast.error('Error al eliminar la bandeja');
+    }
   };
 
   const warnings = trays.filter(t => t.sterilization_count >= MAX_STERILIZATIONS * 0.9);

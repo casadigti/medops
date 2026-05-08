@@ -13,14 +13,16 @@ export const trayService = {
     }));
   },
   async create(tray) {
+    const { surgery_trays, usage_count, ...cleanTray } = tray;
     const { data, error } = await supabase
-      .from('trays').insert(tray).select().single();
+      .from('trays').insert(cleanTray).select().single();
     if (error) throw error;
     return data;
   },
   async update(id, tray) {
+    const { surgery_trays, usage_count, ...cleanTray } = tray;
     const { data, error } = await supabase
-      .from('trays').update(tray).eq('id', id).select().single();
+      .from('trays').update(cleanTray).eq('id', id).select().single();
     if (error) throw error;
     return data;
   },
