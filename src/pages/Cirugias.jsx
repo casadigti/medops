@@ -13,6 +13,7 @@ import { SURGERY_STATUSES, PROCEDURE_TYPES, STATUS_COLORS } from '../data/catalo
 import { Stethoscope, Plus, Pencil, Trash2, Search, ChevronDown, Calendar, User, Building2, Package, Printer, AlertTriangle } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { printService } from '../services/printService';
+import { useToast } from '../components/ui/Toast';
 
 // ─── Surgery Form ────────────────────────────────────────────────────────────
 const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, loading }) => {
@@ -187,6 +188,7 @@ const StatusMenu = ({ surgery, onUpdate }) => {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export const Cirugias = ({ userProfile }) => {
+  const toast = useToast();
   const [searchParams] = useSearchParams();
   const [surgeries, setSurgeries] = useState([]);
   const [surgeons, setSurgeons]   = useState([]);
@@ -277,8 +279,15 @@ export const Cirugias = ({ userProfile }) => {
     try {
       await surgeryService.updateStatus(id, status);
       setSurgeries(prev => prev.map(s => s.id === id ? { ...s, status } : s));
+      toast.success(`Estado actualizado: ${status}`);
     } catch (err) {
       console.error('Error actualizando estado:', err);
+      const isRLS = err?.message?.includes('row-level security') || err?.code === '42501';
+      toast.error(
+        isRLS
+          ? 'Error de permisos en base de datos. Contacta al administrador del sistema.'
+          : 'Error al actualizar el estado. Intenta de nuevo.'
+      );
     }
   };
   const handleDelete = async () => {
