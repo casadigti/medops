@@ -7,8 +7,10 @@ import listPlugin from '@fullcalendar/list';
 import { surgeryService } from '../services/surgeryService';
 import { Calendar, Stethoscope, AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { useToast } from '../components/ui/Toast';
 
 export const Calendario = ({ userProfile }) => {
+  const toast = useToast();
   const [surgeries, setSurgeries] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -56,11 +58,10 @@ export const Calendario = ({ userProfile }) => {
 
     try {
       await surgeryService.updateDate(surgeryId, newDateStr);
-      // Volver a cargar para asegurar integridad
       fetchSurgeries();
     } catch (error) {
       console.error('Error actualizando fecha:', error);
-      alert('Error al mover la cirugía. Verifique su conexión.');
+      toast.error('Error al mover la cirugía. Verifique su conexión.');
       info.revert();
     }
   };

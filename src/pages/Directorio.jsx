@@ -11,6 +11,7 @@ import {
   MapPin, Search, Calendar, Package, ClipboardList, TrendingUp, Info, Shield
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { useToast } from '../components/ui/Toast';
 
 // ── Surgeon Profile View ──────────────────────────────────────────
 const SurgeonProfile = ({ surgeon, surgeries }) => {
@@ -277,6 +278,7 @@ const HospitalForm = ({ initial, onSave, onCancel, loading }) => {
 
 // ── Main Page ───────────────────────────────────────────────────
 export const Directorio = () => {
+  const toast = useToast();
   const [tab, setTab] = useState('cirujanos');
   const [surgeons, setSurgeons] = useState([]);
   const [hospitals, setHospitals] = useState([]);
@@ -319,7 +321,7 @@ export const Directorio = () => {
 
       if (enablePortal && !finalData.user_id) {
         if (!finalData.email) {
-          alert('Para habilitar el portal, el cirujano debe tener un correo electrónico.');
+          toast.warning('Para habilitar el portal, el cirujano debe tener un correo electrónico.');
           setSaving(false);
           return;
         }
@@ -352,11 +354,12 @@ export const Directorio = () => {
       if (modal.data?.id) await surgeonService.update(modal.data.id, finalData);
       else await surgeonService.create(finalData);
       
-      setModal(null); 
+      setModal(null);
       fetchAll();
+      toast.success(modal?.data?.id ? 'Cirujano actualizado.' : 'Cirujano creado correctamente.');
     } catch (err) {
       console.error('Error saving surgeon:', err);
-      alert(`Error al guardar el cirujano: ${err.message}`);
+      toast.error(`Error al guardar el cirujano: ${err.message}`);
     } finally { 
       setSaving(false); 
     }

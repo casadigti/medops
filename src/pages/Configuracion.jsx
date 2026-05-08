@@ -6,6 +6,7 @@ import { Modal } from '../components/ui/Modal';
 import { supabase } from '../lib/supabase';
 import { arsService } from '../services/arsService';
 import { auditService } from '../services/auditService';
+import { useToast } from '../components/ui/Toast';
 
 const UserForm = ({ onSave, onCancel, loading, initialData }) => {
   const [form, setForm] = React.useState({
@@ -104,6 +105,7 @@ const ConfigCard = ({ children, className }) => (
 );
 
 export const Configuracion = ({ userProfile: profile }) => {
+  const toast = useToast();
   const [isLoading, setIsLoading] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState('identity');
   const [orgName, setOrgName] = React.useState('Casadig TI');
@@ -193,9 +195,10 @@ export const Configuracion = ({ userProfile: profile }) => {
       await configService.createUser(data);
       await fetchUsers();
       setIsUserModalOpen(false);
+      toast.success('Usuario creado correctamente.');
     } catch (error) {
       console.error('Error creating user:', error);
-      alert('Error al crear el usuario. Revisa la consola.');
+      toast.error('Error al crear el usuario: ' + (error.message || 'Error desconocido'));
     } finally {
       setIsCreatingUser(false);
     }
@@ -219,9 +222,10 @@ export const Configuracion = ({ userProfile: profile }) => {
       await configService.updateUser(user.id, updates);
       setEditingUser(null);
       await fetchUsers();
+      toast.success('Usuario actualizado correctamente.');
     } catch (error) {
       console.error('Error actualizando usuario:', error);
-      alert('Error al actualizar el usuario: ' + (error.message || 'Error desconocido'));
+      toast.error('Error al actualizar: ' + (error.message || 'Error desconocido'));
     }
   };
 
@@ -230,9 +234,10 @@ export const Configuracion = ({ userProfile: profile }) => {
       try {
         await configService.deleteUser(userId);
         await fetchUsers();
+        toast.success('Usuario eliminado.');
       } catch (error) {
         console.error('Error eliminando usuario:', error);
-        alert('Error al eliminar el usuario.');
+        toast.error('Error al eliminar el usuario: ' + (error.message || ''));
       }
     }
   };
@@ -245,8 +250,9 @@ export const Configuracion = ({ userProfile: profile }) => {
       await arsService.create(newArsName.trim());
       setNewArsName('');
       await fetchArs();
+      toast.success('ARS agregada correctamente.');
     } catch (error) {
-      alert('Error al agregar ARS: ' + error.message);
+      toast.error('Error al agregar ARS: ' + error.message);
     } finally {
       setIsArsLoading(false);
     }
@@ -257,8 +263,9 @@ export const Configuracion = ({ userProfile: profile }) => {
     try {
       await arsService.delete(id);
       await fetchArs();
+      toast.success('Aseguradora eliminada.');
     } catch (error) {
-      alert('Error al eliminar: ' + error.message);
+      toast.error('Error al eliminar: ' + error.message);
     }
   };
 
@@ -268,8 +275,9 @@ export const Configuracion = ({ userProfile: profile }) => {
       await arsService.update(id, { name: editingArsName.trim() });
       setEditingArsId(null);
       await fetchArs();
+      toast.success('Aseguradora actualizada.');
     } catch (error) {
-      alert('Error al actualizar: ' + error.message);
+      toast.error('Error al actualizar: ' + error.message);
     }
   };
 
@@ -292,10 +300,10 @@ export const Configuracion = ({ userProfile: profile }) => {
         primary_color: primaryColor,
         logo_url: logoPreview
       });
-      alert('¡Configuración guardada correctamente!');
+      toast.success('¡Configuración guardada correctamente!');
     } catch (error) {
       console.error('Error al guardar:', error);
-      alert('Error al guardar configuración.');
+      toast.error('Error al guardar configuración.');
     } finally {
       setIsLoading(false);
     }
@@ -318,8 +326,8 @@ export const Configuracion = ({ userProfile: profile }) => {
 
   const handlePasswordUpdate = async (e) => {
     e.preventDefault();
-    if (passForm.new !== passForm.confirm) return alert('Las contraseñas no coinciden');
-    if (passForm.new.length < 6) return alert('La contraseña debe tener al menos 6 caracteres');
+    if (passForm.new !== passForm.confirm) { toast.error('Las contraseñas no coinciden'); return; }
+    if (passForm.new.length < 6) { toast.warning('La contraseña debe tener al menos 6 caracteres'); return; }
 
     setPassLoading(true);
     try {
@@ -329,9 +337,9 @@ export const Configuracion = ({ userProfile: profile }) => {
       await supabase.from('profiles').update({ must_change_password: false }).eq('id', profile.id);
       
       setPassForm({ new: '', confirm: '' });
-      alert('Contraseña actualizada correctamente');
+      toast.success('Contraseña actualizada correctamente.');
     } catch (err) {
-      alert(err.message || 'Error al actualizar contraseña');
+      toast.error(err.message || 'Error al actualizar contraseña');
     } finally {
       setPassLoading(false);
     }

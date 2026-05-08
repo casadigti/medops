@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ToastProvider } from './components/ui/Toast';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase, restQuery } from './lib/supabase';
 import { Layout } from './components/layout/Layout';
@@ -127,47 +128,49 @@ function App() {
   const isSurgeon = userProfile?.role === 'Cirujano';
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
+    <ToastProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
 
-        {/* Protected Routes */}
-        <Route path="/*" element={
-          session ? (
-            <>
-              {userProfile?.must_change_password && (
-                <ForcePasswordChange 
-                  user={userProfile} 
-                  onPasswordChanged={async () => {
-                    const profile = await loadProfile(session);
-                    setUserProfile(profile);
-                  }} 
-                />
-              )}
-              <Layout userProfile={userProfile}>
-                <Routes>
-                  <Route path="/" element={isSurgeon ? <Navigate to="/mis-solicitudes" replace /> : <Dashboard />} />
-                  <Route path="/calendario" element={<Calendario userProfile={userProfile} />} />
-                  <Route path="/cirugias" element={<Cirugias userProfile={userProfile} />} />
-                  
-                  {/* Admin Only */}
-                  <Route path="/bandejas" element={!isSurgeon ? <Bandejas /> : <Navigate to="/mis-solicitudes" replace />} />
-                  <Route path="/mantenimiento" element={!isSurgeon ? <Mantenimiento /> : <Navigate to="/mis-solicitudes" replace />} />
-                  <Route path="/directorio" element={!isSurgeon ? <Directorio /> : <Navigate to="/mis-solicitudes" replace />} />
-                  <Route path="/reportes" element={!isSurgeon ? <Reportes /> : <Navigate to="/mis-solicitudes" replace />} />
-                  
-                  <Route path="/configuracion" element={<Configuracion userProfile={userProfile} />} />
-                  <Route path="/mis-solicitudes" element={<MisSolicitudes userProfile={userProfile} />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </Layout>
-            </>
-          ) : (
-            <Navigate to="/login" />
-          )
-        } />
-      </Routes>
-    </Router>
+          {/* Protected Routes */}
+          <Route path="/*" element={
+            session ? (
+              <>
+                {userProfile?.must_change_password && (
+                  <ForcePasswordChange 
+                    user={userProfile} 
+                    onPasswordChanged={async () => {
+                      const profile = await loadProfile(session);
+                      setUserProfile(profile);
+                    }} 
+                  />
+                )}
+                <Layout userProfile={userProfile}>
+                  <Routes>
+                    <Route path="/" element={isSurgeon ? <Navigate to="/mis-solicitudes" replace /> : <Dashboard />} />
+                    <Route path="/calendario" element={<Calendario userProfile={userProfile} />} />
+                    <Route path="/cirugias" element={<Cirugias userProfile={userProfile} />} />
+                    
+                    {/* Admin Only */}
+                    <Route path="/bandejas" element={!isSurgeon ? <Bandejas /> : <Navigate to="/mis-solicitudes" replace />} />
+                    <Route path="/mantenimiento" element={!isSurgeon ? <Mantenimiento /> : <Navigate to="/mis-solicitudes" replace />} />
+                    <Route path="/directorio" element={!isSurgeon ? <Directorio /> : <Navigate to="/mis-solicitudes" replace />} />
+                    <Route path="/reportes" element={!isSurgeon ? <Reportes /> : <Navigate to="/mis-solicitudes" replace />} />
+                    
+                    <Route path="/configuracion" element={<Configuracion userProfile={userProfile} />} />
+                    <Route path="/mis-solicitudes" element={<MisSolicitudes userProfile={userProfile} />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </Layout>
+              </>
+            ) : (
+              <Navigate to="/login" />
+            )
+          } />
+        </Routes>
+      </Router>
+    </ToastProvider>
   );
 }
 

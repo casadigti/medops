@@ -5,8 +5,10 @@ import { PageLoader } from '../components/ui/Spinner';
 import { Wrench, ShieldAlert, CheckCircle2, History, X, Search } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { supabase } from '../lib/supabase';
+import { useToast } from '../components/ui/Toast';
 
 export const Mantenimiento = () => {
+  const toast = useToast();
   const [trays, setTrays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -72,9 +74,10 @@ export const Mantenimiento = () => {
       
       setActiveModal(null);
       fetchData();
+      toast.success('Mantenimiento registrado correctamente.');
     } catch (err) {
       console.error(err);
-      alert('Error al registrar mantenimiento');
+      toast.error('Error al registrar mantenimiento.');
     } finally {
       setSaving(false);
     }

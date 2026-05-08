@@ -10,9 +10,11 @@ import { SURGERY_STATUSES, PROCEDURE_TYPES } from '../data/catalogo';
 import { Plus, Search, Calendar, Building2, Package, Clock, ShieldCheck, ChevronRight, MessageSquare } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { supabase } from '../lib/supabase';
+import { useToast } from '../components/ui/Toast';
 
 // ── Surgeon Portal: My Requests ──────────────────────────────────────────
 export const MisSolicitudes = () => {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [surgeries, setSurgeries] = useState([]);
   const [surgeonProfile, setSurgeonProfile] = useState(null);
@@ -104,10 +106,11 @@ export const MisSolicitudes = () => {
       });
       setIsModalOpen(false);
       setForm({ patient_name: '', surgery_date: '', hospital_id: '', procedure_type: '', notes: '' });
-      await fetchData();
+      toast.success('Solicitud enviada correctamente.');
+      await fetchData(true);
     } catch (error) {
       console.error('Error creating request:', error);
-      alert('Error al enviar la solicitud.');
+      toast.error('Error al enviar la solicitud: ' + (error.message || ''));
     } finally {
       setSaving(false);
     }
