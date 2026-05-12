@@ -4,6 +4,7 @@
  * @returns {string} - Fecha formateada YYYY-MM-DD.
  */
 export const getLocalDateString = (date = new Date()) => {
+  if (!date) return '';
   const d = typeof date === 'string' ? new Date(date) : date;
   if (isNaN(d.getTime())) return '';
   

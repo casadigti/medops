@@ -15,6 +15,9 @@ export const trayService = {
   },
   async create(tray) {
     const { surgery_trays, usage_count, ...cleanTray } = tray;
+    if (cleanTray.last_sterilization === '') cleanTray.last_sterilization = null;
+    if (cleanTray.next_maintenance === '') cleanTray.next_maintenance = null;
+    
     const { data, error } = await supabase
       .from('trays').insert(cleanTray).select().single();
     if (error) throw error;
@@ -22,6 +25,9 @@ export const trayService = {
   },
   async update(id, tray) {
     const { surgery_trays, usage_count, ...cleanTray } = tray;
+    if (cleanTray.last_sterilization === '') cleanTray.last_sterilization = null;
+    if (cleanTray.next_maintenance === '') cleanTray.next_maintenance = null;
+
     const { data, error } = await supabase
       .from('trays').update(cleanTray).eq('id', id).select().single();
     if (error) throw error;
