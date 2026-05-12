@@ -14,6 +14,7 @@ const ImplantForm = ({ onSave, onCancel, initialData, loading }) => {
     description: initialData?.description || '',
     min_stock: initialData?.min_stock || 5,
     unit_cost: initialData?.unit_cost || 0,
+    selling_price: initialData?.selling_price || 0,
   });
 
   const handleSubmit = (e) => {
@@ -74,9 +75,19 @@ const ImplantForm = ({ onSave, onCancel, initialData, loading }) => {
           <input 
             type="number" 
             step="0.01"
-            className="input font-bold text-primary" 
+            className="input font-bold text-slate-600" 
             value={form.unit_cost} 
             onChange={e => setForm({...form, unit_cost: parseFloat(e.target.value)})} 
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-1">Precio de Venta (RD$)</label>
+          <input 
+            type="number" 
+            step="0.01"
+            className="input font-bold text-primary" 
+            value={form.selling_price} 
+            onChange={e => setForm({...form, selling_price: parseFloat(e.target.value)})} 
           />
         </div>
       </div>
@@ -192,8 +203,8 @@ const ImportModal = ({ onImport, onCancel, loading }) => {
 
   const downloadTemplate = () => {
     const templateData = [
-      ["SKU", "Nombre", "Categoria", "Descripcion", "Stock Minimo", "Costo Unitario"],
-      ["TOR-35-CAN", "Tornillo Canulado 3.5mm", "Tornillo", "Ejemplo de descripción técnica", "10", "1500.00"]
+      ["SKU", "Nombre", "Categoria", "Descripcion", "Stock Minimo", "Costo Unitario", "Precio Venta"],
+      ["TOR-35-CAN", "Tornillo Canulado 3.5mm", "Tornillo", "Ejemplo de descripción técnica", "10", "1500.00", "4500.00"]
     ];
     const ws = utils.aoa_to_sheet(templateData);
     const wb = utils.book_new();
@@ -209,7 +220,8 @@ const ImportModal = ({ onImport, onCancel, loading }) => {
       category: row.Categoria || row.categoria || row.Category || 'Tornillo',
       description: row.Descripcion || row.descripcion || row.Description || '',
       min_stock: parseInt(row.StockMinimo || row.min_stock || row.Minimo || row['Stock Mínimo'] || 5),
-      unit_cost: parseFloat(row.CostoUnitario || row.unit_cost || row.Costo || row.Precio || row['Costo Unitario'] || 0)
+      unit_cost: parseFloat(row.CostoUnitario || row.unit_cost || row.Costo || row.Precio || row['Costo Unitario'] || 0),
+      selling_price: parseFloat(row.PrecioVenta || row.selling_price || row.Venta || row['Precio Venta'] || 0)
     })).filter(item => item.name && item.sku);
 
     onImport(processed);
@@ -268,6 +280,7 @@ const ImportModal = ({ onImport, onCancel, loading }) => {
           <span className="px-2 py-1 bg-white rounded text-[10px] font-mono border border-slate-200">Nombre</span>
           <span className="px-2 py-1 bg-white rounded text-[10px] font-mono border border-slate-200">Categoria</span>
           <span className="px-2 py-1 bg-white rounded text-[10px] font-mono border border-slate-200">CostoUnitario</span>
+          <span className="px-2 py-1 bg-white rounded text-[10px] font-mono border border-slate-200">PrecioVenta</span>
         </div>
       </div>
 
@@ -432,8 +445,7 @@ export const InventarioQuirurgico = () => {
               <input 
                 type="text"
                 placeholder="Buscar implante, código o categoría..."
-                className="input w-full md:w-80"
-                style={{ paddingLeft: '2.5rem' }}
+                className="input input-search w-full md:w-80"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />

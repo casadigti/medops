@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { auditService } from './auditService';
+import { getLocalDateString } from '../utils/dateUtils';
 
 export const implantService = {
   async getAll() {
@@ -148,13 +149,16 @@ export const implantService = {
         implant_lots (
           id,
           lot_number,
-          implants (id, name, sku, category, unit_cost)
+          implants (id, name, sku, category, unit_cost, selling_price)
         ),
         surgeries!inner (
           id,
           patient_name,
           surgery_date,
           status,
+          surgeon_id,
+          hospital_id,
+          surgeon: surgeons (full_name),
           hospital: hospitals (name)
         )
       `)
@@ -170,14 +174,14 @@ export const implantService = {
   },
 
   async getExpiringLots() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const { data, error } = await supabase
       .from('implant_lots')
       .select(`
         *,
         implants (name, sku)
       `)
-      .lte('expiration_date', new Date(Date.now() + 90 * 86400000).toISOString().split('T')[0])
+      .lte('expiration_date', getLocalDateString(new Date(Date.now() + 90 * 86400000)))
       .gt('current_quantity', 0)
       .order('expiration_date');
 
@@ -201,5 +205,17 @@ export const implantService = {
       const total = (imp.implant_lots || []).reduce((acc, lot) => acc + lot.current_quantity, 0);
       return total <= (imp.min_stock || 0);
     });
+  },
+
+  async getAllLotsDetailed() {
+    const { data, error } = await supabase
+      .from('implant_lots')
+      .select(`
+        *,
+        implants (id, name, sku, category, unit_cost, selling_price)
+      `);
+    
+    if (error) throw error;
+    return data;
   }
 };

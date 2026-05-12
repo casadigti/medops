@@ -105,12 +105,14 @@ export const Dashboard = () => {
       return null;
     }).filter(Boolean);
 
-  // Upcoming (next 7 days)
-  const next7 = surgeries.filter(s => {
+  // Upcoming (next 30 days, max 10)
+  const next10 = surgeries.filter(s => {
     const d = new Date(s.surgery_date);
     const diff = (d - now) / 86400000;
-    return diff >= 0 && diff <= 7;
-  }).sort((a,b) => new Date(a.surgery_date) - new Date(b.surgery_date));
+    return diff >= 0 && diff <= 30;
+  })
+  .sort((a,b) => new Date(a.surgery_date) - new Date(b.surgery_date))
+  .slice(0, 10);
 
   // Chart: surgeries per day this week
   const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
@@ -168,7 +170,7 @@ export const Dashboard = () => {
       {/* Alerts + Chart row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* Alertas Críticas de Cirugías */}
+        {/* Alertas de Cirugías */}
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <AlertTriangle size={18} className="text-red-500" />
@@ -201,8 +203,67 @@ export const Dashboard = () => {
           }
         </div>
 
-        {/* Columna Derecha: Gráfico e Inventario */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* Alertas de Inventario (NUEVO) */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <Package size={18} className="text-rose-500" />
+            Alertas de Inventario
+            {(lowStock.length + expiringLots.length) > 0 && (
+              <span className="ml-auto text-xs bg-rose-500 text-white px-2 py-0.5 rounded-full">
+                {lowStock.length + expiringLots.length}
+              </span>
+            )}
+          </h2>
+          {(lowStock.length + expiringLots.length) === 0
+            ? <div className="card text-center py-8 text-slate-400"><CheckCircle2 size={32} className="mx-auto mb-2 text-emerald-400" /><p className="font-medium text-emerald-600">Stock en niveles óptimos</p></div>
+            : (
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                {/* Low Stock Alerts */}
+                {lowStock.map(item => (
+                  <div
+                    key={item.id}
+                    onClick={() => navigate(`/inventario?q=${encodeURIComponent(item.sku)}`)}
+                    className="p-4 rounded-2xl bg-rose-50 border border-rose-200 cursor-pointer hover:border-rose-400 transition-all hover:shadow-md"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider bg-rose-500 text-white">
+                        Stock Crítico
+                      </span>
+                      <AlertTriangle size={14} className="text-rose-500" />
+                    </div>
+                    <p className="font-bold text-slate-900">{item.name}</p>
+                    <p className="text-xs text-rose-700 font-medium mt-1">
+                      ¡Atención! Solo quedan {item.implant_lots?.reduce((acc, l) => acc + (l.current_quantity || 0), 0) || 0} unidades.
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-1 uppercase">Mínimo requerido: {item.min_stock}</p>
+                  </div>
+                ))}
+
+                {/* Expiring Lots Alerts */}
+                {expiringLots.map(lot => (
+                  <div
+                    key={lot.id}
+                    onClick={() => navigate('/inventario')}
+                    className="p-4 rounded-2xl bg-amber-50 border border-amber-200 cursor-pointer hover:border-amber-400 transition-all hover:shadow-md"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider bg-amber-500 text-white">
+                        Vencimiento Próximo
+                      </span>
+                      <Clock size={14} className="text-amber-500" />
+                    </div>
+                    <p className="font-bold text-slate-900">{lot.implants?.name}</p>
+                    <p className="text-xs text-amber-700 font-medium mt-1">
+                      Lote {lot.lot_number} vence el {new Date(lot.expiration_date).toLocaleDateString('es-ES')}.
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+        </div>
+
+        {/* Cirugías de la Semana (Movido a la derecha) */}
+        <div className="space-y-4">
           {/* Bar Chart */}
           <div className="card">
             <h2 className="text-lg font-bold text-slate-900 mb-6">Cirugías Esta Semana</h2>
@@ -216,69 +277,6 @@ export const Dashboard = () => {
               </BarChart>
             </ResponsiveContainer>
           </div>
-
-          {/* Alertas de Inventario */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <Package size={18} className="text-primary" />
-              Estado de Inventario
-              {(expiringLots.length + lowStock.length) > 0 && <span className="ml-auto text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full">{expiringLots.length + lowStock.length}</span>}
-            </h2>
-            
-            {(expiringLots.length === 0 && lowStock.length === 0) 
-              ? <div className="card text-center py-6 text-slate-400 italic">No hay alertas de inventario activas.</div>
-              : <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Alertas de Vencimiento */}
-                  {expiringLots.map(lot => {
-                    const isExpired = new Date(lot.expiration_date) < now;
-                    return (
-                      <div
-                        key={lot.id}
-                        onClick={() => navigate(`/inventario`)}
-                        className={cn(
-                          'p-4 rounded-2xl border cursor-pointer hover:shadow-md transition-all active:scale-[0.98]',
-                          isExpired ? 'bg-rose-50 border-rose-200 hover:border-rose-400' : 'bg-amber-50 border-amber-200 hover:border-amber-400'
-                        )}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider text-white', isExpired ? 'bg-rose-500' : 'bg-amber-500')}>
-                            {isExpired ? 'Vencido' : 'Por Vencer'}
-                          </span>
-                          <span className="text-xs text-slate-500">{new Date(lot.expiration_date).toLocaleDateString('es-ES')}</span>
-                        </div>
-                        <p className="font-bold text-slate-900 line-clamp-1">{lot.implants?.name}</p>
-                        <p className="text-xs text-slate-600 mt-0.5">Lote: <span className="font-mono font-bold">{lot.lot_number}</span> · {lot.current_quantity} uds.</p>
-                      </div>
-                    );
-                  })}
-
-                  {/* Alertas de Stock Bajo */}
-                  {lowStock.map(imp => {
-                    const total = (imp.implant_lots || []).reduce((acc, lot) => acc + lot.current_quantity, 0);
-                    const isZero = total === 0;
-                    return (
-                      <div
-                        key={imp.id}
-                        onClick={() => navigate(`/inventario?q=${encodeURIComponent(imp.sku)}`)}
-                        className={cn(
-                          'p-4 rounded-2xl border cursor-pointer hover:shadow-md transition-all active:scale-[0.98]',
-                          isZero ? 'bg-red-50 border-red-200 hover:border-red-400' : 'bg-orange-50 border-orange-200 hover:border-orange-400'
-                        )}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider text-white', isZero ? 'bg-red-500' : 'bg-orange-500')}>
-                            {isZero ? 'Agotado' : 'Stock Bajo'}
-                          </span>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{imp.category}</span>
-                        </div>
-                        <p className="font-bold text-slate-900 line-clamp-1">{imp.name}</p>
-                        <p className="text-xs text-slate-600 mt-0.5">Stock: <span className="font-bold text-slate-900">{total}</span> uds. (Mín: {imp.min_stock})</p>
-                      </div>
-                    );
-                  })}
-                </div>
-            }
-          </div>
         </div>
       </div>
 
@@ -286,10 +284,10 @@ export const Dashboard = () => {
       <div>
         <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
           <Stethoscope size={18} className="text-primary" />
-          Próximas Cirugías (7 días)
+          Próximas Cirugías
         </h2>
-        {next7.length === 0
-          ? <div className="card text-center py-10 text-slate-400"><p>No hay cirugías programadas para los próximos 7 días</p></div>
+        {next10.length === 0
+          ? <div className="card text-center py-10 text-slate-400"><p>No hay cirugías programadas</p></div>
           : (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <table className="w-full text-left">
@@ -301,7 +299,7 @@ export const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {next7.map(s => {
+                  {next10.map(s => {
                     const diff = Math.ceil((new Date(s.surgery_date) - now) / 86400000);
                     return (
                       <tr

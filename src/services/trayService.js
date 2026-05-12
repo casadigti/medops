@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { getLocalDateString } from '../utils/dateUtils';
 
 export const trayService = {
   async getAll() {
@@ -31,7 +32,7 @@ export const trayService = {
     if (error) throw error;
   },
   async getAvailableForDate(date, excludeSurgeryId = null) {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = getLocalDateString(date);
     // Get trays assigned to surgeries on that date
     let query = supabase
       .from('surgery_trays')

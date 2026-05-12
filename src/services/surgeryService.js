@@ -42,7 +42,7 @@ export const surgeryService = {
     try {
       let query = supabase
         .from('surgeries')
-        .select(`*, surgeon:surgeons(id,full_name,specialty), hospital:hospitals(id,name), surgery_trays(tray:trays(*))`)
+        .select(`*, surgeon:surgeons(id,full_name,specialty), hospital:hospitals(id,name), ars:ars(id,name), surgery_trays(tray:trays(*)), surgery_consumption(id)`)
         .order('surgery_date', { ascending: true })
         .abortSignal(controller.signal);
 
@@ -70,7 +70,7 @@ export const surgeryService = {
   async getById(id) {
     const { data, error } = await supabase
       .from('surgeries')
-      .select(`*, surgeon:surgeons(id,full_name,specialty), hospital:hospitals(id,name), surgery_trays(tray:trays(*))`)
+      .select(`*, surgeon:surgeons(id,full_name,specialty), hospital:hospitals(id,name), ars:ars(id,name), surgery_trays(tray:trays(*)), surgery_consumption(id)`)
       .eq('id', id).single();
     if (error) throw error;
     return data;
@@ -80,7 +80,7 @@ export const surgeryService = {
     // Definir campos permitidos (evitar inyección de campos internos)
     const allowedFields = [
       'patient_name', 'surgery_date', 'surgeon_id', 'hospital_id', 
-      'operating_room', 'procedure_type', 'status', 'delivery_responsible', 'notes'
+      'operating_room', 'procedure_type', 'status', 'delivery_responsible', 'notes', 'ars_id'
     ];
     
     const cleanData = {};
@@ -107,7 +107,7 @@ export const surgeryService = {
     // Definir campos permitidos
     const allowedFields = [
       'patient_name', 'surgery_date', 'surgeon_id', 'hospital_id', 
-      'operating_room', 'procedure_type', 'status', 'delivery_responsible', 'notes'
+      'operating_room', 'procedure_type', 'status', 'delivery_responsible', 'notes', 'ars_id'
     ];
     
     const cleanData = {};

@@ -15,7 +15,8 @@ import { cn } from '../utils/cn';
 import { printService } from '../services/printService';
 import { implantService } from '../services/implantService';
 import { useToast } from '../components/ui/Toast';
-import { ShoppingCart, CheckCircle2 } from 'lucide-react';
+import { ShoppingCart, CheckCircle2, FileText } from 'lucide-react';
+import { generateActaQuirurgica } from '../utils/pdfGenerator';
 
 // ─── Consumption Form ─────────────────────────────────────────────────────────
 const ConsumptionForm = ({ surgery, onSave, onCancel, loading }) => {
@@ -190,8 +191,21 @@ const ConsumptionForm = ({ surgery, onSave, onCancel, loading }) => {
         </div>
       )}
 
-      <div className="pt-2">
-        <button onClick={onCancel} className="btn btn-secondary w-full">Cerrar y Finalizar</button>
+      <div className="pt-2 flex gap-3">
+        <button 
+          onClick={async () => {
+            if (currentConsumption.length === 0) return;
+            generateActaQuirurgica(surgery, currentConsumption);
+          }} 
+          disabled={currentConsumption.length === 0}
+          className={cn(
+            "btn flex-1",
+            currentConsumption.length > 0 ? "btn-secondary" : "btn-secondary opacity-50 cursor-not-allowed"
+          )}
+        >
+          <FileText size={16} className="mr-2" /> Descargar Acta
+        </button>
+        <button onClick={onCancel} className="btn btn-primary flex-1">Cerrar y Finalizar</button>
       </div>
     </div>
   );
@@ -491,6 +505,16 @@ export const Cirugias = ({ userProfile }) => {
       setSaving(false);
     }
   };
+  const handleGenerateActa = async (surgery) => {
+    try {
+      toast.success('Generando acta quirúrgica...');
+      const consumptions = await implantService.getConsumptionBySurgery(surgery.id);
+      generateActaQuirurgica(surgery, consumptions);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      toast.error('Error al generar el PDF');
+    }
+  };
 
   const getDaysLabel = (dateStr) => {
     const diff = Math.ceil((new Date(dateStr) - new Date()) / 86400000);
@@ -608,6 +632,19 @@ export const Cirugias = ({ userProfile }) => {
                                )}
                              >
                                <ShoppingCart size={15} />
+                             </button>
+                             <button 
+                               onClick={() => handleGenerateActa(s)} 
+                               disabled={!s.surgery_consumption?.length}
+                               title={s.surgery_consumption?.length ? "Generar Acta Quirúrgica (PDF)" : "Debes registrar consumos primero"}
+                               className={cn(
+                                 "p-2 rounded-lg transition-colors",
+                                 s.surgery_consumption?.length 
+                                   ? "text-slate-400 hover:bg-orange-50 hover:text-orange-600" 
+                                   : "text-slate-200 cursor-not-allowed"
+                               )}
+                             >
+                               <FileText size={15} />
                              </button>
                              <button onClick={() => setModal({ data: s })} className="p-2 hover:bg-blue-50 rounded-lg text-slate-400 hover:text-blue-600 transition-colors"><Pencil size={15} /></button>
                              <button onClick={() => setConfirm({ id: s.id, name: s.patient_name })} className="p-2 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={15} /></button>

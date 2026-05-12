@@ -13,7 +13,8 @@ import {
   CalendarDays,
   Shield,
   Box,
-  ShoppingCart
+  ShoppingCart,
+  History
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { supabase } from '../../lib/supabase';
@@ -26,6 +27,7 @@ const navItems = [
   { icon: Package, label: 'Bandejas / Sets', path: '/bandejas', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
   { icon: Box, label: 'Inventario', path: '/inventario', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
   { icon: ShoppingCart, label: 'Reporte de Gasto', path: '/reporte-reposicion', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
+  { icon: History, label: 'Reporte Lotes', path: '/reporte-lotes', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
   { icon: Wrench, label: 'Mantenimiento', path: '/mantenimiento', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
   { icon: Users, label: 'Directorio', path: '/directorio', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor', 'Lector'] },
   { icon: BarChart3, label: 'Reportes', path: '/reportes', roles: ['Superadmin', 'Administrador'] },

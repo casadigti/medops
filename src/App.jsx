@@ -15,6 +15,7 @@ import { Login } from './pages/Login';
 import { MisSolicitudes } from './pages/MisSolicitudes';
 import { InventarioQuirurgico } from './pages/InventarioQuirurgico';
 import { ReporteReposicion } from './pages/ReporteReposicion';
+import { ReporteLotes } from './pages/ReporteLotes';
 import { ForcePasswordChange } from './components/auth/ForcePasswordChange';
 
 function App() {
@@ -163,6 +164,7 @@ function App() {
                     <Route path="/configuracion" element={<Configuracion userProfile={userProfile} />} />
                     <Route path="/inventario" element={!isSurgeon ? <InventarioQuirurgico /> : <Navigate to="/mis-solicitudes" replace />} />
                     <Route path="/reporte-reposicion" element={!isSurgeon ? <ReporteReposicion /> : <Navigate to="/mis-solicitudes" replace />} />
+                    <Route path="/reporte-lotes" element={!isSurgeon ? <ReporteLotes /> : <Navigate to="/mis-solicitudes" replace />} />
                     <Route path="/mis-solicitudes" element={<MisSolicitudes userProfile={userProfile} />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>

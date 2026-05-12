@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { trayService } from '../services/trayService';
+import { getLocalDateString } from '../utils/dateUtils';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { StatusBadge } from '../components/ui/Badge';
@@ -52,11 +53,11 @@ const TrayForm = ({ initial, onSave, onCancel, loading }) => {
         </div>
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-1">Última Esterilización</label>
-          <input type="date" className="input" value={form.last_sterilization?.split('T')[0]||''} onChange={e => set('last_sterilization', e.target.value)} />
+          <input type="date" className="input" value={getLocalDateString(form.last_sterilization)} onChange={e => set('last_sterilization', e.target.value)} />
         </div>
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-1">Próximo Mantenimiento</label>
-          <input type="date" className="input" value={form.next_maintenance?.split('T')[0]||''} onChange={e => set('next_maintenance', e.target.value)} />
+          <input type="date" className="input" value={getLocalDateString(form.next_maintenance)} onChange={e => set('next_maintenance', e.target.value)} />
         </div>
       </div>
       <div className="flex gap-3 pt-2">

@@ -68,5 +68,14 @@ Se ha implementado un sistema de visibilidad de costos y control de reposición 
 ### 6.4 Restricciones Operativas
 *   **Bloqueo de Gasto:** El botón para registrar consumo está deshabilitado hasta que la cirugía cambie su estatus a `Completada`. Esto asegura que la analítica financiera no contenga datos parciales o en borrador.
 
+### 6.5 Analytics Pro (Inteligencia de Negocios Avanzada)
+*   **Rentabilidad por Hospital:** El panel financiero (`Reportes.jsx`) agrupa los consumos utilizando el `hospital_id` extraído mediante un `Inner Join` en el servicio `implantService`. Se utiliza un gráfico de barras apiladas para comparar simultáneamente el **Costo** y el **Margen Bruto** generado por cada centro médico.
+*   **Facturación por Cirujano:** Visualiza el volumen de facturación generado por especialista para análisis de desempeño.
+*   **Limpieza de Dashboard:** Se ha eliminado la redundancia de datos (ej. duplicidad de estado de inventario) para focalizar la interfaz en alertas críticas centralizadas.
+*   **Reportes de Lotes (Inventario):** Implementación de controles interactivos con reset de filtros (`RotateCcw`) y *feedback* de carga (`RefreshCw`).
+
+## 7. Flujos Revertidos (Decisiones de Negocio)
+*   **Actas Quirúrgicas (Firma Digital):** Se exploró la funcionalidad de firma en dispositivo (Canvas API), pero fue revertida. El proceso se mantiene ágil permitiendo la descarga inmediata del PDF pre-formateado con la línea de firma física/sello.
+
 ---
 *Este documento es la única fuente de verdad sobre la implementación actual de la arquitectura de MedOps.*
