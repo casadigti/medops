@@ -25,7 +25,7 @@ const navItems = [
   { icon: CalendarDays, label: 'Calendario', path: '/calendario', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
   { icon: Stethoscope, label: 'Cirugías', path: '/cirugias', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
   { icon: Package, label: 'Bandejas / Sets', path: '/bandejas', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
-  { icon: Box, label: 'Inventario', path: '/inventario', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
+  { icon: Box, label: 'Inventario', path: '/inventario', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'], showStockAlert: true },
   { icon: ShoppingCart, label: 'Reporte de Gasto', path: '/reporte-reposicion', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
   { icon: History, label: 'Reporte Lotes', path: '/reporte-lotes', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
   { icon: Wrench, label: 'Mantenimiento', path: '/mantenimiento', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
@@ -36,7 +36,7 @@ const navItems = [
   { icon: Shield, label: 'Portal Cirujano', path: '/mis-solicitudes', roles: ['Superadmin', 'Administrador'], isPreview: true },
 ];
 
-export const Sidebar = ({ className, role, profile }) => {
+export const Sidebar = ({ className, role, profile, lowStockCount = 0 }) => {
   // Show items that match the role. If role is null (profile still loading),
   // show all non-Cirujano-exclusive items so the UI doesn't appear broken.
   const filteredNavItems = navItems.filter(item => {
@@ -92,6 +92,11 @@ export const Sidebar = ({ className, role, profile }) => {
               >
                 <item.icon size={20} className="transition-transform group-hover:scale-110 opacity-80 group-hover:opacity-100" />
                 <span className="font-medium">{item.label}</span>
+                {item.showStockAlert && lowStockCount > 0 && (
+                  <span className="ml-auto min-w-[20px] h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1.5 animate-pulse ring-2 ring-white">
+                    {lowStockCount}
+                  </span>
+                )}
                 {item.isPreview && (
                   <span className="ml-auto text-[9px] font-bold bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-full">ADMIN</span>
                 )}

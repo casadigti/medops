@@ -3,7 +3,7 @@ import { surgeryService } from '../services/surgeryService';
 import { implantService } from '../services/implantService';
 import { StatusBadge } from '../components/ui/Badge';
 import { PageLoader } from '../components/ui/Spinner';
-import { Stethoscope, Calendar, Package, AlertTriangle, TrendingUp, CheckCircle2, Clock } from 'lucide-react';
+import { Stethoscope, Calendar, Package, AlertTriangle, TrendingUp, CheckCircle2, Clock, Wifi } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../utils/cn';
@@ -29,6 +29,7 @@ export const Dashboard = () => {
   const [lowStock, setLowStock] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -45,6 +46,7 @@ export const Dashboard = () => {
           setSurgeries(sData || []);
           setExpiringLots(iData || []);
           setLowStock(lsData || []);
+          setLastUpdated(new Date());
           setLoading(false);
         }
       } catch (err) {
@@ -79,9 +81,26 @@ export const Dashboard = () => {
     // Delay realtime subscription to avoid interfering with initial auth/load
     const realtimeTimer = setTimeout(setupRealtime, 2000);
 
+    // Auto-refresh every 60s for inventory KPIs (stock & expiry change silently)
+    const refreshInterval = setInterval(async () => {
+      if (!mounted) return;
+      try {
+        const [iData, lsData] = await Promise.all([
+          implantService.getExpiringLots(),
+          implantService.getLowStockImplants()
+        ]);
+        if (mounted) {
+          setExpiringLots(iData || []);
+          setLowStock(lsData || []);
+          setLastUpdated(new Date());
+        }
+      } catch { /* silent */ }
+    }, 60000);
+
     return () => {
       mounted = false;
       clearTimeout(realtimeTimer);
+      clearInterval(refreshInterval);
       if (channel) supabase.removeChannel(channel);
     };
   }, []);
@@ -156,6 +175,18 @@ export const Dashboard = () => {
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Panel Principal</h1>
           <p className="text-slate-500">{new Date().toLocaleDateString('es-ES',{ weekday:'long', year:'numeric', month:'long', day:'numeric' })}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-full">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <Wifi size={12} className="text-emerald-600" />
+            <span className="text-xs font-bold text-emerald-700">En vivo</span>
+          </div>
+          {lastUpdated && (
+            <span className="text-[11px] text-slate-400 font-medium hidden sm:block">
+              Actualizado: {lastUpdated.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+          )}
         </div>
       </div>
 

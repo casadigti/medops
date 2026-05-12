@@ -46,6 +46,7 @@ export const Reportes = () => {
   const [filterHospital, setFilterHospital] = useState('');
   const [viewMode, setViewMode] = useState('operational'); // 'operational' | 'financial'
   const [consumption, setConsumption] = useState([]);
+  const [allImplants, setAllImplants] = useState([]);
 
   useEffect(() => {
     Promise.all([
@@ -53,9 +54,11 @@ export const Reportes = () => {
       surgeonService.getAll(),
       hospitalService.getAll(),
       trayService.getAll(),
-      implantService.getConsumptionReport()
-    ]).then(([s, sur, h, t, c]) => {
-      setSurgeries(s); setSurgeons(sur); setHospitals(h); setTrays(t); setConsumption(c);
+      implantService.getConsumptionReport(),
+      implantService.getAll()
+    ]).then(([s, sur, h, t, c, imp]) => {
+      setSurgeries(s); setSurgeons(sur); setHospitals(h); setTrays(t);
+      setConsumption(c); setAllImplants(imp);
       setLoading(false);
     });
   }, []);
@@ -414,13 +417,99 @@ export const Reportes = () => {
                 )}
             </div>
 
-            {/* Insight Card */}
-            <div className="card border-dashed bg-slate-50 border-slate-200 flex flex-col items-center justify-center text-slate-400 p-8 text-center">
-                <Building2 size={32} className="mb-3 opacity-50 text-slate-500" />
-                <h4 className="text-sm font-bold text-slate-600 mb-1">Análisis de Centros Médicos</h4>
-                <p className="text-xs text-slate-500 max-w-sm">
-                  Este panel te permite identificar rápidamente qué hospitales son más rentables, mostrando la relación entre el costo de los implantes utilizados y el valor facturado.
-                </p>
+            {/* Análisis de Frecuencia de Implantes por Cirujano */}
+            <div className="card">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <SectionTitle>Implantes por Cirujano</SectionTitle>
+                  <p className="text-xs text-slate-400 mt-0.5">Análisis de preferencia — diferenciador para negociar con proveedores</p>
+                </div>
+                <span className="text-[10px] font-bold bg-violet-100 text-violet-700 px-2.5 py-1 rounded-full uppercase tracking-wider">Inteligencia Comercial</span>
+              </div>
+              {filteredConsumption.length === 0 ? (
+                <div className="flex items-center justify-center h-[180px] text-slate-400 text-sm">Sin datos en el período</div>
+              ) : (() => {
+                // Group by surgeon → by implant
+                const bySurgeonImplant = {};
+                filteredConsumption.forEach(c => {
+                  const surgeonName = c.surgeries?.surgeon?.full_name || 'Sin asignar';
+                  const implantName = c.implant_lots?.implants?.name || 'Desconocido';
+                  const sku = c.implant_lots?.implants?.sku || '—';
+                  const qty  = c.quantity_used || 0;
+                  const cost = qty * (c.implant_lots?.implants?.unit_cost || 0);
+                  if (!bySurgeonImplant[surgeonName]) bySurgeonImplant[surgeonName] = {};
+                  if (!bySurgeonImplant[surgeonName][implantName]) {
+                    bySurgeonImplant[surgeonName][implantName] = { sku, qty: 0, cost: 0 };
+                  }
+                  bySurgeonImplant[surgeonName][implantName].qty  += qty;
+                  bySurgeonImplant[surgeonName][implantName].cost += cost;
+                });
+
+                const totalGlobalCost = filteredConsumption.reduce((s, c) =>
+                  s + (c.quantity_used || 0) * (c.implant_lots?.implants?.unit_cost || 0), 0);
+
+                // Build rows: one row per surgeon with their top implant
+                const rows = Object.entries(bySurgeonImplant).map(([surgeon, implants]) => {
+                  const top = Object.entries(implants)
+                    .sort((a, b) => b[1].qty - a[1].qty)[0];
+                  const surgeonTotal = Object.values(implants).reduce((s, v) => s + v.cost, 0);
+                  return {
+                    surgeon,
+                    topImplant: top[0],
+                    sku: top[1].sku,
+                    qty: top[1].qty,
+                    cost: surgeonTotal,
+                    pct: totalGlobalCost > 0 ? Math.round((surgeonTotal / totalGlobalCost) * 100) : 0,
+                  };
+                }).sort((a, b) => b.cost - a.cost);
+
+                return (
+                  <div className="overflow-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-100">
+                          {['Cirujano','Implante Más Usado','SKU','Usos','Gasto Total','% del Total'].map(h => (
+                            <th key={h} className="py-2 pr-4 font-bold text-slate-400 uppercase text-[10px] tracking-wider whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((row, i) => (
+                          <tr key={i} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                            <td className="py-3 pr-4">
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-violet-700 font-black text-[10px] shrink-0">
+                                  {row.surgeon.split(' ').map(n => n[0]).slice(0,2).join('')}
+                                </div>
+                                <span className="font-semibold text-slate-800 whitespace-nowrap">{row.surgeon}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 pr-4 font-medium text-slate-700 max-w-[180px] truncate">{row.topImplant}</td>
+                            <td className="py-3 pr-4 font-mono text-slate-500">{row.sku}</td>
+                            <td className="py-3 pr-4">
+                              <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md font-bold">{row.qty}</span>
+                            </td>
+                            <td className="py-3 pr-4 font-bold text-slate-800">
+                              RD$ {row.cost.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-3">
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full min-w-[60px]">
+                                  <div
+                                    className="h-1.5 rounded-full bg-violet-500"
+                                    style={{ width: `${row.pct}%` }}
+                                  />
+                                </div>
+                                <span className="font-bold text-violet-700 text-[11px] w-8">{row.pct}%</span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </div>
           </div>
           
@@ -440,31 +529,93 @@ export const Reportes = () => {
                 <div className="col-span-full py-8 text-center text-slate-400 italic">
                   No hay consumos suficientes para proyectar compras.
                 </div>
-              ) : (
-                filteredConsumption.slice(0, 5).map((c, i) => (
-                  <div key={i} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-primary/30 transition-all group">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center border border-slate-100 group-hover:scale-110 transition-transform">
-                        <Package size={16} className="text-primary" />
+              ) : (() => {
+                // Days in selected period
+                const periodDays = period === 'week' ? 7 : period === 'month' ? 30 : 365;
+
+                // Aggregate by implant SKU/ID — sum quantities for duplicates
+                const aggregated = Object.values(
+                  filteredConsumption.reduce((acc, c) => {
+                    const implantId = c.implant_lots?.implants?.id || c.implant_lots?.implant_id;
+                    const key = c.implant_lots?.implants?.sku || implantId || c.implant_lot_id;
+                    if (!key) return acc;
+                    if (!acc[key]) {
+                      acc[key] = {
+                        key,
+                        implantId,
+                        name: c.implant_lots?.implants?.name,
+                        sku: c.implant_lots?.implants?.sku,
+                        totalQty: 0,
+                      };
+                    }
+                    acc[key].totalQty += (c.quantity_used || 0);
+                    return acc;
+                  }, {})
+                ).sort((a, b) => b.totalQty - a.totalQty).slice(0, 5);
+
+                return aggregated.map((item, i) => {
+                  // Calculate days of stock remaining
+                  const implantData = allImplants.find(imp =>
+                    imp.sku === item.sku || imp.id === item.implantId
+                  );
+                  const currentStock = (implantData?.implant_lots || [])
+                    .reduce((s, lot) => s + (lot.current_quantity || 0), 0);
+                  const dailyRate = item.totalQty / periodDays;
+                  const daysLeft = dailyRate > 0 ? Math.floor(currentStock / dailyRate) : null;
+
+                  const urgency = daysLeft === null ? 'ok'
+                    : daysLeft < 7  ? 'critical'
+                    : daysLeft < 30 ? 'warning'
+                    : 'ok';
+
+                  const stockLabel = (() => {
+                    if (daysLeft === null) return '—';
+                    if (daysLeft < 7)  return `${daysLeft} días ⚠️`;
+                    if (daysLeft < 30) return `${daysLeft} días`;
+                    const months = Math.round(daysLeft / 30);
+                    return `~${months} ${months === 1 ? 'mes' : 'meses'}`;
+                  })();
+
+                  const urgencyStyles = {
+                    critical: { badge: 'bg-red-100 text-red-700',    dot: 'bg-red-500',    label: stockLabel },
+                    warning:  { badge: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500',  label: stockLabel },
+                    ok:       { badge: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500', label: stockLabel },
+                  }[urgency];
+
+                  return (
+                    <div key={item.key || i} className={`p-4 rounded-2xl bg-slate-50 border transition-all group ${urgency === 'critical' ? 'border-red-200 hover:border-red-400' : 'border-slate-100 hover:border-primary/30'}`}>
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center border border-slate-100 group-hover:scale-110 transition-transform">
+                          <Package size={16} className="text-primary" />
+                        </div>
+                        <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md text-[10px] font-bold">
+                          ALTA ROTACIÓN
+                        </span>
                       </div>
-                      <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md text-[10px] font-bold">
-                        ALTA ROTACIÓN
-                      </span>
-                    </div>
-                    <p className="text-xs font-bold text-slate-900 mb-1 truncate" title={c.implant_lots?.implants?.name}>
-                      {c.implant_lots?.implants?.name}
-                    </p>
-                    <p className="text-[10px] text-slate-500 mb-3 font-mono">SKU: {c.implant_lots?.implants?.sku}</p>
-                    <div className="flex items-end justify-between">
-                      <div>
-                        <p className="text-[10px] text-slate-400 uppercase font-black">Sugerencia</p>
-                        <p className="text-xl font-black text-primary">+{c.quantity_used}</p>
+                      <p className="text-xs font-bold text-slate-900 mb-0.5 truncate" title={item.name}>
+                        {item.name}
+                      </p>
+                      <p className="text-[10px] text-slate-500 mb-3 font-mono">SKU: {item.sku}</p>
+
+                      {/* Days of stock remaining */}
+                      <div className={`flex items-center gap-1.5 mb-3 px-2 py-1 rounded-lg ${urgencyStyles.badge}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${urgencyStyles.dot} ${urgency === 'critical' ? 'animate-pulse' : ''}`} />
+                        <span className="text-[10px] font-bold">
+                          {daysLeft !== null ? `Stock: ${urgencyStyles.label} restantes` : 'Stock no calculado'}
+                        </span>
                       </div>
-                      <p className="text-[10px] text-slate-400 font-bold mb-1">Unidades</p>
+
+                      <div className="flex items-end justify-between">
+                        <div>
+                          <p className="text-[10px] text-slate-400 uppercase font-black">Sugerencia</p>
+                          <p className="text-xl font-black text-primary">+{item.totalQty}</p>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-bold mb-1">Unidades</p>
+                      </div>
                     </div>
-                  </div>
-                ))
-              )}
+                  );
+                });
+              })()}
             </div>
           </div>
         </>

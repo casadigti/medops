@@ -2,6 +2,7 @@ import React from 'react';
 import { Sidebar } from './Sidebar';
 import { Bell, Search, LayoutDashboard, Calendar, CalendarDays, Stethoscope, Package, Users, BarChart3, Settings, Shield, Wrench } from 'lucide-react';
 import { surgeryService } from '../../services/surgeryService';
+import { implantService } from '../../services/implantService';
 import { cn } from '../../utils/cn';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -56,6 +57,7 @@ export const Layout = ({ children, userProfile }) => {
   const [time, setTime] = React.useState(new Date());
   const [unreadCount, setUnreadCount] = React.useState(0);
   const [showNotifs, setShowNotifs] = React.useState(false);
+  const [lowStockCount, setLowStockCount] = React.useState(0);
 
   React.useEffect(() => {
     if (!userProfile?.id) return;
@@ -72,6 +74,13 @@ export const Layout = ({ children, userProfile }) => {
 
     return () => subscription.unsubscribe();
   }, [userProfile?.id]);
+
+  // Fetch low-stock count once on mount
+  React.useEffect(() => {
+    implantService.getLowStockImplants()
+      .then(items => setLowStockCount(items.length))
+      .catch(() => {});
+  }, []);
 
   React.useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 60000);
@@ -90,7 +99,7 @@ export const Layout = ({ children, userProfile }) => {
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans selection:bg-primary/10 selection:text-primary">
       {/* Sidebar - Desktop */}
-      <Sidebar className="hidden lg:flex" role={userProfile?.role} profile={userProfile} />
+      <Sidebar className="hidden lg:flex" role={userProfile?.role} profile={userProfile} lowStockCount={lowStockCount} />
 
       {/* Main Content */}
       <main className="flex-1 lg:ml-64 min-h-screen flex flex-col pb-16 lg:pb-0">
