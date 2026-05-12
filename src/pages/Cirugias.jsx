@@ -13,7 +13,189 @@ import { SURGERY_STATUSES, PROCEDURE_TYPES, STATUS_COLORS } from '../data/catalo
 import { Stethoscope, Plus, Pencil, Trash2, Search, ChevronDown, Calendar, User, Building2, Package, Printer, AlertTriangle } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { printService } from '../services/printService';
+import { implantService } from '../services/implantService';
 import { useToast } from '../components/ui/Toast';
+import { ShoppingCart, CheckCircle2 } from 'lucide-react';
+
+// ─── Consumption Form ─────────────────────────────────────────────────────────
+const ConsumptionForm = ({ surgery, onSave, onCancel, loading }) => {
+  const [implants, setImplants] = useState([]);
+  const [selectedImplantId, setSelectedImplantId] = useState('');
+  const [selectedLotId, setSelectedLotId] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [authNumber, setAuthNumber] = useState('');
+  const [notes, setNotes] = useState('');
+  const [currentConsumption, setCurrentConsumption] = useState([]);
+  const [fetching, setFetching] = useState(true);
+
+  const fetchImplants = async () => {
+    try {
+      const data = await implantService.getAll();
+      setImplants(data);
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  const fetchConsumption = async () => {
+    const data = await implantService.getConsumptionBySurgery(surgery.id);
+    setCurrentConsumption(data);
+  };
+
+  useEffect(() => {
+    fetchImplants();
+    fetchConsumption();
+  }, [surgery.id]);
+
+  const selectedImplant = implants.find(i => i.id === selectedImplantId);
+  const availableLots = selectedImplant?.implant_lots?.filter(l => l.current_quantity > 0) || [];
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    if (!selectedLotId) return;
+    
+    onSave({
+      surgery_id: surgery.id,
+      implant_lot_id: selectedLotId,
+      quantity_used: quantity,
+      auth_number: authNumber,
+      notes
+    });
+    
+    // Reset local form but keep modal open
+    setSelectedLotId('');
+    setQuantity(1);
+    setAuthNumber('');
+    setNotes('');
+    setTimeout(fetchConsumption, 500);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Registrar Nuevo Gasto</h4>
+        <form onSubmit={handleAdd} className="grid grid-cols-12 gap-4">
+          <div className="col-span-12">
+            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Producto</label>
+            <select 
+              className="input text-sm" 
+              value={selectedImplantId} 
+              onChange={e => { setSelectedImplantId(e.target.value); setSelectedLotId(''); }}
+            >
+              <option value="">Seleccionar producto...</option>
+              {implants.map(i => (
+                <option key={i.id} value={i.id}>{i.name} ({i.sku})</option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="col-span-12 md:col-span-5">
+            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Lote Disponible</label>
+            <select 
+              className="input text-sm" 
+              disabled={!selectedImplantId}
+              value={selectedLotId} 
+              onChange={e => setSelectedLotId(e.target.value)}
+            >
+              <option value="">Seleccionar lote...</option>
+              {availableLots.map(l => (
+                <option key={l.id} value={l.id}>
+                  Lote: {l.lot_number} (Stock: {l.current_quantity})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="col-span-8 md:col-span-5">
+            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nº Autorización</label>
+            <input 
+              className="input text-sm" 
+              placeholder="Opcional" 
+              value={authNumber} 
+              onChange={e => setAuthNumber(e.target.value)}
+            />
+          </div>
+
+          <div className="col-span-4 md:col-span-2">
+            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Cant.</label>
+            <input 
+              type="number" 
+              min="1" 
+              className="input text-sm" 
+              value={quantity} 
+              onChange={e => setQuantity(parseInt(e.target.value))} 
+            />
+          </div>
+
+          <div className="col-span-12 flex gap-2">
+            <input 
+              className="input text-sm flex-1" 
+              placeholder="Notas u observaciones del uso..." 
+              value={notes} 
+              onChange={e => setNotes(e.target.value)}
+            />
+            <button 
+              type="submit" 
+              disabled={loading || !selectedLotId} 
+              className="btn btn-primary px-6 whitespace-nowrap"
+            >
+              <Plus size={16} className="mr-1" /> Cargar
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div className="space-y-3">
+        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Material Consumido en esta Cirugía</h4>
+        {currentConsumption.length === 0 ? (
+          <p className="text-sm text-slate-400 italic text-center py-4">No se ha reportado consumo aún.</p>
+        ) : (
+          <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden bg-white">
+            {currentConsumption.map(c => (
+              <div key={c.id} className="p-3 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                <div>
+                  <p className="text-sm font-bold text-slate-900">{c.implant_lots?.implants?.name}</p>
+                  <p className="text-[10px] text-slate-500 uppercase">
+                    SKU: {c.implant_lots?.implants?.sku} · Lote: <span className="font-mono font-bold text-slate-700">{c.implant_lots?.lot_number}</span>
+                    {c.auth_number && <span className="ml-2 text-primary">· Aut: {c.auth_number}</span>}
+                  </p>
+                  <p className="text-[10px] font-bold text-slate-400 mt-0.5">
+                    Costo: RD$ {(c.implant_lots?.implants?.unit_cost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} c/u
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <p className="text-sm font-black text-primary">x{c.quantity_used}</p>
+                    <p className="text-[10px] text-slate-400">{new Date(c.used_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                  </div>
+                  <CheckCircle2 size={18} className="text-emerald-500" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {currentConsumption.length > 0 && (
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex items-center justify-between mt-6">
+          <div>
+            <p className="text-[10px] font-black text-primary uppercase tracking-widest">Total Gasto Quirúrgico</p>
+            <p className="text-2xl font-black text-slate-900">
+              RD$ {currentConsumption.reduce((sum, c) => sum + (c.quantity_used * (c.implant_lots?.implants?.unit_cost || 0)), 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            </p>
+          </div>
+          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-primary shadow-sm border border-primary/10">
+            <ShoppingCart size={24} />
+          </div>
+        </div>
+      )}
+
+      <div className="pt-2">
+        <button onClick={onCancel} className="btn btn-secondary w-full">Cerrar y Finalizar</button>
+      </div>
+    </div>
+  );
+};
 
 // ─── Surgery Form ────────────────────────────────────────────────────────────
 const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, loading }) => {
@@ -201,6 +383,7 @@ export const Cirugias = ({ userProfile }) => {
   const [search, setSearch]       = useState(searchParams.get('q') || '');
   const [filterStatus, setFilterStatus] = useState('');
   const [modal, setModal]         = useState(null);
+  const [consumptionModal, setConsumptionModal] = useState(null);
   const [confirm, setConfirm]     = useState(null);
 
   const isSurgeon = userProfile?.role === 'Cirujano';
@@ -296,6 +479,17 @@ export const Cirugias = ({ userProfile }) => {
     if (isSurgeon) return; // Protection
     await surgeryService.delete(confirm.id);
     setConfirm(null); fetchAll();
+  };
+  const handleConsumptionReport = async (consumptionData) => {
+    setSaving(true);
+    try {
+      await implantService.reportConsumption(consumptionData);
+      toast.success('Gasto registrado y stock actualizado');
+    } catch (err) {
+      toast.error('Error: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const getDaysLabel = (dateStr) => {
@@ -402,22 +596,38 @@ export const Cirugias = ({ userProfile }) => {
                             >
                               <Printer size={15} />
                             </button>
-                            <button onClick={() => setModal({ data: s })} className="p-2 hover:bg-blue-50 rounded-lg text-slate-400 hover:text-blue-600 transition-colors"><Pencil size={15} /></button>
-                            <button onClick={() => setConfirm({ id: s.id, name: s.patient_name })} className="p-2 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={15} /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+                            <button 
+                               onClick={() => setConsumptionModal(s)} 
+                               disabled={s.status !== 'Completada'}
+                               title={s.status === 'Completada' ? "Reportar Gasto Quirúrgico" : "Solo disponible al completar la cirugía"}
+                               className={cn(
+                                 "p-2 rounded-lg transition-colors",
+                                 s.status === 'Completada' 
+                                   ? "text-slate-400 hover:bg-emerald-50 hover:text-emerald-600" 
+                                   : "text-slate-200 cursor-not-allowed"
+                               )}
+                             >
+                               <ShoppingCart size={15} />
+                             </button>
+                             <button onClick={() => setModal({ data: s })} className="p-2 hover:bg-blue-50 rounded-lg text-slate-400 hover:text-blue-600 transition-colors"><Pencil size={15} /></button>
+                             <button onClick={() => setConfirm({ id: s.id, name: s.patient_name })} className="p-2 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={15} /></button>
+                           </div>
+                         </td>
+                       </tr>
+                     );
+                   })}
+                 </tbody>
+               </table>
+             </div>
+           </div>
+         )}
 
-      <Modal isOpen={!!modal} onClose={() => setModal(null)} title={modal?.data ? 'Editar Cirugía' : 'Nueva Cirugía'} size="lg">
-        <SurgeryForm initial={modal?.data} surgeons={surgeons} hospitals={hospitals} arsList={arsList} onSave={handleSave} onCancel={() => setModal(null)} loading={saving} />
-      </Modal>
+       <Modal isOpen={!!modal} onClose={() => setModal(null)} title={modal?.data ? 'Editar Cirugía' : 'Nueva Cirugía'} size="lg">
+         <SurgeryForm initial={modal?.data} surgeons={surgeons} hospitals={hospitals} arsList={arsList} onSave={handleSave} onCancel={() => setModal(null)} loading={saving} />
+       </Modal>
+       <Modal isOpen={!!consumptionModal} onClose={() => setConsumptionModal(null)} title={`Reportar Gasto: ${consumptionModal?.patient_name}`} size="md">
+         <ConsumptionForm surgery={consumptionModal} onSave={handleConsumptionReport} onCancel={() => setConsumptionModal(null)} loading={saving} />
+       </Modal>
       <ConfirmDialog
         isOpen={!!confirm} onClose={() => setConfirm(null)} onConfirm={handleDelete}
         title="¿Eliminar cirugía?" message={`¿Estás seguro de eliminar la cirugía de "${confirm?.name}"?`}

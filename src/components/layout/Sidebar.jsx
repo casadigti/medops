@@ -11,7 +11,9 @@ import {
   LogOut,
   Wrench,
   CalendarDays,
-  Shield
+  Shield,
+  Box,
+  ShoppingCart
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { supabase } from '../../lib/supabase';
@@ -22,6 +24,8 @@ const navItems = [
   { icon: CalendarDays, label: 'Calendario', path: '/calendario', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
   { icon: Stethoscope, label: 'Cirugías', path: '/cirugias', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
   { icon: Package, label: 'Bandejas / Sets', path: '/bandejas', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
+  { icon: Box, label: 'Inventario', path: '/inventario', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
+  { icon: ShoppingCart, label: 'Reporte de Gasto', path: '/reporte-reposicion', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
   { icon: Wrench, label: 'Mantenimiento', path: '/mantenimiento', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
   { icon: Users, label: 'Directorio', path: '/directorio', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor', 'Lector'] },
   { icon: BarChart3, label: 'Reportes', path: '/reportes', roles: ['Superadmin', 'Administrador'] },

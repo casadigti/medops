@@ -48,5 +48,25 @@ Se ha implementado una capa de seguridad en los servicios de datos para prevenir
 *   **Backend:** Supabase (Postgres + Auth + Edge Functions).
 *   **Seguridad:** RBAC + RLS Hardening + DTO Validation.
 
+## 6. Analítica Financiera e Inventario (Visibility & Logistics)
+Se ha implementado un sistema de visibilidad de costos y control de reposición para optimizar la rentabilidad operativa.
+
+### 6.1 Gestión de Costos Unitarios
+*   **Inventario:** Se añadieron campos de `unit_cost` (costo de adquisición) y `min_stock` (punto de reorden) a la tabla de implantes.
+*   **Importación Masiva:** El flujo de importación desde Excel soporta el mapeo dinámico de estos campos para una carga eficiente de catálogos.
+
+### 6.2 Reporte de Gasto Quirúrgico
+*   **Lógica de Integridad:** El reporte financiero filtra estrictamente las cirugías por estado `Completada`. Esto garantiza que los costos reportados correspondan a consumos reales y finales.
+*   **Agregación Dual:** 
+    *   **Vista Logística:** Agrupa consumos por `productId` para facilitar la reposición de inventario.
+    *   **Vista Financiera:** Agrupa consumos por `surgeryId` (Paciente) para calcular el costo total de cada procedimiento.
+
+### 6.3 Sistema de Alertas de Inventario
+*   **Vencimientos:** Monitoreo dinámico de fechas de caducidad. El sistema genera alertas visuales detalladas indicando el nombre del producto y el lote afectado.
+*   **Stock Crítico:** Cálculo en tiempo real de faltantes basado en el `min_stock` definido por producto.
+
+### 6.4 Restricciones Operativas
+*   **Bloqueo de Gasto:** El botón para registrar consumo está deshabilitado hasta que la cirugía cambie su estatus a `Completada`. Esto asegura que la analítica financiera no contenga datos parciales o en borrador.
+
 ---
 *Este documento es la única fuente de verdad sobre la implementación actual de la arquitectura de MedOps.*

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { surgeryService } from '../services/surgeryService';
+import { implantService } from '../services/implantService';
 import { StatusBadge } from '../components/ui/Badge';
 import { PageLoader } from '../components/ui/Spinner';
 import { Stethoscope, Calendar, Package, AlertTriangle, TrendingUp, CheckCircle2, Clock } from 'lucide-react';
@@ -24,6 +25,8 @@ const MetricCard = ({ icon: Icon, label, value, sub, color = 'text-primary', bg 
 export const Dashboard = () => {
   const navigate = useNavigate();
   const [surgeries, setSurgeries] = useState([]);
+  const [expiringLots, setExpiringLots] = useState([]);
+  const [lowStock, setLowStock] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -33,9 +36,15 @@ export const Dashboard = () => {
     const loadData = async () => {
       try {
         setError(null);
-        const data = await surgeryService.getAll();
+        const [sData, iData, lsData] = await Promise.all([
+          surgeryService.getAll(),
+          implantService.getExpiringLots(),
+          implantService.getLowStockImplants()
+        ]);
         if (mounted) {
-          setSurgeries(data || []);
+          setSurgeries(sData || []);
+          setExpiringLots(iData || []);
+          setLowStock(lsData || []);
           setLoading(false);
         }
       } catch (err) {
@@ -106,9 +115,19 @@ export const Dashboard = () => {
   // Chart: surgeries per day this week
   const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
   const chartData = days.map((name, i) => {
-    const dayStart = new Date(startOfWeek); dayStart.setDate(startOfWeek.getDate() + i); dayStart.setHours(0,0,0,0);
-    const dayEnd = new Date(dayStart); dayEnd.setHours(23,59,59,999);
-    return { name, total: surgeries.filter(s => { const d = new Date(s.surgery_date); return d >= dayStart && d <= dayEnd; }).length };
+    const dayStart = new Date(startOfWeek); 
+    dayStart.setDate(startOfWeek.getDate() + i); 
+    dayStart.setHours(0,0,0,0);
+    const dayEnd = new Date(dayStart); 
+    dayEnd.setHours(23,59,59,999);
+    
+    return { 
+      name, 
+      cirugías: surgeries.filter(s => { 
+        const d = new Date(s.surgery_date); 
+        return d >= dayStart && d <= dayEnd; 
+      }).length 
+    };
   });
 
   if (loading) return <PageLoader />;
@@ -142,22 +161,22 @@ export const Dashboard = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
         <MetricCard icon={Calendar} label="Cirugías del Mes" value={thisMonth.length} sub={`${thisWeek.length} esta semana`} />
         <MetricCard icon={Clock} label="Pendientes Preparar" value={pending.length} color="text-amber-600" bg="bg-amber-50" sub="Requieren atención" />
-        <MetricCard icon={TrendingUp} label="En Tránsito / Entregadas" value={inTransit.length} color="text-purple-600" bg="bg-purple-50" />
+        <MetricCard icon={AlertTriangle} label="Inventario Crítico" value={expiringLots.length + lowStock.length} color="text-rose-600" bg="bg-rose-50" sub="Vencimientos / Stock Bajo" />
         <MetricCard icon={CheckCircle2} label="Completadas" value={surgeries.filter(s=>s.status==='Completada').length} color="text-green-600" bg="bg-green-50" sub="Total histórico" />
       </div>
 
       {/* Alerts + Chart row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* Critical Alerts */}
+        {/* Alertas Críticas de Cirugías */}
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <AlertTriangle size={18} className="text-red-500" />
-            Alertas Críticas
+            Alertas de Cirugías
             {alerts.length > 0 && <span className="ml-auto text-xs bg-red-500 text-white px-2 py-0.5 rounded-full">{alerts.length}</span>}
           </h2>
           {alerts.length === 0
-            ? <div className="card text-center py-8 text-slate-400"><CheckCircle2 size={32} className="mx-auto mb-2 text-green-400" /><p className="font-medium text-green-600">Sin alertas activas</p></div>
+            ? <div className="card text-center py-8 text-slate-400"><CheckCircle2 size={32} className="mx-auto mb-2 text-green-400" /><p className="font-medium text-green-600">Sin alertas de pacientes</p></div>
             : <div className="space-y-3">
                 {alerts.map(a => (
                   <div
@@ -176,25 +195,90 @@ export const Dashboard = () => {
                     </div>
                     <p className="font-bold text-slate-900">{a.patient_name}</p>
                     <p className="text-xs text-slate-600 mt-0.5">{a.msg}</p>
-                    {a.surgeon && <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">Dr. {a.surgeon.full_name}</p>}
                   </div>
                 ))}
               </div>
           }
         </div>
 
-        {/* Bar Chart */}
-        <div className="lg:col-span-2 card">
-          <h2 className="text-lg font-bold text-slate-900 mb-6">Cirugías Esta Semana</h2>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={chartData} margin={{ top:0, right:0, bottom:0, left:-20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="name" tick={{ fontSize:12, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis allowDecimals={false} tick={{ fontSize:12, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ borderRadius:12, border:'none', boxShadow:'0 4px 20px rgba(0,0,0,.1)', fontSize:13 }} />
-              <Bar dataKey="total" name="Cirugías" fill="#1e40af" radius={[6,6,0,0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        {/* Columna Derecha: Gráfico e Inventario */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Bar Chart */}
+          <div className="card">
+            <h2 className="text-lg font-bold text-slate-900 mb-6">Cirugías Esta Semana</h2>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={chartData} margin={{ top:0, right:0, bottom:0, left:-20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="name" tick={{fontSize: 12}} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{fontSize: 12}} axisLine={false} tickLine={false} />
+                <Tooltip cursor={{fill: '#f1f5f9'}} contentStyle={{borderRadius:'12px', border:'none', boxShadow:'0 4px 12px rgba(0,0,0,0.1)'}} />
+                <Bar dataKey="cirugías" fill="#1e40af" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Alertas de Inventario */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Package size={18} className="text-primary" />
+              Estado de Inventario
+              {(expiringLots.length + lowStock.length) > 0 && <span className="ml-auto text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full">{expiringLots.length + lowStock.length}</span>}
+            </h2>
+            
+            {(expiringLots.length === 0 && lowStock.length === 0) 
+              ? <div className="card text-center py-6 text-slate-400 italic">No hay alertas de inventario activas.</div>
+              : <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Alertas de Vencimiento */}
+                  {expiringLots.map(lot => {
+                    const isExpired = new Date(lot.expiration_date) < now;
+                    return (
+                      <div
+                        key={lot.id}
+                        onClick={() => navigate(`/inventario`)}
+                        className={cn(
+                          'p-4 rounded-2xl border cursor-pointer hover:shadow-md transition-all active:scale-[0.98]',
+                          isExpired ? 'bg-rose-50 border-rose-200 hover:border-rose-400' : 'bg-amber-50 border-amber-200 hover:border-amber-400'
+                        )}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider text-white', isExpired ? 'bg-rose-500' : 'bg-amber-500')}>
+                            {isExpired ? 'Vencido' : 'Por Vencer'}
+                          </span>
+                          <span className="text-xs text-slate-500">{new Date(lot.expiration_date).toLocaleDateString('es-ES')}</span>
+                        </div>
+                        <p className="font-bold text-slate-900 line-clamp-1">{lot.implants?.name}</p>
+                        <p className="text-xs text-slate-600 mt-0.5">Lote: <span className="font-mono font-bold">{lot.lot_number}</span> · {lot.current_quantity} uds.</p>
+                      </div>
+                    );
+                  })}
+
+                  {/* Alertas de Stock Bajo */}
+                  {lowStock.map(imp => {
+                    const total = (imp.implant_lots || []).reduce((acc, lot) => acc + lot.current_quantity, 0);
+                    const isZero = total === 0;
+                    return (
+                      <div
+                        key={imp.id}
+                        onClick={() => navigate(`/inventario?q=${encodeURIComponent(imp.sku)}`)}
+                        className={cn(
+                          'p-4 rounded-2xl border cursor-pointer hover:shadow-md transition-all active:scale-[0.98]',
+                          isZero ? 'bg-red-50 border-red-200 hover:border-red-400' : 'bg-orange-50 border-orange-200 hover:border-orange-400'
+                        )}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider text-white', isZero ? 'bg-red-500' : 'bg-orange-500')}>
+                            {isZero ? 'Agotado' : 'Stock Bajo'}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{imp.category}</span>
+                        </div>
+                        <p className="font-bold text-slate-900 line-clamp-1">{imp.name}</p>
+                        <p className="text-xs text-slate-600 mt-0.5">Stock: <span className="font-bold text-slate-900">{total}</span> uds. (Mín: {imp.min_stock})</p>
+                      </div>
+                    );
+                  })}
+                </div>
+            }
+          </div>
         </div>
       </div>
 

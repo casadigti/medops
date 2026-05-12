@@ -13,6 +13,8 @@ import { Reportes } from './pages/Reportes';
 import { Configuracion } from './pages/Configuracion';
 import { Login } from './pages/Login';
 import { MisSolicitudes } from './pages/MisSolicitudes';
+import { InventarioQuirurgico } from './pages/InventarioQuirurgico';
+import { ReporteReposicion } from './pages/ReporteReposicion';
 import { ForcePasswordChange } from './components/auth/ForcePasswordChange';
 
 function App() {
@@ -159,6 +161,8 @@ function App() {
                     <Route path="/reportes" element={!isSurgeon ? <Reportes /> : <Navigate to="/mis-solicitudes" replace />} />
                     
                     <Route path="/configuracion" element={<Configuracion userProfile={userProfile} />} />
+                    <Route path="/inventario" element={!isSurgeon ? <InventarioQuirurgico /> : <Navigate to="/mis-solicitudes" replace />} />
+                    <Route path="/reporte-reposicion" element={!isSurgeon ? <ReporteReposicion /> : <Navigate to="/mis-solicitudes" replace />} />
                     <Route path="/mis-solicitudes" element={<MisSolicitudes userProfile={userProfile} />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
