@@ -72,14 +72,21 @@ export const Layout = ({ children, userProfile }) => {
       setUnreadCount(prev => prev + 1);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      if (subscription) supabase.removeChannel(subscription);
+    };
   }, [userProfile?.id]);
 
-  // Fetch low-stock count once on mount
+  // Fetch total critical inventory count (low stock + expiring lots)
   React.useEffect(() => {
-    implantService.getLowStockImplants()
-      .then(items => setLowStockCount(items.length))
-      .catch(() => {});
+    Promise.all([
+      implantService.getLowStockImplants(),
+      implantService.getExpiringLots()
+    ]).then(([lowStock, expiring]) => {
+      setLowStockCount((lowStock?.length || 0) + (expiring?.length || 0));
+    }).catch(err => {
+      console.error('Layout: Error fetching inventory alerts:', err);
+    });
   }, []);
 
   React.useEffect(() => {
@@ -143,6 +150,11 @@ export const Layout = ({ children, userProfile }) => {
                     userId={userProfile?.id} 
                     isOpen={showNotifs} 
                     onClose={() => setShowNotifs(false)} 
+                    onUpdate={() => {
+                      notificationService.getMyNotifications().then(data => {
+                        setUnreadCount(data.filter(n => !n.is_read).length);
+                      });
+                    }}
                   />
                 </>
               )}

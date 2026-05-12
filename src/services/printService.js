@@ -106,5 +106,64 @@ export const printService = {
     doc.text(footerText, pageWidth / 2, 285, { align: 'center' });
 
     doc.save(`Hoja_Entrega_${surgery.patient_name.replace(/\s+/g, '_')}.pdf`);
+  },
+
+  generateReplenishmentReport: (data, dateRange, summary) => {
+    const doc = new jsPDF();
+    const margin = 20;
+    const pageWidth = doc.internal.pageSize.width;
+
+    // Header
+    doc.setFillColor(30, 64, 175);
+    doc.rect(0, 0, pageWidth, 35, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('MedOps - Reporte de Reposición', margin, 20);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Periodo: ${dateRange.start} al ${dateRange.end}`, margin, 28);
+
+    const daysInRange = Math.max(1, Math.ceil((new Date(dateRange.end) - new Date(dateRange.start)) / 86400000));
+
+    // Body
+    const rows = Object.values(summary).map(item => {
+      const dailyConsumption = item.total_used / daysInRange;
+      const daysLeft = dailyConsumption > 0 ? Math.floor(item.current_stock / dailyConsumption) : 'Infinito';
+      
+      return [
+        item.name,
+        item.sku,
+        item.category,
+        item.current_stock,
+        item.total_used,
+        daysLeft === 'Infinito' ? '∞' : `${daysLeft} días`,
+        `RD$ ${(item.total_used * item.unit_cost).toLocaleString()}`
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 45,
+      head: [['Producto', 'SKU', 'Categoría', 'Stock', 'Uso', 'Días Stock', 'Subtotal']],
+      body: rows,
+      theme: 'grid',
+      headStyles: { fillColor: [30, 64, 175], fontSize: 8 },
+      bodyStyles: { fontSize: 8 },
+      columnStyles: {
+        3: { halign: 'center' },
+        4: { halign: 'center' },
+        5: { halign: 'center' },
+        6: { halign: 'right' }
+      }
+    });
+
+    const finalY = doc.lastAutoTable.finalY || 50;
+    const totalCost = Object.values(summary).reduce((acc, curr) => acc + (curr.total_used * curr.unit_cost), 0);
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`COSTO TOTAL DE REPOSICIÓN ESTIMADO: RD$ ${totalCost.toLocaleString()}`, pageWidth - margin, finalY + 15, { align: 'right' });
+
+    doc.save(`Reporte_Reposicion_${dateRange.start}_${dateRange.end}.pdf`);
   }
 };

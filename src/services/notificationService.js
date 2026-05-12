@@ -40,7 +40,7 @@ export const notificationService = {
 
   subscribeToNotifications(userId, callback) {
     return supabase
-      .channel('public:notifications')
+      .channel(`public:notifications:${userId}:${Math.random().toString(36).substring(7)}`)
       .on(
         'postgres_changes',
         {
@@ -52,5 +52,19 @@ export const notificationService = {
         (payload) => callback(payload.new)
       )
       .subscribe();
+  },
+
+  async createNotification(userId, { title, message, type = 'info' }) {
+    const { error } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: userId,
+        title,
+        message,
+        type,
+        is_read: false
+      });
+    
+    if (error) throw error;
   }
 };

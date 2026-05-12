@@ -8,7 +8,7 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-import { BarChart3, Download, Calendar, Users, Building2, Package, FileSpreadsheet } from 'lucide-react';
+import { BarChart3, Download, Calendar, Users, Building2, Package, FileSpreadsheet, Printer, Filter } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '../utils/cn';
 import { getLocalDateString } from '../utils/dateUtils';
@@ -47,6 +47,7 @@ export const Reportes = () => {
   const [viewMode, setViewMode] = useState('operational'); // 'operational' | 'financial'
   const [consumption, setConsumption] = useState([]);
   const [allImplants, setAllImplants] = useState([]);
+  const [filterSurgeon, setFilterSurgeon] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -429,18 +430,16 @@ export const Reportes = () => {
               {filteredConsumption.length === 0 ? (
                 <div className="flex items-center justify-center h-[180px] text-slate-400 text-sm">Sin datos en el período</div>
               ) : (() => {
-                // Group by surgeon → by implant
                 const bySurgeonImplant = {};
                 filteredConsumption.forEach(c => {
                   const surgeonName = c.surgeries?.surgeon?.full_name || 'Sin asignar';
                   const implantName = c.implant_lots?.implants?.name || 'Desconocido';
-                  const sku = c.implant_lots?.implants?.sku || '—';
+                  const sku  = c.implant_lots?.implants?.sku || '—';
                   const qty  = c.quantity_used || 0;
                   const cost = qty * (c.implant_lots?.implants?.unit_cost || 0);
                   if (!bySurgeonImplant[surgeonName]) bySurgeonImplant[surgeonName] = {};
-                  if (!bySurgeonImplant[surgeonName][implantName]) {
+                  if (!bySurgeonImplant[surgeonName][implantName])
                     bySurgeonImplant[surgeonName][implantName] = { sku, qty: 0, cost: 0 };
-                  }
                   bySurgeonImplant[surgeonName][implantName].qty  += qty;
                   bySurgeonImplant[surgeonName][implantName].cost += cost;
                 });
@@ -448,69 +447,123 @@ export const Reportes = () => {
                 const totalGlobalCost = filteredConsumption.reduce((s, c) =>
                   s + (c.quantity_used || 0) * (c.implant_lots?.implants?.unit_cost || 0), 0);
 
-                // Build rows: one row per surgeon with their top implant
-                const rows = Object.entries(bySurgeonImplant).map(([surgeon, implants]) => {
-                  const top = Object.entries(implants)
-                    .sort((a, b) => b[1].qty - a[1].qty)[0];
+                const allRows = Object.entries(bySurgeonImplant).map(([surgeon, implants]) => {
+                  const top = Object.entries(implants).sort((a, b) => b[1].qty - a[1].qty)[0];
                   const surgeonTotal = Object.values(implants).reduce((s, v) => s + v.cost, 0);
-                  return {
-                    surgeon,
-                    topImplant: top[0],
-                    sku: top[1].sku,
-                    qty: top[1].qty,
-                    cost: surgeonTotal,
-                    pct: totalGlobalCost > 0 ? Math.round((surgeonTotal / totalGlobalCost) * 100) : 0,
-                  };
+                  return { surgeon, topImplant: top[0], sku: top[1].sku, qty: top[1].qty,
+                    cost: surgeonTotal, pct: totalGlobalCost > 0 ? Math.round((surgeonTotal / totalGlobalCost) * 100) : 0 };
                 }).sort((a, b) => b.cost - a.cost);
 
+                const surgeonNames = allRows.map(r => r.surgeon);
+                const rows = filterSurgeon ? allRows.filter(r => r.surgeon === filterSurgeon) : allRows;
+                const periodLabel = period === 'week' ? 'Últimos 7 días' : period === 'month' ? 'Últimos 30 días' : 'Último año';
+
+                const exportPDF = () => {
+                  const win = window.open('', '_blank', 'width=950,height=700');
+                  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+                    <title>Implantes por Cirujano — MedOps</title>
+                    <style>
+                      *{margin:0;padding:0;box-sizing:border-box}
+                      body{font-family:'Segoe UI',Arial,sans-serif;color:#1e293b;padding:32px}
+                      .hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #7c3aed;padding-bottom:16px;margin-bottom:24px}
+                      .brand{font-size:22px;font-weight:900;color:#7c3aed}
+                      .sub{font-size:11px;color:#64748b;margin-top:2px}
+                      .meta{text-align:right;font-size:11px;color:#64748b}
+                      .meta b{display:block;font-size:13px;color:#1e293b;margin-bottom:2px}
+                      h2{font-size:16px;font-weight:700;margin-bottom:4px}
+                      .tag{display:inline-block;background:#ede9fe;color:#7c3aed;font-size:9px;font-weight:700;padding:2px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px}
+                      table{width:100%;border-collapse:collapse;font-size:12px}
+                      thead tr{background:#7c3aed;color:#fff}
+                      th{padding:10px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;text-align:left}
+                      td{padding:9px 12px;border-bottom:1px solid #f1f5f9}
+                      tr:nth-child(even) td{background:#faf5ff}
+                      .footer{margin-top:24px;font-size:10px;color:#94a3b8;text-align:center;border-top:1px solid #e2e8f0;padding-top:12px}
+                    </style></head><body>
+                    <div class="hdr">
+                      <div><div class="brand">MedOps</div><div class="sub">Gestión Médica · Inteligencia Comercial</div></div>
+                      <div class="meta"><b>Implantes por Cirujano</b>Período: ${periodLabel} · ${new Date().toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'})}</div>
+                    </div>
+                    <h2>Análisis de Frecuencia de Implantes</h2>
+                    <span class="tag">Inteligencia Comercial</span>
+                    <table><thead><tr>
+                      <th>Cirujano</th><th>Implante Más Usado</th><th>SKU</th>
+                      <th style="text-align:center">Usos</th><th>Gasto Total</th><th style="text-align:center">% del Total</th>
+                    </tr></thead><tbody>
+                    ${rows.map(r => `<tr><td>${r.surgeon}</td><td>${r.topImplant}</td>
+                      <td style="font-family:monospace">${r.sku}</td>
+                      <td style="text-align:center">${r.qty}</td>
+                      <td>RD$ ${r.cost.toLocaleString('en-US',{minimumFractionDigits:2})}</td>
+                      <td style="text-align:center">${r.pct}%</td></tr>`).join('')}
+                    </tbody></table>
+                    <div class="footer">Generado por MedOps · ${new Date().toLocaleString('es-ES')} · Confidencial — Solo para uso interno</div>
+                    </body></html>`);
+                  win.document.close();
+                  setTimeout(() => { win.focus(); win.print(); }, 400);
+                };
+
                 return (
-                  <div className="overflow-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead>
-                        <tr className="border-b border-slate-100">
-                          {['Cirujano','Implante Más Usado','SKU','Usos','Gasto Total','% del Total'].map(h => (
-                            <th key={h} className="py-2 pr-4 font-bold text-slate-400 uppercase text-[10px] tracking-wider whitespace-nowrap">{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rows.map((row, i) => (
-                          <tr key={i} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                            <td className="py-3 pr-4">
-                              <div className="flex items-center gap-2">
-                                <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-violet-700 font-black text-[10px] shrink-0">
-                                  {row.surgeon.split(' ').map(n => n[0]).slice(0,2).join('')}
-                                </div>
-                                <span className="font-semibold text-slate-800 whitespace-nowrap">{row.surgeon}</span>
-                              </div>
-                            </td>
-                            <td className="py-3 pr-4 font-medium text-slate-700 max-w-[180px] truncate">{row.topImplant}</td>
-                            <td className="py-3 pr-4 font-mono text-slate-500">{row.sku}</td>
-                            <td className="py-3 pr-4">
-                              <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md font-bold">{row.qty}</span>
-                            </td>
-                            <td className="py-3 pr-4 font-bold text-slate-800">
-                              RD$ {row.cost.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                            </td>
-                            <td className="py-3">
-                              <div className="flex items-center gap-2">
-                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full min-w-[60px]">
-                                  <div
-                                    className="h-1.5 rounded-full bg-violet-500"
-                                    style={{ width: `${row.pct}%` }}
-                                  />
-                                </div>
-                                <span className="font-bold text-violet-700 text-[11px] w-8">{row.pct}%</span>
-                              </div>
-                            </td>
+                  <>
+                    <div className="flex flex-wrap items-center gap-3 mb-4">
+                      <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                        <Filter size={13} className="text-slate-400" />
+                        <select value={filterSurgeon} onChange={e => setFilterSurgeon(e.target.value)}
+                          className="bg-transparent text-xs font-semibold text-slate-700 outline-none cursor-pointer">
+                          <option value="">Todos los cirujanos</option>
+                          {surgeonNames.map(n => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                      </div>
+                      <button onClick={exportPDF}
+                        className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm">
+                        <Printer size={14} />Exportar PDF
+                      </button>
+                      {filterSurgeon && (
+                        <button onClick={() => setFilterSurgeon('')} className="text-xs text-slate-400 hover:text-slate-700 underline">
+                          Limpiar filtro
+                        </button>
+                      )}
+                    </div>
+                    <div className="overflow-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-100">
+                            {['Cirujano','Implante Más Usado','SKU','Usos','Gasto Total','% del Total'].map(h => (
+                              <th key={h} className="py-2 pr-4 font-bold text-slate-400 uppercase text-[10px] tracking-wider whitespace-nowrap">{h}</th>
+                            ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {rows.map((row, i) => (
+                            <tr key={i} className="border-b border-slate-50 hover:bg-violet-50/40 transition-colors">
+                              <td className="py-3 pr-4">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-violet-700 font-black text-[10px] shrink-0">
+                                    {row.surgeon.split(' ').map(n => n[0]).slice(0,2).join('')}
+                                  </div>
+                                  <span className="font-semibold text-slate-800 whitespace-nowrap">{row.surgeon}</span>
+                                </div>
+                              </td>
+                              <td className="py-3 pr-4 font-medium text-slate-700 max-w-[180px] truncate">{row.topImplant}</td>
+                              <td className="py-3 pr-4 font-mono text-slate-500">{row.sku}</td>
+                              <td className="py-3 pr-4"><span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md font-bold">{row.qty}</span></td>
+                              <td className="py-3 pr-4 font-bold text-slate-800">RD$ {row.cost.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                              <td className="py-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex-1 h-1.5 bg-slate-100 rounded-full min-w-[60px]">
+                                    <div className="h-1.5 rounded-full bg-violet-500" style={{ width: `${row.pct}%` }} />
+                                  </div>
+                                  <span className="font-bold text-violet-700 text-[11px] w-8">{row.pct}%</span>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 );
               })()}
             </div>
+
           </div>
           
           <div className="card border-t-4 border-t-primary">

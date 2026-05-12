@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
 import { Bell, CheckCircle2, Info, AlertTriangle, XCircle, Clock, Check } from 'lucide-react';
 import { notificationService } from '../../services/notificationService';
 import { cn } from '../../utils/cn';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-export const NotificationPanel = ({ userId, isOpen, onClose }) => {
+export const NotificationPanel = ({ userId, isOpen, onClose, onUpdate }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,7 +25,7 @@ export const NotificationPanel = ({ userId, isOpen, onClose }) => {
     });
 
     return () => {
-      subscription.unsubscribe();
+      supabase.removeChannel(subscription);
     };
   }, [userId]);
 
@@ -43,6 +44,7 @@ export const NotificationPanel = ({ userId, isOpen, onClose }) => {
     try {
       await notificationService.markAsRead(id);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+      if (onUpdate) onUpdate();
     } catch (error) {
       console.error('Error marking read:', error);
     }
@@ -52,6 +54,7 @@ export const NotificationPanel = ({ userId, isOpen, onClose }) => {
     try {
       await notificationService.markAllAsRead();
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      if (onUpdate) onUpdate();
     } catch (error) {
       console.error('Error marking all read:', error);
     }
@@ -101,6 +104,23 @@ export const NotificationPanel = ({ userId, isOpen, onClose }) => {
             </div>
             <p className="text-sm font-bold text-slate-900">Todo al día</p>
             <p className="text-xs text-slate-400 mt-1">No tienes notificaciones pendientes.</p>
+            
+            <button 
+              onClick={() => {
+                const mockNotif = {
+                  id: Date.now(),
+                  title: 'Notificación de Prueba',
+                  message: 'Esta es una alerta simulada para verificar que el panel funciona correctamente.',
+                  type: 'info',
+                  created_at: new Date().toISOString(),
+                  is_read: false
+                };
+                setNotifications([mockNotif, ...notifications]);
+              }}
+              className="mt-6 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors"
+            >
+              Simular Alerta de Prueba
+            </button>
           </div>
         ) : (
           <div className="divide-y divide-slate-50">
@@ -130,7 +150,7 @@ export const NotificationPanel = ({ userId, isOpen, onClose }) => {
                       </h4>
                       <span className="text-[10px] text-slate-400 flex items-center gap-1 shrink-0 ml-2">
                         <Clock size={10} />
-                        {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true, locale: es })}
+                        {notif.created_at ? formatDistanceToNow(new Date(notif.created_at), { addSuffix: true, locale: es }) : 'Recientemente'}
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">

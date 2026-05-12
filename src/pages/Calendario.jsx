@@ -5,24 +5,40 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
 import { surgeryService } from '../services/surgeryService';
-import { Calendar, Stethoscope, AlertCircle, Loader2 } from 'lucide-react';
+import { surgeonService } from '../services/surgeonService';
+import { Calendar, Stethoscope, AlertCircle, Loader2, Filter, User } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useToast } from '../components/ui/Toast';
 
 export const Calendario = ({ userProfile }) => {
   const toast = useToast();
   const [surgeries, setSurgeries] = useState([]);
+  const [surgeons, setSurgeons] = useState([]);
+  const [selectedSurgeonId, setSelectedSurgeonId] = useState('all');
   const [loading, setLoading] = useState(true);
 
   const isSurgeon = userProfile?.role === 'Cirujano';
   const mySurgeonId = userProfile?.surgeon_id;
 
   useEffect(() => {
-    if (userProfile) fetchSurgeries();
+    if (userProfile) {
+      fetchSurgeries();
+      fetchSurgeons();
+    }
   }, [userProfile]);
+
+  const fetchSurgeons = async () => {
+    try {
+      const data = await surgeonService.getAll();
+      setSurgeons(data || []);
+    } catch (error) {
+      console.error('Error fetching surgeons:', error);
+    }
+  };
 
   const fetchSurgeries = async () => {
     try {
+      setLoading(true);
       // If surgeon, filter data fetching at service level
       const data = await surgeryService.getAll(isSurgeon ? mySurgeonId : null);
       setSurgeries(data);
@@ -66,20 +82,28 @@ export const Calendario = ({ userProfile }) => {
     }
   };
 
-  const events = surgeries.map(s => ({
-    id: s.id,
-    title: `${s.patient_name} - ${s.surgeon?.full_name || 'Sin Asignar'}`,
-    start: s.surgery_date,
-    display: 'block', // Fuerza a que sea un bloque de color sólido
-    textColor: '#ffffff', // Texto en blanco para contrastar
-    backgroundColor: getStatusColor(s.status),
-    borderColor: getStatusColor(s.status),
-    extendedProps: {
-      status: s.status,
-      procedure: s.procedure_type,
-      hospital: s.hospital?.name
-    }
-  }));
+  const events = surgeries
+    .filter(s => selectedSurgeonId === 'all' || s.surgeon_id === selectedSurgeonId)
+    .map(s => {
+      const color = getStatusColor(s.status);
+      const isHighlighted = selectedSurgeonId !== 'all' && s.surgeon_id === selectedSurgeonId;
+      
+      return {
+        id: s.id,
+        title: `${s.patient_name} - ${s.surgeon?.full_name || 'Sin Asignar'}`,
+        start: s.surgery_date,
+        display: 'block',
+        textColor: '#ffffff',
+        backgroundColor: color,
+        borderColor: isHighlighted ? '#ffffff' : color,
+        classNames: isHighlighted ? ['ring-2 ring-primary ring-offset-1 z-10'] : [],
+        extendedProps: {
+          status: s.status,
+          procedure: s.procedure_type,
+          hospital: s.hospital?.name
+        }
+      };
+    });
 
   const renderEventContent = (eventInfo) => {
     return (
@@ -100,6 +124,24 @@ export const Calendario = ({ userProfile }) => {
           </h1>
           <p className="text-slate-500">Visualiza, organiza y reprograma cirugías con Drag & Drop</p>
         </div>
+
+        {!isSurgeon && (
+          <div className="flex items-center gap-3 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400">
+              <User size={18} />
+            </div>
+            <select 
+              value={selectedSurgeonId}
+              onChange={(e) => setSelectedSurgeonId(e.target.value)}
+              className="bg-transparent border-none text-sm font-bold text-slate-700 focus:ring-0 outline-none pr-8 cursor-pointer"
+            >
+              <option value="all">Todos los Cirujanos</option>
+              {surgeons.map(s => (
+                <option key={s.id} value={s.id}>{s.full_name}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-2 sm:p-6">

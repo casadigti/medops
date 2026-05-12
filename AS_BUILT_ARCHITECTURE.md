@@ -1,81 +1,53 @@
 # AS-BUILT ARCHITECTURE: MedOps Portal
-**Versión:** 1.3 (Mayo 2026 - Security Hardened)
-**Estado:** Producción / Estable
+**Versión:** 1.4 (Mayo 2026 - Logistics & Analytics Pro)
+**Estado:** Producción / Estable / Build Verificado
 
 ## 1. Módulo de Seguridad y Usuarios (Hardening)
 Se ha migrado la gestión de usuarios a una arquitectura de **Edge Functions** para garantizar la integridad de las sesiones administrativas y permitir un control total sobre el ciclo de vida de los usuarios.
 
 ### 1.1 Edge Function: `manage-users` (Hardened)
 *   **Propósito:** Actuar como puente entre el frontend y el SDK de Admin de Supabase.
-*   **Acciones Soportadas:** `create`, `update`, `delete`.
-*   **Seguridad:** 
-    *   **Autenticación:** Requiere un JWT válido en el header `Authorization`.
-    *   **RBAC (Control de Acceso):** Solo los usuarios con rol `Superadmin` o `Administrador` (verificados en la tabla `profiles`) pueden ejecutar estas acciones.
-    *   **Privilegios:** Utiliza la `SERVICE_ROLE_KEY` internamente para operaciones administrativas solo después de validar al llamador.
+*   **Seguridad:** Requiere JWT válido y validación de rol `Superadmin`/`Administrador` en la tabla `profiles`.
 
-### 1.2 Triggers de Limpieza
-*   `on_profile_deleted`: Dispara la eliminación en Auth cuando se borra un registro en `profiles`.
-*   **Aislamiento:** Los usuarios con rol `Cirujano` tienen registros automáticos en la tabla `surgeons`, vinculados por `user_id`.
+### 1.2 Row Level Security (RLS)
+*   **Hardening:** Eliminación de políticas genéricas. Acceso granular basado en roles operativos.
+*   **Cirujanos:** Vinculación automática entre `auth.users` y la tabla `surgeons` mediante el campo `user_id`.
 
-### 1.3 Row Level Security (RLS)
-*   **Hardening:** Se han eliminado todas las políticas basadas en `auth.role() = 'authenticated'` para operaciones sensibles.
-*   **Audit Logs:** El `INSERT` está restringido a personal interno con roles operativos para prevenir spoofing de logs.
-*   **Catálogos:** Las tablas `hospitals`, `surgeons` y `trays` solo son visibles para personal administrativo y técnico.
+## 2. Gestión de Inventario y Logística (Predictive & Hardened)
+El sistema ha evolucionado de un registro estático a una herramienta de planificación logística.
 
-## 2. Gestión de Aseguradoras (ARS)
-Se integró un sistema de gestión de prestadoras de salud enfocado en el mercado de República Dominicana.
+### 2.1 Inteligencia de Reposición (Días de Stock)
+*   **Métrica Logística:** Implementación del cálculo `Stock Actual / Consumo Diario Promedio`. 
+*   **Alertas Predictivas:** Visualización de badges de colores que indican cuántos días de stock quedan antes de la ruptura, permitiendo compras proactivas.
+*   **Sincronización:** Las alertas de inventario del Dashboard están 100% sincronizadas con el panel de notificaciones y el menú lateral.
 
-### 2.1 Modelo de Datos
-*   **Tabla `ars`:** Almacena los nombres de las aseguradoras (Senasa, Humano, Universal, etc.).
-*   **Relación:** La tabla `surgeries` posee una clave foránea `ars_id` hacia la tabla `ars`.
+### 2.2 Gestión de Lotes y Vencimientos
+*   **Trazabilidad:** Monitoreo dinámico de fechas de caducidad con alertas automáticas a los 90 días del vencimiento.
+*   **Integridad de Consumo:** El servicio `implantService.reportConsumption` valida el stock por lote antes de permitir el registro del gasto quirúrgico.
 
-### 2.2 Funcionalidad Administrativa
-*   Ubicada en **Configuración > Catálogo ARS**.
-*   **Políticas RLS:** Escritura restringida exclusivamente a roles `Superadmin` y `Administrador`.
+## 3. Sistema de Reportes y PDF (Professional Export)
+### 3.1 Motor de Impresión (`printService.js`)
+*   **Tecnología:** Uso de `jsPDF` y `jspdf-autotable`.
+*   **Reportes Disponibles:** 
+    *   Hoja de Entrega Quirúrgica.
+    *   Reporte de Gasto y Reposición Financiera (con desglose por producto y cirugía).
+*   **Branding:** Generación automatizada con encabezados corporativos, fechas localizadas y totales monetarios formateados (RD$).
 
-## 3. Flujo de Trabajo de Cirugías
-*   **Creación:** Obligatoriedad de seleccionar una ARS para cada paciente.
-*   **Alertas:** Envío automático de notificaciones vía correo si la cirugía se programa para las próximas 48 horas (Urgente).
-*   **Impresión:** Generación dinámica de Hoja de Entrega (PDF) incluyendo datos del Cirujano, Hospital y Bandejas requeridas.
+## 4. Calendario Quirúrgico y Agenda
+### 4.1 Personalización por Especialista
+*   **Filtro por Cirujano:** Selector dinámico que permite filtrar la agenda global para visualizar únicamente las cirugías de un especialista.
+*   **Resaltado Visual:** Los eventos pertenecientes al cirujano seleccionado se destacan con una prioridad visual (border-ring y opacidad ajustada) para facilitar la lectura rápida de la agenda.
 
-## 4. Input Sanitization y DTOs
-Se ha implementado una capa de seguridad en los servicios de datos para prevenir inyecciones y ataques de Mass Assignment:
-*   **DTOs (Data Transfer Objects):** Los servicios de `configService` y `surgeryService` filtran explícitamente los campos permitidos antes de enviarlos a la base de datos o Edge Functions.
-*   **Native REST Security:** La construcción de queries manuales utiliza `URLSearchParams` para evitar inyección de parámetros PostgREST.
+## 5. Analítica de Negocios (Analytics Pro)
+### 5.1 Rentabilidad y Márgenes
+*   **Análisis por Hospital:** Comparativa de **Costo vs Margen Bruto** mediante gráficos de barras apiladas, permitiendo identificar los centros médicos más rentables.
+*   **Mix de Facturación (ARS):** Desglose porcentual de la facturación por aseguradora para análisis de cartera.
+*   **Frecuencia de Implantes:** Identificación de los insumos de mayor rotación por cirujano para optimización de negociaciones con proveedores.
 
-## 5. Stack Tecnológico
-*   **Frontend:** React 19 + Vite.
-*   **Backend:** Supabase (Postgres + Auth + Edge Functions).
-*   **Seguridad:** RBAC + RLS Hardening + DTO Validation.
-
-## 6. Analítica Financiera e Inventario (Visibility & Logistics)
-Se ha implementado un sistema de visibilidad de costos y control de reposición para optimizar la rentabilidad operativa.
-
-### 6.1 Gestión de Costos Unitarios
-*   **Inventario:** Se añadieron campos de `unit_cost` (costo de adquisición) y `min_stock` (punto de reorden) a la tabla de implantes.
-*   **Importación Masiva:** El flujo de importación desde Excel soporta el mapeo dinámico de estos campos para una carga eficiente de catálogos.
-
-### 6.2 Reporte de Gasto Quirúrgico
-*   **Lógica de Integridad:** El reporte financiero filtra estrictamente las cirugías por estado `Completada`. Esto garantiza que los costos reportados correspondan a consumos reales y finales.
-*   **Agregación Dual:** 
-    *   **Vista Logística:** Agrupa consumos por `productId` para facilitar la reposición de inventario.
-    *   **Vista Financiera:** Agrupa consumos por `surgeryId` (Paciente) para calcular el costo total de cada procedimiento.
-
-### 6.3 Sistema de Alertas de Inventario
-*   **Vencimientos:** Monitoreo dinámico de fechas de caducidad. El sistema genera alertas visuales detalladas indicando el nombre del producto y el lote afectado.
-*   **Stock Crítico:** Cálculo en tiempo real de faltantes basado en el `min_stock` definido por producto.
-
-### 6.4 Restricciones Operativas
-*   **Bloqueo de Gasto:** El botón para registrar consumo está deshabilitado hasta que la cirugía cambie su estatus a `Completada`. Esto asegura que la analítica financiera no contenga datos parciales o en borrador.
-
-### 6.5 Analytics Pro (Inteligencia de Negocios Avanzada)
-*   **Rentabilidad por Hospital:** El panel financiero (`Reportes.jsx`) agrupa los consumos utilizando el `hospital_id` extraído mediante un `Inner Join` en el servicio `implantService`. Se utiliza un gráfico de barras apiladas para comparar simultáneamente el **Costo** y el **Margen Bruto** generado por cada centro médico.
-*   **Facturación por Cirujano:** Visualiza el volumen de facturación generado por especialista para análisis de desempeño.
-*   **Limpieza de Dashboard:** Se ha eliminado la redundancia de datos (ej. duplicidad de estado de inventario) para focalizar la interfaz en alertas críticas centralizadas.
-*   **Reportes de Lotes (Inventario):** Implementación de controles interactivos con reset de filtros (`RotateCcw`) y *feedback* de carga (`RefreshCw`).
-
-## 7. Flujos Revertidos (Decisiones de Negocio)
-*   **Actas Quirúrgicas (Firma Digital):** Se exploró la funcionalidad de firma en dispositivo (Canvas API), pero fue revertida. El proceso se mantiene ágil permitiendo la descarga inmediata del PDF pre-formateado con la línea de firma física/sello.
+## 6. Stack Tecnológico y Build
+*   **Core:** React 19 + Vite 6 + TailwindCSS 4.
+*   **PWA:** Service Worker activo para persistencia y notificaciones en dispositivos móviles.
+*   **Build Pipeline:** Verificado exitosamente con `npm run build`, garantizando que el paquete de producción está libre de errores de sintaxis y dependencias circulares.
 
 ---
-*Este documento es la única fuente de verdad sobre la implementación actual de la arquitectura de MedOps.*
+*Este documento es la única fuente de verdad sobre la implementación actual de la arquitectura de MedOps. Actualizado tras el build exitoso de Mayo 2026.*
