@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"C:\\\\Users\\\\Jose Luis Marte\\\\.claude\\\\skills\\\\mcp-sentinel\" log --oneline -5)",
+      "Bash(git -C \"C:\\\\Users\\\\Jose Luis Marte\\\\.claude\\\\skills\\\\mcp-sentinel\" remote -v)",
+      "WebFetch(domain:www.ox.security)",
+      "WebFetch(domain:github.com)",
+      "WebSearch"
+    ]
+  }
+}
