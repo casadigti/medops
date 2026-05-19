@@ -6,11 +6,16 @@ import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
 import { surgeryService } from '../services/surgeryService';
 import { surgeonService } from '../services/surgeonService';
-import { Calendar, Stethoscope, AlertCircle, Loader2, Filter, User } from 'lucide-react';
+import { Calendar, Loader2, User } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useToast } from '../components/ui/Toast';
+import type { UserProfile } from '../types/domain';
 
-export const Calendario = ({ userProfile }) => {
+interface CalendarioProps {
+  userProfile: Partial<UserProfile> | null;
+}
+
+export const Calendario: React.FC<CalendarioProps> = ({ userProfile }) => {
   const toast = useToast();
   const [surgeries, setSurgeries] = useState([]);
   const [surgeons, setSurgeons] = useState([]);
@@ -18,7 +23,7 @@ export const Calendario = ({ userProfile }) => {
   const [loading, setLoading] = useState(true);
 
   const isSurgeon = userProfile?.role === 'Cirujano';
-  const mySurgeonId = userProfile?.surgeon_id;
+  const mySurgeonId = (userProfile as any)?.surgeon_id;
 
   useEffect(() => {
     if (userProfile) {
@@ -39,7 +44,6 @@ export const Calendario = ({ userProfile }) => {
   const fetchSurgeries = async () => {
     try {
       setLoading(true);
-      // If surgeon, filter data fetching at service level
       const data = await surgeryService.getAll(isSurgeon ? mySurgeonId : null);
       setSurgeries(data);
     } catch (error) {
@@ -51,20 +55,15 @@ export const Calendario = ({ userProfile }) => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Completada': return '#10b981'; // green-500
-      case 'En preparación': return '#3b82f6'; // blue-500
-      case 'Pendiente': return '#f59e0b'; // amber-500
-      default: return '#64748b'; // slate-500
+      case 'Completada': return '#10b981';
+      case 'En preparación': return '#3b82f6';
+      case 'Pendiente': return '#f59e0b';
+      default: return '#64748b';
     }
   };
 
   const handleEventDrop = async (info) => {
-    // Cuando sueltas el evento en una nueva fecha/hora
     const surgeryId = info.event.id;
-    
-    // Obtener la nueva fecha calculada por el calendario
-    // FullCalendar entrega una fecha en base a la zona horaria local.
-    // La pasamos a formato ISO para guardarla en la DB.
     const newDateStr = info.event.start.toISOString();
 
     if (!confirm(`¿Estás seguro de mover la cirugía de ${info.event.title} al ${info.event.start.toLocaleDateString()}?`)) {
@@ -87,7 +86,7 @@ export const Calendario = ({ userProfile }) => {
     .map(s => {
       const color = getStatusColor(s.status);
       const isHighlighted = selectedSurgeonId !== 'all' && s.surgeon_id === selectedSurgeonId;
-      
+
       return {
         id: s.id,
         title: `${s.patient_name} - ${s.surgeon?.full_name || 'Sin Asignar'}`,
@@ -130,7 +129,7 @@ export const Calendario = ({ userProfile }) => {
             <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400">
               <User size={18} />
             </div>
-            <select 
+            <select
               value={selectedSurgeonId}
               onChange={(e) => setSelectedSurgeonId(e.target.value)}
               className="bg-transparent border-none text-sm font-bold text-slate-700 focus:ring-0 outline-none pr-8 cursor-pointer"
@@ -168,25 +167,24 @@ export const Calendario = ({ userProfile }) => {
                 list: 'Agenda'
               }}
               events={events}
-              editable={!isSurgeon} // Habilita Drag & Drop solo para admins
+              editable={!isSurgeon}
               droppable={!isSurgeon}
               eventDrop={handleEventDrop}
               eventContent={renderEventContent}
               height="100%"
-              dayMaxEvents={true} // Si hay muchos en un día, muestra un "más"
+              dayMaxEvents={true}
             />
           </div>
         )}
       </div>
 
-      {/* Legend */}
       <div className="flex flex-wrap gap-4 items-center px-4 py-3 bg-white rounded-xl shadow-sm border border-slate-200">
         <span className="text-sm font-bold text-slate-700">Estado:</span>
         <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-amber-500"></div><span className="text-xs text-slate-600">Pendiente</span></div>
         <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-blue-500"></div><span className="text-xs text-slate-600">En preparación</span></div>
         <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-green-500"></div><span className="text-xs text-slate-600">Completada</span></div>
       </div>
-      
+
       <style dangerouslySetInnerHTML={{__html: `
         .calendar-wrapper .fc-theme-standard td, .calendar-wrapper .fc-theme-standard th {
           border-color: #e2e8f0;

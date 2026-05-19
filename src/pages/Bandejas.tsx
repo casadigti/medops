@@ -70,7 +70,7 @@ const TrayForm = ({ initial, onSave, onCancel, loading }) => {
   );
 };
 
-export const Bandejas = () => {
+export const Bandejas: React.FC = () => {
   const toast = useToast();
   const [trays, setTrays] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -94,14 +94,14 @@ export const Bandejas = () => {
     try {
       if (modal.data?.id) await trayService.update(modal.data.id, data);
       else await trayService.create(data);
-      setModal(null); 
+      setModal(null);
       fetchTrays();
       toast.success(modal.data?.id ? 'Bandeja actualizada' : 'Bandeja creada');
     } catch (err) {
       console.error('Error saving tray:', err);
       toast.error('Error al guardar la bandeja: ' + (err.message || ''));
-    } finally { 
-      setSaving(false); 
+    } finally {
+      setSaving(false);
     }
   };
   const handleStatusUpdate = async (id, status) => {
@@ -118,7 +118,7 @@ export const Bandejas = () => {
   const handleDelete = async () => {
     try {
       await trayService.delete(confirm.id);
-      setConfirm(null); 
+      setConfirm(null);
       fetchTrays();
       toast.success('Bandeja eliminada');
     } catch (err) {
@@ -141,7 +141,6 @@ export const Bandejas = () => {
         </button>
       </div>
 
-      {/* Maintenance Alerts */}
       {warnings.length > 0 && (
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3">
           <AlertTriangle className="text-amber-500 shrink-0 mt-0.5" size={20} />
@@ -152,7 +151,6 @@ export const Bandejas = () => {
         </div>
       )}
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -164,7 +162,6 @@ export const Bandejas = () => {
         </select>
       </div>
 
-      {/* Grid */}
       {loading ? <PageLoader /> : filtered.length === 0
         ? <EmptyState icon={Package} title="Sin bandejas registradas" description="Añade la primera con el botón superior" />
         : (
@@ -186,8 +183,8 @@ export const Bandejas = () => {
                     </div>
                   </div>
                   <div className="mt-1">
-                    <select 
-                      value={t.status} 
+                    <select
+                      value={t.status}
                       onChange={(e) => handleStatusUpdate(t.id, e.target.value)}
                       className={cn(
                         "text-[10px] font-black uppercase px-2 py-0.5 rounded-md border cursor-pointer focus:ring-2 focus:ring-primary/20 outline-none transition-all",
@@ -199,7 +196,7 @@ export const Bandejas = () => {
                       {TRAY_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
-                  
+
                   <div className="flex items-center gap-4 mt-3 py-2 border-y border-slate-50">
                     <div className="flex items-center gap-1.5" title="Cirugías realizadas">
                       <Stethoscope size={14} className="text-primary" />
@@ -216,7 +213,6 @@ export const Bandejas = () => {
 
                   {t.procedure_type && <p className="text-xs text-slate-500 mt-2 italic">{t.procedure_type}</p>}
 
-                  {/* Sterilization meter */}
                   <div className="mt-4">
                     <div className="flex justify-between text-xs mb-1.5">
                       <span className="text-slate-500 font-medium">Esterilizaciones</span>

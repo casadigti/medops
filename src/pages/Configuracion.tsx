@@ -7,27 +7,28 @@ import { supabase } from '../lib/supabase';
 import { arsService } from '../services/arsService';
 import { auditService } from '../services/auditService';
 import { useToast } from '../components/ui/Toast';
+import type { UserProfile } from '../types/domain';
 
 const UserForm = ({ onSave, onCancel, loading, initialData }) => {
   const [form, setForm] = React.useState({
-    full_name: initialData?.name || '', 
-    email: initialData?.email || '', 
-    password: '', 
-    role: initialData?.role || 'Editor', 
-    is_active: initialData?.status === 'Activo', 
+    full_name: initialData?.name || '',
+    email: initialData?.email || '',
+    password: '',
+    role: initialData?.role || 'Editor',
+    is_active: initialData?.status === 'Activo',
     must_change_password: initialData?.isTemporal ?? true
   });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  
-  const submit = e => { 
-    e.preventDefault(); 
+
+  const submit = e => {
+    e.preventDefault();
     if (initialData) {
       onSave({ ...initialData, ...form });
     } else {
-      onSave(form); 
+      onSave(form);
     }
   };
-  
+
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
@@ -57,12 +58,12 @@ const UserForm = ({ onSave, onCancel, loading, initialData }) => {
         </select>
       </div>
       <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl">
-        <input 
-          type="checkbox" 
+        <input
+          type="checkbox"
           id="is_active"
-          className="w-4 h-4 text-primary rounded border-slate-300" 
-          checked={form.is_active} 
-          onChange={e => set('is_active', e.target.checked)} 
+          className="w-4 h-4 text-primary rounded border-slate-300"
+          checked={form.is_active}
+          onChange={e => set('is_active', e.target.checked)}
         />
         <label htmlFor="is_active" className="text-sm font-bold text-slate-700 cursor-pointer">Usuario Activo</label>
       </div>
@@ -70,12 +71,12 @@ const UserForm = ({ onSave, onCancel, loading, initialData }) => {
         <div className="p-3 border border-amber-100 bg-amber-50 rounded-xl">
           <label className="block text-[10px] font-black text-amber-600 uppercase mb-2">Reset de Seguridad</label>
           <div className="flex gap-2">
-            <input 
-              type="text" 
-              className="input bg-white text-xs" 
-              placeholder="Nueva temporal (opcional)" 
-              value={form.password} 
-              onChange={e => set('password', e.target.value)} 
+            <input
+              type="text"
+              className="input bg-white text-xs"
+              placeholder="Nueva temporal (opcional)"
+              value={form.password}
+              onChange={e => set('password', e.target.value)}
             />
           </div>
           <p className="text-[10px] text-amber-700 mt-1">Si escribes una contraseña, se forzará el cambio al entrar.</p>
@@ -98,13 +99,17 @@ const SectionHeader = ({ title, description }) => (
   </div>
 );
 
-const ConfigCard = ({ children, className }) => (
+const ConfigCard = ({ children, className = '' }) => (
   <div className={cn("bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden", className)}>
     <div className="p-6">{children}</div>
   </div>
 );
 
-export const Configuracion = ({ userProfile: profile }) => {
+interface ConfiguracionProps {
+  userProfile: Partial<UserProfile> | null;
+}
+
+export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profile }) => {
   const toast = useToast();
   const [isLoading, setIsLoading] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState('identity');
@@ -182,7 +187,7 @@ export const Configuracion = ({ userProfile: profile }) => {
     async function loadData() {
       try {
         setIsLoading(true);
-        const settings = await configService.getSettings();
+        const settings = await configService.getSettings() as any;
         if (settings) {
           setOrgName(settings.name || '');
           setPrimaryColor(settings.primary_color || '#1e40af');
@@ -196,8 +201,7 @@ export const Configuracion = ({ userProfile: profile }) => {
       }
     }
     loadData();
-    
-    // Set default tab based on role
+
     if (profile?.role === 'Cirujano') {
       setActiveTab('security');
     }
@@ -220,14 +224,13 @@ export const Configuracion = ({ userProfile: profile }) => {
 
   const handleUpdateUser = async (user) => {
     try {
-      const updates = {
+      const updates: any = {
         full_name: user.full_name,
         email: user.email,
         role: user.role,
         is_active: user.is_active,
       };
 
-      // Si se definió una nueva contraseña, incluirla en la llamada a la Edge Function
       if (user.password && user.password.trim() !== '') {
         updates.password = user.password.trim();
         updates.must_change_password = true;
@@ -313,7 +316,7 @@ export const Configuracion = ({ userProfile: profile }) => {
         name: orgName,
         primary_color: primaryColor,
         logo_url: logoPreview
-      });
+      } as any);
       toast.success('¡Configuración guardada correctamente!');
     } catch (error) {
       console.error('Error al guardar:', error);
@@ -334,7 +337,6 @@ export const Configuracion = ({ userProfile: profile }) => {
 
   const filteredTabs = tabs.filter(t => !t.roles || t.roles.includes(profile?.role));
 
-  // Password Change State
   const [passForm, setPassForm] = React.useState({ new: '', confirm: '' });
   const [passLoading, setPassLoading] = React.useState(false);
 
@@ -347,9 +349,9 @@ export const Configuracion = ({ userProfile: profile }) => {
     try {
       const { error } = await supabase.auth.updateUser({ password: passForm.new });
       if (error) throw error;
-      
+
       await supabase.from('profiles').update({ must_change_password: false }).eq('id', profile.id);
-      
+
       setPassForm({ new: '', confirm: '' });
       toast.success('Contraseña actualizada correctamente.');
     } catch (err) {
@@ -381,8 +383,8 @@ export const Configuracion = ({ userProfile: profile }) => {
               onClick={() => setActiveTab(tab.id)}
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all",
-                activeTab === tab.id 
-                  ? "bg-primary text-white shadow-lg shadow-primary/20 scale-[1.02]" 
+                activeTab === tab.id
+                  ? "bg-primary text-white shadow-lg shadow-primary/20 scale-[1.02]"
                   : "text-slate-500 hover:bg-slate-100"
               )}
             >
@@ -509,11 +511,11 @@ export const Configuracion = ({ userProfile: profile }) => {
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
               <ConfigCard>
                 <SectionHeader title="Gestión de Aseguradoras (ARS)" description="Administra las compañías de seguros que aparecen en el formulario de cirugías." />
-                
+
                 <form onSubmit={handleAddArs} className="flex gap-2 mb-6">
-                  <input 
-                    type="text" 
-                    placeholder="Nombre de la ARS (ej: ARS Humano)" 
+                  <input
+                    type="text"
+                    placeholder="Nombre de la ARS (ej: ARS Humano)"
                     className="input flex-1"
                     value={newArsName}
                     onChange={e => setNewArsName(e.target.value)}
@@ -537,9 +539,9 @@ export const Configuracion = ({ userProfile: profile }) => {
                         <tr key={ars.id} className="hover:bg-slate-50 transition-colors">
                           <td className="px-4 py-3 text-sm font-bold text-slate-700">
                             {editingArsId === ars.id ? (
-                              <input 
-                                className="input h-8 text-sm" 
-                                value={editingArsName} 
+                              <input
+                                className="input h-8 text-sm"
+                                value={editingArsName}
                                 onChange={e => setEditingArsName(e.target.value)}
                                 autoFocus
                               />
@@ -554,7 +556,7 @@ export const Configuracion = ({ userProfile: profile }) => {
                                   <button onClick={() => handleUpdateArs(ars.id)} className="text-green-600 hover:bg-green-50 p-1 rounded-md transition-all">
                                     <Check size={16} />
                                   </button>
-                                  <button onClick={() => setEditingArsId(null)} className="text-slate-400 hover:bg-slate-100 p-1 rounded-md transition-all">
+                                  <button onClick={() => setEditingArsId(null)} className="text-slate-400 hover:bg-slate-100 p1 rounded-md transition-all">
                                     <X size={16} />
                                   </button>
                                 </>
@@ -574,7 +576,7 @@ export const Configuracion = ({ userProfile: profile }) => {
                       ))}
                       {arsList.length === 0 && (
                         <tr>
-                          <td colSpan="2" className="px-4 py-8 text-center text-slate-400 italic">No hay aseguradoras registradas.</td>
+                          <td colSpan={2} className="px-4 py-8 text-center text-slate-400 italic">No hay aseguradoras registradas.</td>
                         </tr>
                       )}
                     </tbody>
@@ -589,8 +591,8 @@ export const Configuracion = ({ userProfile: profile }) => {
               <ConfigCard className="p-0 overflow-hidden">
                 <div className="p-6 border-b border-slate-100 bg-slate-50/50">
                   <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-                    <SectionHeader 
-                      title="Historial de Auditoría" 
+                    <SectionHeader
+                      title="Historial de Auditoría"
                       description={`${logsCount} registros totales · mostrando ${LOG_PAGE_SIZE} por página`}
                     />
                     <button onClick={() => fetchLogs(0)} className="btn btn-secondary btn-sm flex items-center gap-2 shrink-0">
@@ -658,9 +660,9 @@ export const Configuracion = ({ userProfile: profile }) => {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {isLogsLoading ? (
-                        <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-400 italic">Cargando historial...</td></tr>
+                        <tr><td colSpan={4} className="px-6 py-12 text-center text-slate-400 italic">Cargando historial...</td></tr>
                       ) : logs.length === 0 ? (
-                        <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-400 italic">No hay registros para los filtros seleccionados.</td></tr>
+                        <tr><td colSpan={4} className="px-6 py-12 text-center text-slate-400 italic">No hay registros para los filtros seleccionados.</td></tr>
                       ) : logs.map(log => (
                         <tr key={log.id} className="hover:bg-slate-50 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -728,15 +730,15 @@ export const Configuracion = ({ userProfile: profile }) => {
       </div>
 
       <Modal isOpen={isUserModalOpen} onClose={() => setIsUserModalOpen(false)} title="Nuevo Usuario">
-        <UserForm onSave={handleCreateUser} onCancel={() => setIsUserModalOpen(false)} loading={isCreatingUser} />
+        <UserForm initialData={undefined} onSave={handleCreateUser} onCancel={() => setIsUserModalOpen(false)} loading={isCreatingUser} />
       </Modal>
 
       <Modal isOpen={!!editingUser} onClose={() => setEditingUser(null)} title="Editar Usuario">
-        <UserForm 
+        <UserForm
           initialData={editingUser}
-          onSave={handleUpdateUser} 
-          onCancel={() => setEditingUser(null)} 
-          loading={isCreatingUser} 
+          onSave={handleUpdateUser}
+          onCancel={() => setEditingUser(null)}
+          loading={isCreatingUser}
         />
       </Modal>
     </div>

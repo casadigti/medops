@@ -27,21 +27,21 @@ const ImplantForm = ({ onSave, onCancel, initialData, loading }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre del Producto *</label>
-          <input 
-            required 
-            className="input" 
-            value={form.name} 
-            onChange={e => setForm({...form, name: e.target.value})} 
+          <input
+            required
+            className="input"
+            value={form.name}
+            onChange={e => setForm({...form, name: e.target.value})}
             placeholder="Ej: Tornillo Canulado 3.5mm"
           />
         </div>
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-1">SKU / Referencia *</label>
-          <input 
-            required 
-            className="input" 
-            value={form.sku} 
-            onChange={e => setForm({...form, sku: e.target.value.toUpperCase()})} 
+          <input
+            required
+            className="input"
+            value={form.sku}
+            onChange={e => setForm({...form, sku: e.target.value.toUpperCase()})}
             placeholder="Ej: TOR-35-CAN"
           />
         </div>
@@ -49,9 +49,9 @@ const ImplantForm = ({ onSave, onCancel, initialData, loading }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-1">Categoría</label>
-          <select 
-            className="input" 
-            value={form.category} 
+          <select
+            className="input"
+            value={form.category}
             onChange={e => setForm({...form, category: e.target.value})}
           >
             <option value="Tornillo">Tornillo</option>
@@ -63,39 +63,39 @@ const ImplantForm = ({ onSave, onCancel, initialData, loading }) => {
         </div>
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-1">Stock Mínimo (Alerta)</label>
-          <input 
-            type="number" 
-            className="input" 
-            value={form.min_stock} 
-            onChange={e => setForm({...form, min_stock: parseInt(e.target.value)})} 
+          <input
+            type="number"
+            className="input"
+            value={form.min_stock}
+            onChange={e => setForm({...form, min_stock: parseInt(e.target.value)})}
           />
         </div>
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-1">Costo Unitario (RD$)</label>
-          <input 
-            type="number" 
+          <input
+            type="number"
             step="0.01"
-            className="input font-bold text-slate-600" 
-            value={form.unit_cost} 
-            onChange={e => setForm({...form, unit_cost: parseFloat(e.target.value)})} 
+            className="input font-bold text-slate-600"
+            value={form.unit_cost}
+            onChange={e => setForm({...form, unit_cost: parseFloat(e.target.value)})}
           />
         </div>
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-1">Precio de Venta (RD$)</label>
-          <input 
-            type="number" 
+          <input
+            type="number"
             step="0.01"
-            className="input font-bold text-primary" 
-            value={form.selling_price} 
-            onChange={e => setForm({...form, selling_price: parseFloat(e.target.value)})} 
+            className="input font-bold text-primary"
+            value={form.selling_price}
+            onChange={e => setForm({...form, selling_price: parseFloat(e.target.value)})}
           />
         </div>
       </div>
       <div>
         <label className="block text-sm font-semibold text-slate-700 mb-1">Descripción</label>
-        <textarea 
-          className="input min-h-[80px]" 
-          value={form.description} 
+        <textarea
+          className="input min-h-[80px]"
+          value={form.description}
           onChange={e => setForm({...form, description: e.target.value})}
           placeholder="Detalles técnicos..."
         />
@@ -129,43 +129,43 @@ const LotForm = ({ onSave, onCancel, implantId, loading }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-1">Número de Lote *</label>
-          <input 
-            required 
-            className="input" 
-            value={form.lot_number} 
-            onChange={e => setForm({...form, lot_number: e.target.value.toUpperCase()})} 
+          <input
+            required
+            className="input"
+            value={form.lot_number}
+            onChange={e => setForm({...form, lot_number: e.target.value.toUpperCase()})}
             placeholder="Ej: L12345"
           />
         </div>
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-1">Fecha de Vencimiento *</label>
-          <input 
-            required 
-            type="date" 
-            className="input" 
-            value={form.expiration_date} 
-            onChange={e => setForm({...form, expiration_date: e.target.value})} 
+          <input
+            required
+            type="date"
+            className="input"
+            value={form.expiration_date}
+            onChange={e => setForm({...form, expiration_date: e.target.value})}
           />
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-1">Cantidad Inicial</label>
-          <input 
-            type="number" 
+          <input
+            type="number"
             required
             min="1"
-            className="input" 
-            value={form.current_quantity} 
-            onChange={e => setForm({...form, current_quantity: parseInt(e.target.value)})} 
+            className="input"
+            value={form.current_quantity}
+            onChange={e => setForm({...form, current_quantity: parseInt(e.target.value)})}
           />
         </div>
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-1">Ubicación</label>
-          <input 
-            className="input" 
-            value={form.location} 
-            onChange={e => setForm({...form, location: e.target.value})} 
+          <input
+            className="input"
+            value={form.location}
+            onChange={e => setForm({...form, location: e.target.value})}
             placeholder="Ej: Almacén Central"
           />
         </div>
@@ -187,7 +187,7 @@ const ImportModal = ({ onImport, onCancel, loading }) => {
   const handleFileChange = (e) => {
     const f = e.target.files[0];
     if (!f) return;
-    
+
     const reader = new FileReader();
     reader.onload = (evt) => {
       const bstr = evt.target.result;
@@ -213,7 +213,6 @@ const ImportModal = ({ onImport, onCancel, loading }) => {
   };
 
   const handleProcess = () => {
-    // Normalizar datos para que coincidan con la DB
     const processed = data.map(row => ({
       name: row.Nombre || row.nombre || row.Name || row.Producto,
       sku: (row.SKU || row.sku || row.Referencia || row.Codigo || '').toString().toUpperCase(),
@@ -230,12 +229,12 @@ const ImportModal = ({ onImport, onCancel, loading }) => {
   return (
     <div className="space-y-4">
       <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center bg-slate-50">
-        <input 
-          type="file" 
-          id="excel-upload" 
-          hidden 
-          accept=".xlsx, .xls" 
-          onChange={handleFileChange} 
+        <input
+          type="file"
+          id="excel-upload"
+          hidden
+          accept=".xlsx, .xls"
+          onChange={handleFileChange}
         />
         <label htmlFor="excel-upload" className="cursor-pointer">
           <div className="w-16 h-16 bg-white rounded-full shadow-md flex items-center justify-center mx-auto mb-4 text-primary">
@@ -255,7 +254,7 @@ const ImportModal = ({ onImport, onCancel, loading }) => {
               <p className="text-xs text-emerald-600">{data.length} filas detectadas</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={() => { setFile(null); setData([]); }}
             className="text-xs font-bold text-emerald-700 hover:underline"
           >
@@ -267,7 +266,7 @@ const ImportModal = ({ onImport, onCancel, loading }) => {
       <div className="bg-slate-100 rounded-xl p-4">
         <div className="flex items-center justify-between mb-2">
           <p className="text-[10px] font-black text-slate-500 uppercase">Columnas esperadas:</p>
-          <button 
+          <button
             type="button"
             onClick={downloadTemplate}
             className="text-[10px] font-bold text-primary flex items-center gap-1 hover:underline"
@@ -286,9 +285,9 @@ const ImportModal = ({ onImport, onCancel, loading }) => {
 
       <div className="flex gap-3 pt-2">
         <button type="button" onClick={onCancel} className="btn btn-secondary flex-1">Cancelar</button>
-        <button 
-          onClick={handleProcess} 
-          disabled={loading || !file} 
+        <button
+          onClick={handleProcess}
+          disabled={loading || !file}
           className="btn btn-primary flex-1"
         >
           {loading ? 'Procesando...' : `Importar ${data.length} Productos`}
@@ -298,14 +297,13 @@ const ImportModal = ({ onImport, onCancel, loading }) => {
   );
 };
 
-export const InventarioQuirurgico = () => {
+export const InventarioQuirurgico: React.FC = () => {
   const toast = useToast();
   const [implants, setImplants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState(null);
-  
-  // Modals state
+
   const [isImplantModalOpen, setIsImplantModalOpen] = useState(false);
   const [isLotModalOpen, setIsLotModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -390,11 +388,11 @@ export const InventarioQuirurgico = () => {
   const isExpiringSoon = (date) => {
     const exp = new Date(date);
     const today = new Date();
-    const diff = (exp - today) / (1000 * 60 * 60 * 24);
-    return diff > 0 && diff < 90; // Menos de 3 meses
+    const diff = (exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+    return diff > 0 && diff < 90;
   };
 
-  const allLots = (implants || []).flatMap(imp => 
+  const allLots = (implants || []).flatMap(imp =>
     (imp.implant_lots || [])
       .filter(lot => lot.current_quantity > 0)
       .map(lot => ({ ...lot, implantName: imp.name }))
@@ -404,8 +402,8 @@ export const InventarioQuirurgico = () => {
   const expiredCount = expiredLots.length;
   const expiringSoonCount = expiringSoonLots.length;
 
-  const filteredImplants = implants.filter(i => 
-    i.name.toLowerCase().includes(search.toLowerCase()) || 
+  const filteredImplants = implants.filter(i =>
+    i.name.toLowerCase().includes(search.toLowerCase()) ||
     i.sku.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -424,13 +422,13 @@ export const InventarioQuirurgico = () => {
           <p className="text-slate-500">Gestión de implantes, prótesis y consumibles críticos</p>
         </div>
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={() => setIsImportModalOpen(true)}
             className="btn btn-secondary flex items-center gap-2"
           >
             <Upload size={20} /> Importar Excel
           </button>
-          <button 
+          <button
             onClick={() => { setSelectedImplant(null); setIsImplantModalOpen(true); }}
             className="btn btn-primary flex items-center gap-2 shadow-lg shadow-primary/30"
           >
@@ -442,7 +440,7 @@ export const InventarioQuirurgico = () => {
       <div className="flex gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
-              <input 
+              <input
                 type="text"
                 placeholder="Buscar implante, código o categoría..."
                 className="input input-search w-full md:w-80"
@@ -452,7 +450,6 @@ export const InventarioQuirurgico = () => {
             </div>
       </div>
 
-      {/* Alerta de Vencimiento */}
       {(expiredCount > 0 || expiringSoonCount > 0) && (
         <div className={cn(
           "p-4 rounded-2xl border flex items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-500",
@@ -495,7 +492,7 @@ export const InventarioQuirurgico = () => {
         ) : filteredImplants.map(implant => {
           const status = getStockStatus(implant);
           const isExpanded = expandedId === implant.id;
-          
+
           return (
             <div key={implant.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:border-primary/30">
               <div className="p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -519,20 +516,20 @@ export const InventarioQuirurgico = () => {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button 
+                    <button
                       onClick={() => { setSelectedImplant(implant); setIsImplantModalOpen(true); }}
                       className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
                       title="Editar Producto"
                     >
                       <Edit2 size={18} />
                     </button>
-                    <button 
+                    <button
                       onClick={() => { setSelectedImplant(implant); setIsLotModalOpen(true); }}
                       className="btn btn-secondary btn-sm flex items-center gap-2"
                     >
                       <Plus size={14} /> Lote
                     </button>
-                    <button 
+                    <button
                       onClick={() => setExpandedId(isExpanded ? null : implant.id)}
                       className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
                     >
@@ -558,7 +555,7 @@ export const InventarioQuirurgico = () => {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {(implant.implant_lots || []).length === 0 ? (
-                          <tr><td colSpan="5" className="py-4 text-center text-slate-400 italic">No hay lotes registrados para este producto.</td></tr>
+                          <tr><td colSpan={5} className="py-4 text-center text-slate-400 italic">No hay lotes registrados para este producto.</td></tr>
                         ) : implant.implant_lots.map(lot => (
                           <tr key={lot.id} className="group">
                             <td className="py-3 px-2 font-mono font-bold text-slate-700">{lot.lot_number}</td>
@@ -566,7 +563,7 @@ export const InventarioQuirurgico = () => {
                               <div className="flex items-center gap-2">
                                 <Calendar size={14} className="text-slate-400" />
                                 <span className={cn(
-                                  isExpired(lot.expiration_date) ? "text-rose-600 font-bold" : 
+                                  isExpired(lot.expiration_date) ? "text-rose-600 font-bold" :
                                   isExpiringSoon(lot.expiration_date) ? "text-amber-600 font-bold" : "text-slate-600"
                                 )}>
                                   {new Date(lot.expiration_date).toLocaleDateString('es-ES')}
@@ -596,40 +593,40 @@ export const InventarioQuirurgico = () => {
         })}
       </div>
 
-      <Modal 
-        isOpen={isImplantModalOpen} 
-        onClose={() => setIsImplantModalOpen(false)} 
+      <Modal
+        isOpen={isImplantModalOpen}
+        onClose={() => setIsImplantModalOpen(false)}
         title={selectedImplant ? "Editar Producto" : "Nuevo Producto Quirúrgico"}
       >
-        <ImplantForm 
-          onSave={handleSaveImplant} 
-          onCancel={() => setIsImplantModalOpen(false)} 
+        <ImplantForm
+          onSave={handleSaveImplant}
+          onCancel={() => setIsImplantModalOpen(false)}
           initialData={selectedImplant}
           loading={actionLoading}
         />
       </Modal>
 
-      <Modal 
-        isOpen={isLotModalOpen} 
-        onClose={() => setIsLotModalOpen(false)} 
+      <Modal
+        isOpen={isLotModalOpen}
+        onClose={() => setIsLotModalOpen(false)}
         title={`Agregar Lote: ${selectedImplant?.name}`}
       >
-        <LotForm 
-          onSave={handleAddLot} 
-          onCancel={() => setIsLotModalOpen(false)} 
+        <LotForm
+          onSave={handleAddLot}
+          onCancel={() => setIsLotModalOpen(false)}
           implantId={selectedImplant?.id}
           loading={actionLoading}
         />
       </Modal>
 
-      <Modal 
-        isOpen={isImportModalOpen} 
-        onClose={() => setIsImportModalOpen(false)} 
+      <Modal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
         title="Importar Catálogo desde Excel"
       >
-        <ImportModal 
-          onImport={handleBulkImport} 
-          onCancel={() => setIsImportModalOpen(false)} 
+        <ImportModal
+          onImport={handleBulkImport}
+          onCancel={() => setIsImportModalOpen(false)}
           loading={actionLoading}
         />
       </Modal>

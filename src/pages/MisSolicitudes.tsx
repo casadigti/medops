@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { surgeryService } from '../services/surgeryService';
-import { surgeonService } from '../services/surgeonService';
-import { hospitalService } from '../services/hospitalService';
-import { trayService } from '../services/trayService';
 import { Modal } from '../components/ui/Modal';
 import { StatusBadge } from '../components/ui/Badge';
 import { PageLoader, EmptyState } from '../components/ui/Spinner';
-import { SURGERY_STATUSES, PROCEDURE_TYPES } from '../data/catalogo';
-import { Plus, Search, Calendar, Building2, Package, Clock, ShieldCheck, ChevronRight, MessageSquare } from 'lucide-react';
-import { cn } from '../utils/cn';
+import { PROCEDURE_TYPES } from '../data/catalogo';
+import { Plus, Calendar, Building2, Package, Clock, ShieldCheck } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ui/Toast';
+import type { UserProfile } from '../types/domain';
 
-// ── Surgeon Portal: My Requests ──────────────────────────────────────────
-export const MisSolicitudes = () => {
+interface MisSolicitudesProps {
+  userProfile?: Partial<UserProfile> | null;
+}
+
+export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [surgeries, setSurgeries] = useState([]);
@@ -21,8 +21,7 @@ export const MisSolicitudes = () => {
   const [hospitals, setHospitals] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  
-  // Simplified Form for Surgeon
+
   const [form, setForm] = useState({
     patient_name: '',
     surgery_date: '',
@@ -38,7 +37,6 @@ export const MisSolicitudes = () => {
     try {
       setLoading(true);
 
-      // Get session token
       const { data: { session } } = await supabase.auth.getSession();
       if (!session || !mounted) return;
 
@@ -50,7 +48,6 @@ export const MisSolicitudes = () => {
         'Accept': 'application/json',
       };
 
-      // 1. Get surgeon profile linked to this user — via direct REST
       const surgeonRes = await fetch(
         `${SUPABASE_URL}/rest/v1/surgeons?user_id=eq.${userId}&select=*&limit=1`,
         { headers }
@@ -61,7 +58,6 @@ export const MisSolicitudes = () => {
       setSurgeonProfile(surgeonData);
 
       if (surgeonData) {
-        // 2. Get their surgeries — via direct REST
         const surgeriesRes = await fetch(
           `${SUPABASE_URL}/rest/v1/surgeries?surgeon_id=eq.${surgeonData.id}&select=*,hospital:hospitals(id,name)&order=surgery_date.asc`,
           { headers }
@@ -71,7 +67,6 @@ export const MisSolicitudes = () => {
         setSurgeries(Array.isArray(surgeriesArr) ? surgeriesArr : []);
       }
 
-      // 3. Get hospitals for the form — via direct REST
       const hospitalsRes = await fetch(
         `${SUPABASE_URL}/rest/v1/hospitals?select=id,name&order=name.asc`,
         { headers }
@@ -96,13 +91,13 @@ export const MisSolicitudes = () => {
   const handleCreateRequest = async (e) => {
     e.preventDefault();
     if (!surgeonProfile) return;
-    
+
     setSaving(true);
     try {
       await surgeryService.create({
         ...form,
         surgeon_id: surgeonProfile.id,
-        status: 'Pendiente' // Always starts as Pending
+        status: 'Pendiente' as any
       });
       setIsModalOpen(false);
       setForm({ patient_name: '', surgery_date: '', hospital_id: '', procedure_type: '', notes: '' });
@@ -120,7 +115,6 @@ export const MisSolicitudes = () => {
 
   return (
     <div className="space-y-6">
-      {/* Welcome Header */}
       <div className="bg-gradient-to-r from-primary to-blue-600 rounded-3xl p-8 text-white shadow-xl shadow-primary/20 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -135,7 +129,7 @@ export const MisSolicitudes = () => {
               Desde aquí puedes solicitar equipos, ver tus cirugías programadas y el estatus de tus requerimientos.
             </p>
           </div>
-          <button 
+          <button
             onClick={() => setIsModalOpen(true)}
             className="bg-white text-primary px-6 py-4 rounded-2xl font-bold flex items-center gap-3 shadow-lg hover:scale-105 active:scale-95 transition-all group"
           >
@@ -148,7 +142,6 @@ export const MisSolicitudes = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main List */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -157,14 +150,14 @@ export const MisSolicitudes = () => {
           </div>
 
           {surgeries.length === 0 ? (
-            <EmptyState 
-              icon={Plus} 
-              title="Aún no tienes solicitudes" 
-              description="Haz clic en el botón de arriba para solicitar tu primer equipo médico." 
+            <EmptyState
+              icon={Plus}
+              title="Aún no tienes solicitudes"
+              description="Haz clic en el botón de arriba para solicitar tu primer equipo médico."
             />
           ) : (
             <div className="space-y-3">
-              {surgeries.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).map(s => (
+              {surgeries.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(s => (
                 <div key={s.id} className="bg-white border border-slate-100 rounded-2xl p-5 hover:shadow-xl hover:border-primary/20 transition-all group">
                   <div className="flex justify-between items-start mb-4">
                     <div>
@@ -200,7 +193,6 @@ export const MisSolicitudes = () => {
           )}
         </div>
 
-        {/* Sidebar Info */}
         <div className="space-y-6">
           <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm">
             <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
@@ -236,38 +228,37 @@ export const MisSolicitudes = () => {
         </div>
       </div>
 
-      {/* Modal Nueva Solicitud */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Solicitar Equipo Médico">
         <form onSubmit={handleCreateRequest} className="space-y-4">
           <div className="grid grid-cols-1 gap-4">
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre del Paciente *</label>
-              <input 
-                required 
-                className="input" 
-                value={form.patient_name} 
-                onChange={e => setForm({...form, patient_name: e.target.value})} 
-                placeholder="Ej: Carmen Rodríguez" 
+              <input
+                required
+                className="input"
+                value={form.patient_name}
+                onChange={e => setForm({...form, patient_name: e.target.value})}
+                placeholder="Ej: Carmen Rodríguez"
               />
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Fecha de Cirugía *</label>
-                <input 
-                  required 
-                  type="datetime-local" 
-                  className="input" 
-                  value={form.surgery_date} 
-                  onChange={e => setForm({...form, surgery_date: e.target.value})} 
+                <input
+                  required
+                  type="datetime-local"
+                  className="input"
+                  value={form.surgery_date}
+                  onChange={e => setForm({...form, surgery_date: e.target.value})}
                 />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Procedimiento *</label>
-                <select 
-                  required 
-                  className="input" 
-                  value={form.procedure_type} 
+                <select
+                  required
+                  className="input"
+                  value={form.procedure_type}
                   onChange={e => setForm({...form, procedure_type: e.target.value})}
                 >
                   <option value="">Seleccionar...</option>
@@ -278,10 +269,10 @@ export const MisSolicitudes = () => {
 
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">Hospital / Centro Médico *</label>
-              <select 
-                required 
-                className="input" 
-                value={form.hospital_id} 
+              <select
+                required
+                className="input"
+                value={form.hospital_id}
                 onChange={e => setForm({...form, hospital_id: e.target.value})}
               >
                 <option value="">Seleccionar hospital...</option>
@@ -291,12 +282,12 @@ export const MisSolicitudes = () => {
 
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">Requerimientos Especiales (Opcional)</label>
-              <textarea 
-                rows={3} 
-                className="input resize-none" 
-                value={form.notes} 
-                onChange={e => setForm({...form, notes: e.target.value})} 
-                placeholder="Ej: Necesito tornillos de titanio 3.5mm..." 
+              <textarea
+                rows={3}
+                className="input resize-none"
+                value={form.notes}
+                onChange={e => setForm({...form, notes: e.target.value})}
+                placeholder="Ej: Necesito tornillos de titanio 3.5mm..."
               />
             </div>
           </div>

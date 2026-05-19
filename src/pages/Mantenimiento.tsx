@@ -7,14 +7,13 @@ import { cn } from '../utils/cn';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ui/Toast';
 
-export const Mantenimiento = () => {
+export const Mantenimiento: React.FC = () => {
   const toast = useToast();
   const [trays, setTrays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  
-  // Modals state
-  const [activeModal, setActiveModal] = useState(null); // 'maintenance', 'history'
+
+  const [activeModal, setActiveModal] = useState(null);
   const [selectedTray, setSelectedTray] = useState(null);
   const [historyLogs, setHistoryLogs] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -24,12 +23,12 @@ export const Mantenimiento = () => {
     notes: ''
   });
 
-  const MAX_USES = 200; // Límite de usos antes de mantenimiento obligatorio
+  const MAX_USES = 200;
 
   const fetchData = async () => {
     try {
       const data = await trayService.getAll();
-      setTrays(data.sort((a, b) => b.sterilization_count - a.sterilization_count));
+      setTrays(data.sort((a, b) => (b as any).sterilization_count - (a as any).sterilization_count));
     } catch (err) {
       console.error(err);
     } finally {
@@ -62,16 +61,12 @@ export const Mantenimiento = () => {
     e.preventDefault();
     setSaving(true);
     try {
-      // Obtener el usuario actual
       const { data: { session } } = await supabase.auth.getSession();
       const userEmail = session?.user?.email || 'Sistema';
 
-      // 1. Log the maintenance
       await trayService.logMaintenance(selectedTray.id, form.action, form.notes, userEmail);
-      
-      // 2. Change status to 'En reparación'
       await trayService.update(selectedTray.id, { status: 'En reparación' });
-      
+
       setActiveModal(null);
       fetchData();
       toast.success('Mantenimiento registrado correctamente.');
@@ -90,7 +85,7 @@ export const Mantenimiento = () => {
         const userEmail = session?.user?.email || 'Sistema';
 
         await trayService.logMaintenance(tray.id, 'Reintegración', 'Set listo para uso. Contador reiniciado.', userEmail);
-        await trayService.update(tray.id, { status: 'Disponible', sterilization_count: 0 });
+        await trayService.update(tray.id, { status: 'Disponible', sterilization_count: 0 } as any);
         fetchData();
       } catch(err) {
         console.error(err);
@@ -98,8 +93,8 @@ export const Mantenimiento = () => {
     }
   };
 
-  const filteredTrays = trays.filter(t => 
-    t.name.toLowerCase().includes(search.toLowerCase()) || 
+  const filteredTrays = trays.filter(t =>
+    t.name.toLowerCase().includes(search.toLowerCase()) ||
     t.code.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -114,12 +109,12 @@ export const Mantenimiento = () => {
           </h1>
           <p className="text-slate-500 text-sm mt-1">Control de esterilización y reparaciones.</p>
         </div>
-        
+
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Buscar por código o nombre..." 
+          <input
+            type="text"
+            placeholder="Buscar por código o nombre..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
@@ -143,7 +138,7 @@ export const Mantenimiento = () => {
                 const isCritical = tray.sterilization_count >= MAX_USES;
                 const isWarning = tray.sterilization_count >= MAX_USES * 0.8;
                 const progressPercentage = Math.min((tray.sterilization_count / MAX_USES) * 100, 100);
-                
+
                 return (
                   <tr key={tray.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4">
@@ -175,7 +170,7 @@ export const Mantenimiento = () => {
                           {isCritical && <ShieldAlert size={14} className="text-danger animate-pulse" />}
                         </div>
                         <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className={cn(
                               "h-full transition-all duration-500",
                               isCritical ? "bg-danger" : isWarning ? "bg-amber-400" : "bg-primary"
@@ -187,23 +182,23 @@ export const Mantenimiento = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button 
+                        <button
                           onClick={() => handleOpenHistory(tray)}
                           className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors tooltip-trigger"
                           title="Ver Historial"
                         >
                           <History size={18} />
                         </button>
-                        
+
                         {tray.status === 'En reparación' ? (
-                          <button 
+                          <button
                             onClick={() => handleReintegrate(tray)}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-xs font-bold transition-colors"
                           >
                             <CheckCircle2 size={14} /> Reintegrar
                           </button>
                         ) : (
-                          <button 
+                          <button
                             onClick={() => handleOpenMaintenance(tray)}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg text-xs font-bold transition-colors"
                           >
@@ -215,10 +210,10 @@ export const Mantenimiento = () => {
                   </tr>
                 );
               })}
-              
+
               {filteredTrays.length === 0 && (
                 <tr>
-                  <td colSpan="4" className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
                     No se encontraron bandejas.
                   </td>
                 </tr>
@@ -228,7 +223,6 @@ export const Mantenimiento = () => {
         </div>
       </div>
 
-      {/* Modal Mantenimiento */}
       {activeModal === 'maintenance' && selectedTray && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setActiveModal(null)} />
@@ -242,15 +236,15 @@ export const Mantenimiento = () => {
                 <X size={20} />
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmitMaintenance} className="p-6 space-y-4">
               <div className="bg-amber-50 text-amber-800 p-4 rounded-xl text-sm mb-4 border border-amber-100">
                 Al guardar, la bandeja pasará al estado <strong>"En reparación"</strong> y no podrá ser asignada a nuevas cirugías temporalmente.
               </div>
-              
+
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Acción Realizada / Requerida</label>
-                <select 
+                <select
                   value={form.action}
                   onChange={e => setForm({...form, action: e.target.value})}
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
@@ -263,10 +257,10 @@ export const Mantenimiento = () => {
                   <option value="Inspección Preventiva">Inspección Preventiva</option>
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Notas Adicionales</label>
-                <textarea 
+                <textarea
                   value={form.notes}
                   onChange={e => setForm({...form, notes: e.target.value})}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all min-h-[100px] resize-none"
@@ -275,15 +269,15 @@ export const Mantenimiento = () => {
               </div>
 
               <div className="pt-4 flex gap-3">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setActiveModal(null)}
                   className="flex-1 px-4 py-2.5 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold text-sm transition-colors"
                 >
                   Cancelar
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={saving}
                   className="flex-1 px-4 py-2.5 text-white bg-amber-500 hover:bg-amber-600 rounded-xl font-bold text-sm shadow-md shadow-amber-500/20 active:scale-[0.98] transition-all flex justify-center items-center"
                 >
@@ -295,7 +289,6 @@ export const Mantenimiento = () => {
         </div>
       )}
 
-      {/* Modal Historial */}
       {activeModal === 'history' && selectedTray && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setActiveModal(null)} />
@@ -309,7 +302,7 @@ export const Mantenimiento = () => {
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="p-6 overflow-y-auto flex-1">
               {historyLogs.length === 0 ? (
                 <div className="text-center py-10">

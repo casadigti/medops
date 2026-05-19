@@ -35,16 +35,16 @@ const SectionTitle = ({ children }) => (
   </h2>
 );
 
-export const Reportes = () => {
+export const Reportes: React.FC = () => {
   const [surgeries, setSurgeries] = useState([]);
   const [surgeons, setSurgeons]   = useState([]);
   const [hospitals, setHospitals] = useState([]);
   const [trays, setTrays]         = useState([]);
   const [loading, setLoading]     = useState(true);
-  const [period, setPeriod]       = useState('month'); // 'week' | 'month' | 'year'
+  const [period, setPeriod]       = useState('month');
   const [filterSpecialty, setFilterSpecialty] = useState('');
   const [filterHospital, setFilterHospital] = useState('');
-  const [viewMode, setViewMode] = useState('operational'); // 'operational' | 'financial'
+  const [viewMode, setViewMode] = useState('operational');
   const [consumption, setConsumption] = useState([]);
   const [allImplants, setAllImplants] = useState([]);
   const [filterSurgeon, setFilterSurgeon] = useState('');
@@ -68,23 +68,19 @@ export const Reportes = () => {
 
   const now = new Date();
 
-  // ── Advanced Filtering ──────────────────────────────────────────
   const applyFilters = (arr) => {
     let result = [...arr];
-    
-    // Period filter
+
     const cutoff = new Date();
     if (period === 'week')  cutoff.setDate(now.getDate() - 7);
     if (period === 'month') cutoff.setDate(now.getDate() - 30);
     if (period === 'year')  cutoff.setDate(now.getDate() - 365);
     result = result.filter(s => new Date(s.surgery_date) >= cutoff);
 
-    // Specialty filter
     if (filterSpecialty) {
       result = result.filter(s => s.procedure_type?.toLowerCase().includes(filterSpecialty.toLowerCase()));
     }
 
-    // Hospital filter
     if (filterHospital) {
       result = result.filter(s => s.hospital_id === filterHospital);
     }
@@ -95,31 +91,26 @@ export const Reportes = () => {
   const filtered = applyFilters(surgeries);
   const specialties = [...new Set(surgeries.map(s => s.procedure_type))].filter(Boolean);
 
-  // ── By Status ─────────────────────────────────────────────────
   const byStatus = ['Pendiente','En preparación','Lista','En tránsito','Entregada','Completada'].map(status => ({
     name: status, total: filtered.filter(s => s.status === status).length
   })).filter(d => d.total > 0);
 
-  // ── By Surgeon ────────────────────────────────────────────────
   const bySurgeon = surgeons.map(sur => ({
     name: sur.full_name?.split(' ').slice(0,2).join(' ') || 'Sin asignar',
     total: filtered.filter(s => s.surgeon_id === sur.id).length,
   })).filter(d => d.total > 0).sort((a,b) => b.total - a.total).slice(0, 8);
 
-  // ── By Hospital ───────────────────────────────────────────────
   const byHospital = hospitals.map(h => ({
     name: h.name?.split(' ').slice(0,3).join(' ') || 'Sin asignar',
     total: filtered.filter(s => s.hospital_id === h.id).length,
   })).filter(d => d.total > 0).sort((a,b) => b.total - a.total);
 
-  // ── Tray Rotation ─────────────────────────────────────────────
   const trayUsage = trays.map(t => ({
     name: t.name?.split(' ').slice(0,3).join(' '),
     usos: filtered.filter(s => s.surgery_trays?.some(st => st.tray?.id === t.id)).length,
     esterilizaciones: t.sterilization_count,
   })).filter(d => d.usos > 0).sort((a,b) => b.usos - a.usos);
 
-  // ── Financial Data ─────────────────────────────────────────────
   const filteredConsumption = consumption.filter(c => {
     const cutoff = new Date();
     if (period === 'week') cutoff.setDate(now.getDate() - 7);
@@ -164,7 +155,6 @@ export const Reportes = () => {
     };
   });
 
-  // ── By Day (last 14 days) ─────────────────────────────────────
   const dailyData = Array.from({ length: 14 }, (_, i) => {
     const d = new Date(); d.setDate(now.getDate() - (13 - i));
     const label = d.toLocaleDateString('es-ES', { day:'2-digit', month:'2-digit' });
@@ -173,7 +163,6 @@ export const Reportes = () => {
     return { name: label, cirugías: surgeries.filter(s => { const dt = new Date(s.surgery_date); return dt >= start && dt <= end; }).length };
   });
 
-  // ── Excel Export ────────────────────────────────────────────────
   const exportExcel = () => {
     const data = filtered.map(s => ({
       'Fecha': new Date(s.surgery_date).toLocaleDateString('es-ES'),
@@ -189,8 +178,6 @@ export const Reportes = () => {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Cirugías");
 
-    // Auto-size columns
-    const max_width = data.reduce((w, r) => Math.max(w, r.Paciente.length, r.Procedimiento.length), 10);
     worksheet["!cols"] = [ { wch: 12 }, { wch: 25 }, { wch: 30 }, { wch: 25 }, { wch: 25 }, { wch: 15 }, { wch: 40 } ];
 
     XLSX.writeFile(workbook, `Reporte_MedOps_${getLocalDateString()}.xlsx`);
@@ -201,16 +188,14 @@ export const Reportes = () => {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Reportes y Estadísticas</h1>
           <p className="text-slate-500">Análisis operacional del sistema</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {/* Filters Toolbar */}
           <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200 shadow-sm">
-            <select 
+            <select
               className="bg-transparent text-xs font-bold text-slate-600 px-2 py-1 outline-none border-r border-slate-200"
               value={filterSpecialty}
               onChange={e => setFilterSpecialty(e.target.value)}
@@ -219,7 +204,7 @@ export const Reportes = () => {
               {specialties.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
 
-            <select 
+            <select
               className="bg-transparent text-xs font-bold text-slate-600 px-2 py-1 outline-none border-r border-slate-200 max-w-[150px]"
               value={filterHospital}
               onChange={e => setFilterHospital(e.target.value)}
@@ -228,7 +213,6 @@ export const Reportes = () => {
               {hospitals.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
             </select>
 
-            {/* Period selector */}
             <div className="flex gap-1 ml-1">
               {[['week','7D'],['month','30D'],['year','1A']].map(([key, label]) => (
                 <button key={key} onClick={() => setPeriod(key)}
@@ -246,9 +230,8 @@ export const Reportes = () => {
         </div>
       </div>
 
-      {/* Tab Switcher */}
       <div className="flex p-1 bg-slate-100 rounded-2xl w-fit">
-        <button 
+        <button
           onClick={() => setViewMode('operational')}
           className={cn(
             "px-6 py-2 rounded-xl text-sm font-bold transition-all",
@@ -257,7 +240,7 @@ export const Reportes = () => {
         >
           Vista Operacional
         </button>
-        <button 
+        <button
           onClick={() => setViewMode('financial')}
           className={cn(
             "px-6 py-2 rounded-xl text-sm font-bold transition-all",
@@ -268,7 +251,6 @@ export const Reportes = () => {
         </button>
       </div>
 
-      {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {viewMode === 'operational' ? (
           <>
@@ -289,7 +271,6 @@ export const Reportes = () => {
 
       {viewMode === 'operational' ? (
         <>
-          {/* Charts Row 1 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="card">
               <SectionTitle>Tendencia Diaria (Últimos 14 días)</SectionTitle>
@@ -321,7 +302,6 @@ export const Reportes = () => {
             </div>
           </div>
 
-          {/* Charts Row 2 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="card">
               <SectionTitle>Cirugías por Cirujano</SectionTitle>
@@ -360,9 +340,7 @@ export const Reportes = () => {
         </>
       ) : (
         <>
-          {/* Financial View */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Profitability Trend */}
             <div className="card">
               <SectionTitle>Costo vs Venta (Últimos 6 meses)</SectionTitle>
               <ResponsiveContainer width="100%" height={220}>
@@ -378,7 +356,6 @@ export const Reportes = () => {
               </ResponsiveContainer>
             </div>
 
-            {/* Surgeon Value */}
             <div className="card">
               <SectionTitle>Facturación por Cirujano (Valor RD$)</SectionTitle>
               {surgeonValue.length === 0
@@ -396,9 +373,8 @@ export const Reportes = () => {
                 )}
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-            {/* Hospital Value */}
             <div className="card">
               <SectionTitle>Facturación por Hospital (Valor RD$)</SectionTitle>
               {hospitalValue.length === 0
@@ -418,7 +394,6 @@ export const Reportes = () => {
                 )}
             </div>
 
-            {/* Análisis de Frecuencia de Implantes por Cirujano */}
             <div className="card">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -565,7 +540,7 @@ export const Reportes = () => {
             </div>
 
           </div>
-          
+
           <div className="card border-t-4 border-t-primary">
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -583,11 +558,9 @@ export const Reportes = () => {
                   No hay consumos suficientes para proyectar compras.
                 </div>
               ) : (() => {
-                // Days in selected period
                 const periodDays = period === 'week' ? 7 : period === 'month' ? 30 : 365;
 
-                // Aggregate by implant SKU/ID — sum quantities for duplicates
-                const aggregated = Object.values(
+                const aggregated = (Object.values(
                   filteredConsumption.reduce((acc, c) => {
                     const implantId = c.implant_lots?.implants?.id || c.implant_lots?.implant_id;
                     const key = c.implant_lots?.implants?.sku || implantId || c.implant_lot_id;
@@ -604,10 +577,9 @@ export const Reportes = () => {
                     acc[key].totalQty += (c.quantity_used || 0);
                     return acc;
                   }, {})
-                ).sort((a, b) => b.totalQty - a.totalQty).slice(0, 5);
+                ) as any[]).sort((a, b) => b.totalQty - a.totalQty).slice(0, 5);
 
                 return aggregated.map((item, i) => {
-                  // Calculate days of stock remaining
                   const implantData = allImplants.find(imp =>
                     imp.sku === item.sku || imp.id === item.implantId
                   );
@@ -650,7 +622,6 @@ export const Reportes = () => {
                       </p>
                       <p className="text-[10px] text-slate-500 mb-3 font-mono">SKU: {item.sku}</p>
 
-                      {/* Days of stock remaining */}
                       <div className={`flex items-center gap-1.5 mb-3 px-2 py-1 rounded-lg ${urgencyStyles.badge}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${urgencyStyles.dot} ${urgency === 'critical' ? 'animate-pulse' : ''}`} />
                         <span className="text-[10px] font-bold">
@@ -674,7 +645,6 @@ export const Reportes = () => {
         </>
       )}
 
-      {/* Tray Rotation Table */}
       {viewMode === 'operational' && trayUsage.length > 0 && (
         <div className="card p-0 overflow-hidden">
           <div className="px-6 py-5 border-b border-slate-100">
@@ -712,7 +682,6 @@ export const Reportes = () => {
         </div>
       )}
 
-      {/* Summary footer */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Tasa de Completadas', value: filtered.length ? `${Math.round((completed/filtered.length)*100)}%` : '—', sub: `${completed} de ${filtered.length} cirugías` },

@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Calendar, Download, Search, Filter, ArrowLeft, Printer, FileText, RefreshCw } from 'lucide-react';
+import { ShoppingCart, Calendar, Download, Search, Printer, FileText, RefreshCw } from 'lucide-react';
 import { implantService } from '../services/implantService';
 import { printService } from '../services/printService';
 import { useToast } from '../components/ui/Toast';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { cn } from '../utils/cn';
 
-export const ReporteReposicion = () => {
+export const ReporteReposicion: React.FC = () => {
   const toast = useToast();
-  const [view, setView] = useState('material'); // 'material' or 'surgery'
+  const [view, setView] = useState('material');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState([]);
@@ -31,8 +30,7 @@ export const ReporteReposicion = () => {
       ]);
 
       setData(reportData);
-      
-      // Map current stock for easy access
+
       const stockMap = {};
       implants.forEach(imp => {
         const total = (imp.implant_lots || []).reduce((acc, lot) => acc + (lot.current_quantity || 0), 0);
@@ -51,22 +49,19 @@ export const ReporteReposicion = () => {
     fetchReport();
   }, []);
 
-  // Calcular días en el rango para el promedio
-  const daysInRange = Math.max(1, Math.ceil((new Date(dateRange.end) - new Date(dateRange.start)) / 86400000));
+  const daysInRange = Math.max(1, Math.ceil((new Date(dateRange.end).getTime() - new Date(dateRange.start).getTime()) / 86400000));
 
-  // Agrupar por producto para saber qué reponer
   const materialSummary = data.reduce((acc, curr) => {
     const productId = curr.implant_lots?.implants?.id;
     if (!productId) return acc;
-    
+
     const name = curr.implant_lots.implants.name;
     const sku = curr.implant_lots.implants.sku;
 
-    // Filtrar por búsqueda
     if (search && !name.toLowerCase().includes(search.toLowerCase()) && !sku.toLowerCase().includes(search.toLowerCase())) {
       return acc;
     }
-    
+
     if (!acc[productId]) {
       const stock = currentStock[productId] || 0;
       acc[productId] = {
@@ -79,7 +74,7 @@ export const ReporteReposicion = () => {
         surgeries: []
       };
     }
-    
+
     acc[productId].total_used += curr.quantity_used;
     acc[productId].surgeries.push({
       patient: curr.surgeries?.patient_name,
@@ -88,23 +83,21 @@ export const ReporteReposicion = () => {
       qty: curr.quantity_used,
       auth: curr.auth_number
     });
-    
+
     return acc;
   }, {});
 
-  // Agrupar por cirugía para ver el gasto por paciente
   const surgeriesSummary = data.reduce((acc, curr) => {
     const surgeryId = curr.surgeries?.id;
     if (!surgeryId) return acc;
-    
+
     const patient = curr.surgeries.patient_name;
     const hospital = curr.surgeries.hospital?.name || '';
 
-    // Filtrar por búsqueda
     if (search && !patient.toLowerCase().includes(search.toLowerCase()) && !hospital.toLowerCase().includes(search.toLowerCase())) {
       return acc;
     }
-    
+
     if (!acc[surgeryId]) {
       acc[surgeryId] = {
         patient,
@@ -114,11 +107,11 @@ export const ReporteReposicion = () => {
         items_count: 0
       };
     }
-    
+
     const cost = (curr.implant_lots?.implants?.unit_cost || 0) * curr.quantity_used;
     acc[surgeryId].total_cost += cost;
     acc[surgeryId].items_count += curr.quantity_used;
-    
+
     return acc;
   }, {});
 
@@ -128,21 +121,20 @@ export const ReporteReposicion = () => {
 
   return (
     <div className="space-y-6 pb-20">
-      {/* Header - Hidden on print */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Reporte de Gasto y Reposición</h1>
           <p className="text-slate-500">Analítica financiera y logística de materiales consumidos</p>
         </div>
         <div className="flex gap-2">
-          <button 
+          <button
             onClick={() => printService.generateReplenishmentReport(data, dateRange, materialSummary)}
             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all shadow-sm shadow-emerald-200 flex items-center gap-2"
           >
             <Download size={18} /> Descargar PDF
           </button>
-          <button 
-            onClick={fetchReport} 
+          <button
+            onClick={fetchReport}
             disabled={loading}
             className="p-2 bg-white text-slate-400 hover:text-primary hover:bg-slate-50 border border-slate-200 rounded-xl transition-all shadow-sm"
           >
@@ -151,10 +143,9 @@ export const ReporteReposicion = () => {
         </div>
       </div>
 
-      {/* View Toggle & Search */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
         <div className="flex p-1 bg-slate-100 rounded-xl w-fit">
-          <button 
+          <button
             onClick={() => setView('material')}
             className={cn(
               "px-6 py-2 rounded-lg text-xs font-bold transition-all",
@@ -163,7 +154,7 @@ export const ReporteReposicion = () => {
           >
             Resumen por Material
           </button>
-          <button 
+          <button
             onClick={() => setView('surgery')}
             className={cn(
               "px-6 py-2 rounded-lg text-xs font-bold transition-all",
@@ -176,8 +167,8 @@ export const ReporteReposicion = () => {
 
         <div className="relative flex-1 md:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-          <input 
-            className="input w-full text-sm" 
+          <input
+            className="input w-full text-sm"
             style={{ paddingLeft: '2.5rem' }}
             placeholder={view === 'material' ? "Buscar por producto o SKU..." : "Buscar por paciente u hospital..."}
             value={search}
@@ -186,39 +177,30 @@ export const ReporteReposicion = () => {
         </div>
       </div>
 
-      {/* Filters - Hidden on print */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-end gap-4 print:hidden">
         <div className="space-y-1">
           <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Desde</label>
-          <div className="relative">
-            <input 
-              type="date" 
-              className="input px-4 text-sm" 
-              value={dateRange.start}
-              onChange={e => setDateRange({...dateRange, start: e.target.value})}
-            />
-          </div>
+          <input
+            type="date"
+            className="input px-4 text-sm"
+            value={dateRange.start}
+            onChange={e => setDateRange({...dateRange, start: e.target.value})}
+          />
         </div>
         <div className="space-y-1">
           <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Hasta</label>
-          <div className="relative">
-            <input 
-              type="date" 
-              className="input px-4 text-sm" 
-              value={dateRange.end}
-              onChange={e => setDateRange({...dateRange, end: e.target.value})}
-            />
-          </div>
+          <input
+            type="date"
+            className="input px-4 text-sm"
+            value={dateRange.end}
+            onChange={e => setDateRange({...dateRange, end: e.target.value})}
+          />
         </div>
-        <button 
-          onClick={fetchReport}
-          className="btn btn-primary px-6"
-        >
+        <button onClick={fetchReport} className="btn btn-primary px-6">
           Filtrar Reporte
         </button>
       </div>
 
-      {/* Main Report Table */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <h3 className="font-bold text-slate-900 flex items-center gap-2">
@@ -260,14 +242,14 @@ export const ReporteReposicion = () => {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan="6" className="py-20 text-center text-slate-400 italic">Generando reporte...</td></tr>
+                <tr><td colSpan={6} className="py-20 text-center text-slate-400 italic">Generando reporte...</td></tr>
               ) : data.length === 0 ? (
-                <tr><td colSpan="6" className="py-20 text-center text-slate-400 italic">No se encontró consumo en este rango de fechas.</td></tr>
+                <tr><td colSpan={6} className="py-20 text-center text-slate-400 italic">No se encontró consumo en este rango de fechas.</td></tr>
               ) : view === 'material' ? (
-                Object.values(materialSummary).map((item, idx) => {
+                (Object.values(materialSummary) as any[]).map((item, idx) => {
                   const dailyConsumption = item.total_used / daysInRange;
                   const daysLeft = dailyConsumption > 0 ? Math.floor(item.current_stock / dailyConsumption) : '∞';
-                  
+
                   return (
                     <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                       <td className="py-4 px-6">
@@ -280,10 +262,7 @@ export const ReporteReposicion = () => {
                         </span>
                       </td>
                       <td className="py-4 px-6 text-center">
-                        <span className={cn(
-                          "font-bold",
-                          item.current_stock <= 2 ? "text-red-600" : "text-slate-900"
-                        )}>
+                        <span className={cn("font-bold", item.current_stock <= 2 ? "text-red-600" : "text-slate-900")}>
                           {item.current_stock}
                         </span>
                       </td>
@@ -316,7 +295,7 @@ export const ReporteReposicion = () => {
                   );
                 })
               ) : (
-                Object.values(surgeriesSummary).map((s, idx) => (
+                (Object.values(surgeriesSummary) as any[]).map((s, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                     <td className="py-4 px-6">
                       <p className="font-bold text-slate-900 leading-tight">{s.patient}</p>
@@ -344,9 +323,8 @@ export const ReporteReposicion = () => {
         </div>
       </div>
 
-      {/* Print Footer - Only visible on print */}
       <div className="hidden print:block mt-10 border-t border-slate-200 pt-6 text-center text-xs text-slate-400">
-        Reporte generado automáticamente por MedOps el {format(new Date(), 'PPP', { locale: es })}
+        Reporte generado automáticamente por MedOps el {format(new Date(), 'PPP')}
       </div>
     </div>
   );

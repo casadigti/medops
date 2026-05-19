@@ -22,7 +22,7 @@ const MetricCard = ({ icon: Icon, label, value, sub, color = 'text-primary', bg 
   </div>
 );
 
-export const Dashboard = () => {
+export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [surgeries, setSurgeries] = useState([]);
   const [expiringLots, setExpiringLots] = useState([]);
@@ -61,7 +61,6 @@ export const Dashboard = () => {
 
     loadData();
 
-    // Realtime subscription — only set up after initial load
     let channel = null;
     const setupRealtime = () => {
       channel = supabase
@@ -78,10 +77,8 @@ export const Dashboard = () => {
         });
     };
 
-    // Delay realtime subscription to avoid interfering with initial auth/load
     const realtimeTimer = setTimeout(setupRealtime, 2000);
 
-    // Auto-refresh every 60s for inventory KPIs (stock & expiry change silently)
     const refreshInterval = setInterval(async () => {
       if (!mounted) return;
       try {
@@ -114,40 +111,37 @@ export const Dashboard = () => {
   const pending   = surgeries.filter(s => s.status === 'Pendiente');
   const inTransit = surgeries.filter(s => ['En tránsito','Entregada'].includes(s.status));
 
-  // Alerts
   const alerts = surgeries
     .filter(s => s.status === 'Pendiente')
     .map(s => {
-      const diff = Math.ceil((new Date(s.surgery_date) - now) / 86400000);
+      const diff = Math.ceil((new Date(s.surgery_date).getTime() - now.getTime()) / 86400000);
       if (diff <= 1) return { ...s, alertType: 'critical', msg: 'Bandeja sin preparar — cirugía inmediata' };
       if (diff <= 2) return { ...s, alertType: 'urgent', msg: 'Preparar bandeja en las próximas 24h' };
       return null;
     }).filter(Boolean);
 
-  // Upcoming (next 30 days, max 10)
   const next10 = surgeries.filter(s => {
     const d = new Date(s.surgery_date);
-    const diff = (d - now) / 86400000;
+    const diff = (d.getTime() - now.getTime()) / 86400000;
     return diff >= 0 && diff <= 30;
   })
-  .sort((a,b) => new Date(a.surgery_date) - new Date(b.surgery_date))
+  .sort((a,b) => new Date(a.surgery_date).getTime() - new Date(b.surgery_date).getTime())
   .slice(0, 10);
 
-  // Chart: surgeries per day this week
   const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
   const chartData = days.map((name, i) => {
-    const dayStart = new Date(startOfWeek); 
-    dayStart.setDate(startOfWeek.getDate() + i); 
+    const dayStart = new Date(startOfWeek);
+    dayStart.setDate(startOfWeek.getDate() + i);
     dayStart.setHours(0,0,0,0);
-    const dayEnd = new Date(dayStart); 
+    const dayEnd = new Date(dayStart);
     dayEnd.setHours(23,59,59,999);
-    
-    return { 
-      name, 
-      cirugías: surgeries.filter(s => { 
-        const d = new Date(s.surgery_date); 
-        return d >= dayStart && d <= dayEnd; 
-      }).length 
+
+    return {
+      name,
+      cirugías: surgeries.filter(s => {
+        const d = new Date(s.surgery_date);
+        return d >= dayStart && d <= dayEnd;
+      }).length
     };
   });
 
@@ -170,7 +164,6 @@ export const Dashboard = () => {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Panel Principal</h1>
@@ -190,7 +183,6 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
         <MetricCard icon={Calendar} label="Cirugías del Mes" value={thisMonth.length} sub={`${thisWeek.length} esta semana`} />
         <MetricCard icon={Clock} label="Pendientes Preparar" value={pending.length} color="text-amber-600" bg="bg-amber-50" sub="Requieren atención" />
@@ -198,10 +190,8 @@ export const Dashboard = () => {
         <MetricCard icon={CheckCircle2} label="Completadas" value={surgeries.filter(s=>s.status==='Completada').length} color="text-green-600" bg="bg-green-50" sub="Total histórico" />
       </div>
 
-      {/* Alerts + Chart row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* Alertas de Cirugías */}
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <AlertTriangle size={18} className="text-red-500" />
@@ -234,7 +224,6 @@ export const Dashboard = () => {
           }
         </div>
 
-        {/* Alertas de Inventario (NUEVO) */}
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <Package size={18} className="text-rose-500" />
@@ -249,7 +238,6 @@ export const Dashboard = () => {
             ? <div className="card text-center py-8 text-slate-400"><CheckCircle2 size={32} className="mx-auto mb-2 text-emerald-400" /><p className="font-medium text-emerald-600">Stock en niveles óptimos</p></div>
             : (
               <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                {/* Low Stock Alerts */}
                 {lowStock.map(item => (
                   <div
                     key={item.id}
@@ -270,7 +258,6 @@ export const Dashboard = () => {
                   </div>
                 ))}
 
-                {/* Expiring Lots Alerts */}
                 {expiringLots.map(lot => (
                   <div
                     key={lot.id}
@@ -293,9 +280,7 @@ export const Dashboard = () => {
             )}
         </div>
 
-        {/* Cirugías de la Semana (Movido a la derecha) */}
         <div className="space-y-4">
-          {/* Bar Chart */}
           <div className="card">
             <h2 className="text-lg font-bold text-slate-900 mb-6">Cirugías Esta Semana</h2>
             <ResponsiveContainer width="100%" height={200}>
@@ -311,7 +296,6 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      {/* Upcoming Surgeries */}
       <div>
         <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
           <Stethoscope size={18} className="text-primary" />
@@ -331,7 +315,7 @@ export const Dashboard = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {next10.map(s => {
-                    const diff = Math.ceil((new Date(s.surgery_date) - now) / 86400000);
+                    const diff = Math.ceil((new Date(s.surgery_date).getTime() - now.getTime()) / 86400000);
                     return (
                       <tr
                         key={s.id}

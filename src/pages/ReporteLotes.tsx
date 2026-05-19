@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Package, 
-  Calendar, 
-  Download, 
+import {
+  Package,
+  Calendar,
+  Download,
   RefreshCw,
   RotateCcw,
-  Search, 
-  Filter, 
-  Printer, 
-  FileText,
+  Search,
+  Printer,
   AlertTriangle,
   History,
   TrendingDown
@@ -16,19 +14,18 @@ import {
 import { implantService } from '../services/implantService';
 import { useToast } from '../components/ui/Toast';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { cn } from '../utils/cn';
 import { PageLoader } from '../components/ui/Spinner';
 import { getLocalDateString } from '../utils/dateUtils';
 
-export const ReporteLotes = () => {
+export const ReporteLotes: React.FC = () => {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [lots, setLots] = useState([]);
   const [search, setSearch] = useState('');
   const [dateRange, setDateRange] = useState({
-    start: '2020-01-01', 
-    end: format(new Date(), 'yyyy-MM-dd') 
+    start: '2020-01-01',
+    end: format(new Date(), 'yyyy-MM-dd')
   });
 
   useEffect(() => {
@@ -39,7 +36,7 @@ export const ReporteLotes = () => {
     try {
       setLoading(true);
       const data = await implantService.getAllLotsDetailed();
-      console.log('Lots loaded:', data); 
+      console.log('Lots loaded:', data);
       setLots(data || []);
       if (data && data.length > 0) {
         toast.success(`${data.length} lotes cargados`);
@@ -58,16 +55,14 @@ export const ReporteLotes = () => {
     const sku = implant?.sku?.toLowerCase() || '';
     const lotNum = lot.lot_number?.toLowerCase() || '';
     const query = search.toLowerCase();
-    
+
     const matchesSearch = name.includes(query) || sku.includes(query) || lotNum.includes(query);
-    
+
     if (!lot.created_at) return matchesSearch;
 
-    // Convertimos la fecha UTC de la base de datos a la fecha local del computador
     const entryDate = getLocalDateString(lot.created_at);
-    
     const matchesDate = entryDate >= dateRange.start && entryDate <= dateRange.end;
-    
+
     return matchesSearch && matchesDate;
   });
 
@@ -77,7 +72,7 @@ export const ReporteLotes = () => {
     lowStock: filteredLots.filter(l => l.current_quantity > 0 && l.current_quantity <= 5).length,
     expiring: filteredLots.filter(l => {
       const exp = new Date(l.expiration_date);
-      const diff = (exp - new Date()) / (1000 * 60 * 60 * 24);
+      const diff = (exp.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
       return diff > 0 && diff <= 90;
     }).length
   };
@@ -88,7 +83,6 @@ export const ReporteLotes = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
@@ -107,7 +101,6 @@ export const ReporteLotes = () => {
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="card p-4 flex items-center gap-4 border-l-4 border-l-blue-500">
           <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
@@ -150,14 +143,13 @@ export const ReporteLotes = () => {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="card p-4 print:hidden space-y-4">
         <div className="flex flex-col md:flex-row gap-4 items-end">
           <div className="flex-1 space-y-1.5">
             <label className="text-xs font-bold text-slate-500 uppercase px-1">Buscar Producto o Lote</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
+              <input
                 type="text"
                 placeholder="Nombre, SKU o Número de lote..."
                 className="input input-search w-full bg-slate-50 border-transparent focus:bg-white"
@@ -166,11 +158,11 @@ export const ReporteLotes = () => {
               />
             </div>
           </div>
-          
+
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-500 uppercase px-1">Fecha de Entrada (Desde)</label>
-            <input 
-              type="date" 
+            <input
+              type="date"
               className="input bg-slate-50 border-transparent focus:bg-white"
               value={dateRange.start}
               onChange={e => setDateRange(prev => ({ ...prev, start: e.target.value }))}
@@ -179,8 +171,8 @@ export const ReporteLotes = () => {
 
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-500 uppercase px-1">Fecha de Entrada (Hasta)</label>
-            <input 
-              type="date" 
+            <input
+              type="date"
               className="input bg-slate-50 border-transparent focus:bg-white"
               value={dateRange.end}
               onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))}
@@ -188,7 +180,7 @@ export const ReporteLotes = () => {
           </div>
 
           <div className="flex gap-2">
-            <button 
+            <button
               onClick={() => {
                 setSearch('');
                 setDateRange({ start: '2020-01-01', end: format(new Date(), 'yyyy-MM-dd') });
@@ -198,7 +190,7 @@ export const ReporteLotes = () => {
             >
               <RotateCcw size={18} />
             </button>
-            <button 
+            <button
               onClick={fetchData}
               className="btn btn-secondary flex items-center gap-2 h-[42px]"
             >
@@ -209,7 +201,6 @@ export const ReporteLotes = () => {
         </div>
       </div>
 
-      {/* Table */}
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -227,7 +218,7 @@ export const ReporteLotes = () => {
             <tbody className="divide-y divide-slate-100">
               {filteredLots.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-12 text-center text-slate-400 font-medium italic">
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400 font-medium italic">
                     No se encontraron registros para los filtros seleccionados
                   </td>
                 </tr>
@@ -236,7 +227,7 @@ export const ReporteLotes = () => {
                   const isExpiring = new Date(lot.expiration_date) <= new Date(Date.now() + 90 * 86400000);
                   const isLow = lot.current_quantity <= 5;
                   const implant = lot.implants || lot.implant;
-                  
+
                   return (
                     <tr key={lot.id} className="hover:bg-slate-50 transition-colors group">
                       <td className="px-6 py-4">
@@ -256,9 +247,9 @@ export const ReporteLotes = () => {
                       <td className="px-6 py-4 text-center">
                         <p className="text-sm text-slate-600">{format(new Date(lot.created_at), 'dd/MM/yyyy')}</p>
                         <p className="text-[10px] text-slate-400">
-                          {Math.floor((new Date() - new Date(lot.created_at)) / (1000 * 60 * 60 * 24)) === 0 
-                            ? 'Hoy' 
-                            : `Hace ${Math.ceil((new Date() - new Date(lot.created_at))/86400000)} días`}
+                          {Math.floor((Date.now() - new Date(lot.created_at).getTime()) / (1000 * 60 * 60 * 24)) === 0
+                            ? 'Hoy'
+                            : `Hace ${Math.ceil((Date.now() - new Date(lot.created_at).getTime())/86400000)} días`}
                         </p>
                       </td>
                       <td className="px-6 py-4 text-center">

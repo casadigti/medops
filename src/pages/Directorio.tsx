@@ -6,8 +6,8 @@ import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { PageLoader, EmptyState } from '../components/ui/Spinner';
 import { SPECIALTIES } from '../data/catalogo';
-import { 
-  Users, Building2, Plus, Pencil, Trash2, Phone, Mail, 
+import {
+  Users, Building2, Plus, Pencil, Trash2, Phone, Mail,
   MapPin, Search, Calendar, Package, ClipboardList, TrendingUp, Info, Shield
 } from 'lucide-react';
 import { cn } from '../utils/cn';
@@ -16,15 +16,15 @@ import { useToast } from '../components/ui/Toast';
 // ── Surgeon Profile View ──────────────────────────────────────────
 const SurgeonProfile = ({ surgeon, surgeries }) => {
   const mySurgeries = surgeries.filter(s => s.surgeon_id === surgeon.id);
-  
-  const hospitalCounts = mySurgeries.reduce((acc, s) => {
+
+  const hospitalCounts: Record<string, number> = mySurgeries.reduce((acc: Record<string, number>, s) => {
     const name = s.hospital?.name || 'Otro';
     acc[name] = (acc[name] || 0) + 1;
     return acc;
   }, {});
   const topHospital = Object.entries(hospitalCounts).sort((a,b) => b[1] - a[1])[0];
 
-  const trayCounts = mySurgeries.reduce((acc, s) => {
+  const trayCounts: Record<string, number> = mySurgeries.reduce((acc: Record<string, number>, s) => {
     (s.surgery_trays || []).forEach(st => {
       const name = st.tray?.name;
       if (name) acc[name] = (acc[name] || 0) + 1;
@@ -106,7 +106,7 @@ const SurgeonProfile = ({ surgeon, surgeries }) => {
 const HospitalProfile = ({ hospital, surgeries }) => {
   const upcoming = surgeries
     .filter(s => s.hospital_id === hospital.id && new Date(s.surgery_date) >= new Date())
-    .sort((a,b) => new Date(a.surgery_date) - new Date(b.surgery_date));
+    .sort((a,b) => new Date(a.surgery_date).getTime() - new Date(b.surgery_date).getTime());
 
   return (
     <div className="space-y-6">
@@ -149,11 +149,11 @@ const HospitalProfile = ({ hospital, surgeries }) => {
 const SurgeonForm = ({ initial, onSave, onCancel, loading }) => {
   const [form, setForm] = useState(initial || { full_name:'', specialty:'', phone:'', email:'', preferences:'', user_id: null });
   const [hasPortalAccess, setHasPortalAccess] = useState(!!(initial?.user_id));
-  
+
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const submit = e => { 
-    e.preventDefault(); 
-    onSave({ ...form, _enablePortal: hasPortalAccess }); 
+  const submit = e => {
+    e.preventDefault();
+    onSave({ ...form, _enablePortal: hasPortalAccess });
   };
 
   return (
@@ -193,7 +193,7 @@ const SurgeonForm = ({ initial, onSave, onCancel, loading }) => {
                 <p className="text-[11px] text-slate-500">Permitir que el doctor solicite equipos por la web</p>
               </div>
             </div>
-            <button 
+            <button
               type="button"
               onClick={() => setHasPortalAccess(!hasPortalAccess)}
               className={cn(
@@ -277,7 +277,7 @@ const HospitalForm = ({ initial, onSave, onCancel, loading }) => {
 };
 
 // ── Main Page ───────────────────────────────────────────────────
-export const Directorio = () => {
+export const Directorio: React.FC = () => {
   const toast = useToast();
   const [tab, setTab] = useState('cirujanos');
   const [surgeons, setSurgeons] = useState([]);
@@ -286,13 +286,13 @@ export const Directorio = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-  const [modal, setModal] = useState(null); // { type: 'surgeon'|'hospital'|'profile_s'|'profile_h', data: {} }
+  const [modal, setModal] = useState(null);
   const [confirm, setConfirm] = useState(null);
 
   const fetchAll = async () => {
     setLoading(true);
     const [s, h, surg] = await Promise.all([
-      surgeonService.getAll(), 
+      surgeonService.getAll(),
       hospitalService.getAll(),
       surgeryService.getAll()
     ]);
@@ -310,7 +310,7 @@ export const Directorio = () => {
     h.address?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const [portalCredentials, setPortalCredentials] = useState(null); // { name, email, tempPassword }
+  const [portalCredentials, setPortalCredentials] = useState(null);
 
   const handleSaveSurgeon = async (data) => {
     setSaving(true);
@@ -326,21 +326,17 @@ export const Directorio = () => {
           return;
         }
 
-        // Check if a profile already exists for this email
         let existingUser = await surgeonService.getUserByEmail(finalData.email);
-        
+
         if (existingUser) {
-          // User already exists — just link them
           finalData.user_id = existingUser.id;
         } else {
-          // Create real auth user + set Cirujano role
           const { userId, tempPassword } = await surgeonService.createPortalUser({
             full_name: finalData.full_name,
             email: finalData.email
           });
           finalData.user_id = userId;
 
-          // Show temp credentials to admin after save
           setPortalCredentials({
             name: finalData.full_name,
             email: finalData.email,
@@ -353,17 +349,18 @@ export const Directorio = () => {
 
       if (modal.data?.id) await surgeonService.update(modal.data.id, finalData);
       else await surgeonService.create(finalData);
-      
+
       setModal(null);
       fetchAll();
       toast.success(modal?.data?.id ? 'Cirujano actualizado.' : 'Cirujano creado correctamente.');
     } catch (err) {
       console.error('Error saving surgeon:', err);
       toast.error(`Error al guardar el cirujano: ${err.message}`);
-    } finally { 
-      setSaving(false); 
+    } finally {
+      setSaving(false);
     }
   };
+
   const handleSaveHospital = async (data) => {
     setSaving(true);
     try {
@@ -372,6 +369,7 @@ export const Directorio = () => {
       setModal(null); fetchAll();
     } finally { setSaving(false); }
   };
+
   const handleDelete = async () => {
     if (confirm.type === 'surgeon') await surgeonService.delete(confirm.id);
     else await hospitalService.delete(confirm.id);
@@ -380,7 +378,6 @@ export const Directorio = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Directorio</h1>
@@ -395,10 +392,9 @@ export const Directorio = () => {
         </button>
       </div>
 
-      {/* Tabs + Search */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
         <div className="flex bg-slate-100 rounded-xl p-1 gap-1">
-          {[['cirujanos','Cirujanos', Users], ['hospitales','Hospitales', Building2]].map(([key, label, Icon]) => (
+          {([['cirujanos','Cirujanos', Users], ['hospitales','Hospitales', Building2]] as [string, string, React.FC<any>][]).map(([key, label, Icon]) => (
             <button key={key} onClick={() => { setTab(key); setSearch(''); }}
               className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
                 tab === key ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700')}>
@@ -412,7 +408,6 @@ export const Directorio = () => {
         </div>
       </div>
 
-      {/* Content */}
       {loading ? <PageLoader /> : (
         <>
           {tab === 'cirujanos' && (
@@ -422,7 +417,7 @@ export const Directorio = () => {
                   {filteredSurgeons.map(s => (
                     <div key={s.id} className="card group hover:border-primary/30 transition-all">
                       <div className="flex items-start justify-between gap-2">
-                        <div 
+                        <div
                           className="flex items-center gap-3 cursor-pointer hover:opacity-80"
                           onClick={() => setModal({ type: 'profile_s', data: s })}
                         >
@@ -463,7 +458,7 @@ export const Directorio = () => {
                   {filteredHospitals.map(h => (
                     <div key={h.id} className="card group hover:border-teal-300 transition-all">
                       <div className="flex items-start justify-between">
-                        <div 
+                        <div
                           className="flex items-center gap-3 cursor-pointer hover:opacity-80"
                           onClick={() => setModal({ type: 'profile_h', data: h })}
                         >
@@ -496,7 +491,6 @@ export const Directorio = () => {
         </>
       )}
 
-      {/* Modals de Formulario */}
       <Modal isOpen={modal?.type==='surgeon'} onClose={() => setModal(null)} title={modal?.data ? 'Editar Cirujano' : 'Nuevo Cirujano'}>
         <SurgeonForm initial={modal?.data} onSave={handleSaveSurgeon} onCancel={() => setModal(null)} loading={saving} />
       </Modal>
@@ -504,18 +498,17 @@ export const Directorio = () => {
         <HospitalForm initial={modal?.data} onSave={handleSaveHospital} onCancel={() => setModal(null)} loading={saving} />
       </Modal>
 
-      {/* Modals de Perfil Analítico */}
-      <Modal 
-        isOpen={modal?.type==='profile_s'} 
-        onClose={() => setModal(null)} 
+      <Modal
+        isOpen={modal?.type==='profile_s'}
+        onClose={() => setModal(null)}
         title={`Perfil: ${modal?.data?.full_name}`}
         size="md"
       >
         <SurgeonProfile surgeon={modal?.data} surgeries={surgeries} />
       </Modal>
-      <Modal 
-        isOpen={modal?.type==='profile_h'} 
-        onClose={() => setModal(null)} 
+      <Modal
+        isOpen={modal?.type==='profile_h'}
+        onClose={() => setModal(null)}
         title={`Detalle: ${modal?.data?.name}`}
         size="md"
       >
@@ -527,12 +520,10 @@ export const Directorio = () => {
         title="¿Eliminar registro?" message={`¿Estás seguro de eliminar "${confirm?.name}"? Esta acción no se puede deshacer.`}
       />
 
-      {/* Modal: Credenciales del Portal */}
       {portalCredentials && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setPortalCredentials(null)} />
           <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300">
-            {/* Header */}
             <div className="bg-gradient-to-br from-primary to-blue-700 p-6 text-white text-center">
               <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
                 <Shield size={28} className="text-white" />
@@ -541,7 +532,6 @@ export const Directorio = () => {
               <p className="text-blue-100 text-sm mt-1">Comparte estas credenciales con el cirujano</p>
             </div>
 
-            {/* Credentials */}
             <div className="p-6 space-y-4">
               <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
                 <div>

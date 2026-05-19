@@ -17,6 +17,7 @@ import { implantService } from '../services/implantService';
 import { useToast } from '../components/ui/Toast';
 import { ShoppingCart, CheckCircle2, FileText } from 'lucide-react';
 import { generateActaQuirurgica } from '../utils/pdfGenerator';
+import type { UserProfile } from '../types/domain';
 
 // ─── Consumption Form ─────────────────────────────────────────────────────────
 const ConsumptionForm = ({ surgery, onSave, onCancel, loading }) => {
@@ -54,7 +55,7 @@ const ConsumptionForm = ({ surgery, onSave, onCancel, loading }) => {
   const handleAdd = async (e) => {
     e.preventDefault();
     if (!selectedLotId) return;
-    
+
     onSave({
       surgery_id: surgery.id,
       implant_lot_id: selectedLotId,
@@ -62,8 +63,7 @@ const ConsumptionForm = ({ surgery, onSave, onCancel, loading }) => {
       auth_number: authNumber,
       notes
     });
-    
-    // Reset local form but keep modal open
+
     setSelectedLotId('');
     setQuantity(1);
     setAuthNumber('');
@@ -78,9 +78,9 @@ const ConsumptionForm = ({ surgery, onSave, onCancel, loading }) => {
         <form onSubmit={handleAdd} className="grid grid-cols-12 gap-4">
           <div className="col-span-12">
             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Producto</label>
-            <select 
-              className="input text-sm" 
-              value={selectedImplantId} 
+            <select
+              className="input text-sm"
+              value={selectedImplantId}
               onChange={e => { setSelectedImplantId(e.target.value); setSelectedLotId(''); }}
             >
               <option value="">Seleccionar producto...</option>
@@ -89,13 +89,13 @@ const ConsumptionForm = ({ surgery, onSave, onCancel, loading }) => {
               ))}
             </select>
           </div>
-          
+
           <div className="col-span-12 md:col-span-5">
             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Lote Disponible</label>
-            <select 
-              className="input text-sm" 
+            <select
+              className="input text-sm"
               disabled={!selectedImplantId}
-              value={selectedLotId} 
+              value={selectedLotId}
               onChange={e => setSelectedLotId(e.target.value)}
             >
               <option value="">Seleccionar lote...</option>
@@ -109,35 +109,35 @@ const ConsumptionForm = ({ surgery, onSave, onCancel, loading }) => {
 
           <div className="col-span-8 md:col-span-5">
             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nº Autorización</label>
-            <input 
-              className="input text-sm" 
-              placeholder="Opcional" 
-              value={authNumber} 
+            <input
+              className="input text-sm"
+              placeholder="Opcional"
+              value={authNumber}
               onChange={e => setAuthNumber(e.target.value)}
             />
           </div>
 
           <div className="col-span-4 md:col-span-2">
             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Cant.</label>
-            <input 
-              type="number" 
-              min="1" 
-              className="input text-sm" 
-              value={quantity} 
-              onChange={e => setQuantity(parseInt(e.target.value))} 
+            <input
+              type="number"
+              min="1"
+              className="input text-sm"
+              value={quantity}
+              onChange={e => setQuantity(parseInt(e.target.value))}
             />
           </div>
 
           <div className="col-span-12 flex gap-2">
-            <input 
-              className="input text-sm flex-1" 
-              placeholder="Notas u observaciones del uso..." 
-              value={notes} 
+            <input
+              className="input text-sm flex-1"
+              placeholder="Notas u observaciones del uso..."
+              value={notes}
               onChange={e => setNotes(e.target.value)}
             />
-            <button 
-              type="submit" 
-              disabled={loading || !selectedLotId} 
+            <button
+              type="submit"
+              disabled={loading || !selectedLotId}
               className="btn btn-primary px-6 whitespace-nowrap"
             >
               <Plus size={16} className="mr-1" /> Cargar
@@ -192,11 +192,11 @@ const ConsumptionForm = ({ surgery, onSave, onCancel, loading }) => {
       )}
 
       <div className="pt-2 flex gap-3">
-        <button 
+        <button
           onClick={async () => {
             if (currentConsumption.length === 0) return;
             generateActaQuirurgica(surgery, currentConsumption);
-          }} 
+          }}
           disabled={currentConsumption.length === 0}
           className={cn(
             "btn flex-1",
@@ -216,9 +216,8 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, 
   const [form, setForm] = useState(() => ({
     patient_name: '', surgery_date: '', surgeon_id: '', hospital_id: '',
     operating_room: '', procedure_type: '', status: 'Pendiente',
-    delivery_responsible: '', notes: '', ars_id: '',
+    delivery_responsible: '', notes: '',
     ...(initial || {}),
-    // Asegurar que ars_id no sea null para el select
     ars_id: initial?.ars_id || ''
   }));
   const [selectedTrayIds, setSelectedTrayIds] = useState([]);
@@ -226,14 +225,12 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, 
   const [trayLoading, setTrayLoading] = useState(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  // Pre-fill tray selection when editing
   useEffect(() => {
     if (initial?.surgery_trays) {
       setSelectedTrayIds(initial.surgery_trays.map(st => st.tray?.id).filter(Boolean));
     }
   }, [initial]);
 
-  // Load trays when date changes
   useEffect(() => {
     if (!form.surgery_date) return;
     setTrayLoading(true);
@@ -250,7 +247,6 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, 
 
   return (
     <form onSubmit={submit} className="space-y-5">
-      {/* Patient + Date */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="sm:col-span-2">
           <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre del Paciente *</label>
@@ -275,7 +271,6 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, 
         </div>
       </div>
 
-      {/* Surgeon + Hospital */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-1">Cirujano</label>
@@ -301,7 +296,6 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, 
         </div>
       </div>
 
-      {/* Procedure */}
       <div>
         <label className="block text-sm font-semibold text-slate-700 mb-1">Tipo de Procedimiento *</label>
         <select required className="input" value={form.procedure_type} onChange={e => set('procedure_type', e.target.value)}>
@@ -310,7 +304,6 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, 
         </select>
       </div>
 
-      {/* Tray Selection */}
       <div>
         <label className="block text-sm font-semibold text-slate-700 mb-2">
           Bandejas / Sets Requeridos
@@ -345,7 +338,6 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, 
             )}
       </div>
 
-      {/* Notes */}
       <div>
         <label className="block text-sm font-semibold text-slate-700 mb-1">Notas Adicionales</label>
         <textarea rows={3} className="input resize-none" value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Información adicional relevante..." />
@@ -365,18 +357,18 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, 
 const StatusMenu = ({ surgery, onUpdate }) => {
   const colors = STATUS_COLORS[surgery.status] || { bg: 'bg-slate-100', text: 'text-slate-600' };
   return (
-    <select 
-      value={surgery.status} 
+    <select
+      value={surgery.status}
       onChange={(e) => onUpdate(surgery.id, e.target.value)}
       className={cn(
         "text-[11px] font-bold px-2.5 py-1 rounded-full cursor-pointer outline-none transition-all appearance-none pr-6 border-2 border-transparent focus:border-primary/20",
         colors.bg, colors.text
       )}
-      style={{ 
+      style={{
         backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
-        backgroundPosition: 'right 6px center', 
-        backgroundRepeat: 'no-repeat', 
-        backgroundSize: '12px' 
+        backgroundPosition: 'right 6px center',
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: '12px'
       }}
     >
       {SURGERY_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
@@ -385,7 +377,11 @@ const StatusMenu = ({ surgery, onUpdate }) => {
 };
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-export const Cirugias = ({ userProfile }) => {
+interface CirugiasProps {
+  userProfile: Partial<UserProfile> | null;
+}
+
+export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
   const toast = useToast();
   const [searchParams] = useSearchParams();
   const [surgeries, setSurgeries] = useState([]);
@@ -401,7 +397,7 @@ export const Cirugias = ({ userProfile }) => {
   const [confirm, setConfirm]     = useState(null);
 
   const isSurgeon = userProfile?.role === 'Cirujano';
-  const mySurgeonId = userProfile?.surgeon_id;
+  const mySurgeonId = (userProfile as any)?.surgeon_id;
 
   const [fetchError, setFetchError] = useState(null);
 
@@ -409,16 +405,15 @@ export const Cirugias = ({ userProfile }) => {
     setLoading(true);
     setFetchError(null);
     try {
-      // If surgeon, filter data fetching at service level
       const [surg, sur, hosp, ars] = await Promise.all([
-        surgeryService.getAll(isSurgeon ? mySurgeonId : null), 
-        surgeonService.getAll(), 
+        surgeryService.getAll(isSurgeon ? mySurgeonId : null),
+        surgeonService.getAll(),
         hospitalService.getAll(),
         arsService.getAll()
       ]);
-      setSurgeries(surg || []); 
-      setSurgeons(sur || []); 
-      setHospitals(hosp || []); 
+      setSurgeries(surg || []);
+      setSurgeons(sur || []);
+      setHospitals(hosp || []);
       setArsList(ars || []);
     } catch (err) {
       console.error('Cirugias: Error cargando datos:', err);
@@ -428,11 +423,10 @@ export const Cirugias = ({ userProfile }) => {
     }
   };
 
-  useEffect(() => { 
-    if (userProfile) fetchAll(); 
+  useEffect(() => {
+    if (userProfile) fetchAll();
   }, [userProfile]);
 
-  // Sync search state if URL param changes (e.g. from global search)
   useEffect(() => {
     const q = searchParams.get('q');
     if (q !== null) setSearch(q);
@@ -451,29 +445,27 @@ export const Cirugias = ({ userProfile }) => {
     setSaving(true);
     try {
       let finalData = { ...data };
-      // Force current surgeon if role is Cirujano
       if (isSurgeon) finalData.surgeon_id = mySurgeonId;
 
       if (modal.data?.id) {
         await surgeryService.update(modal.data.id, finalData, trayIds);
       } else {
         const newSurgery = await surgeryService.create(finalData, trayIds);
-        
-        // Determinar si es urgente (próximas 48 horas)
-        const diffDays = (new Date(finalData.surgery_date) - new Date()) / 86400000;
+
+        const diffDays = (new Date(finalData.surgery_date).getTime() - Date.now()) / 86400000;
         if (diffDays <= 2 && finalData.status === 'Pendiente') {
           try {
             await surgeryService.sendAlert(newSurgery, 'casadigti@gmail.com');
-            console.log('Alerta de cirugía urgente enviada al almacén.');
           } catch (alertError) {
             console.error('Error al enviar la alerta de correo:', alertError);
           }
         }
       }
-      setModal(null); 
+      setModal(null);
       fetchAll();
     } finally { setSaving(false); }
   };
+
   const handleStatusUpdate = async (id, status) => {
     try {
       await surgeryService.updateStatus(id, status);
@@ -489,11 +481,13 @@ export const Cirugias = ({ userProfile }) => {
       );
     }
   };
+
   const handleDelete = async () => {
-    if (isSurgeon) return; // Protection
+    if (isSurgeon) return;
     await surgeryService.delete(confirm.id);
     setConfirm(null); fetchAll();
   };
+
   const handleConsumptionReport = async (consumptionData) => {
     setSaving(true);
     try {
@@ -505,6 +499,7 @@ export const Cirugias = ({ userProfile }) => {
       setSaving(false);
     }
   };
+
   const handleGenerateActa = async (surgery) => {
     try {
       toast.success('Generando acta quirúrgica...');
@@ -517,7 +512,7 @@ export const Cirugias = ({ userProfile }) => {
   };
 
   const getDaysLabel = (dateStr) => {
-    const diff = Math.ceil((new Date(dateStr) - new Date()) / 86400000);
+    const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
     if (diff < 0) return { label: 'Pasada', color: 'text-slate-400' };
     if (diff === 0) return { label: 'Hoy', color: 'text-red-600 font-bold' };
     if (diff === 1) return { label: 'Mañana', color: 'text-amber-600 font-bold' };
@@ -545,7 +540,6 @@ export const Cirugias = ({ userProfile }) => {
         </button>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -557,7 +551,6 @@ export const Cirugias = ({ userProfile }) => {
         </select>
       </div>
 
-      {/* Table */}
       {loading ? <PageLoader /> : filtered.length === 0
         ? <EmptyState icon={Stethoscope} title="Sin cirugías registradas" description="Crea la primera cirugía con el botón superior"
             action={<button className="btn btn-primary" onClick={() => setModal({ data: null })}><Plus size={16} />Nueva Cirugía</button>} />
@@ -613,34 +606,34 @@ export const Cirugias = ({ userProfile }) => {
                         </td>
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-1">
-                            <button 
-                              onClick={() => printService.generateDeliverySheet(s)} 
+                            <button
+                              onClick={() => printService.generateDeliverySheet(s)}
                               title="Imprimir Hoja de Entrega"
                               className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-900 transition-colors"
                             >
                               <Printer size={15} />
                             </button>
-                            <button 
-                               onClick={() => setConsumptionModal(s)} 
+                            <button
+                               onClick={() => setConsumptionModal(s)}
                                disabled={s.status !== 'Completada'}
                                title={s.status === 'Completada' ? "Reportar Gasto Quirúrgico" : "Solo disponible al completar la cirugía"}
                                className={cn(
                                  "p-2 rounded-lg transition-colors",
-                                 s.status === 'Completada' 
-                                   ? "text-slate-400 hover:bg-emerald-50 hover:text-emerald-600" 
+                                 s.status === 'Completada'
+                                   ? "text-slate-400 hover:bg-emerald-50 hover:text-emerald-600"
                                    : "text-slate-200 cursor-not-allowed"
                                )}
                              >
                                <ShoppingCart size={15} />
                              </button>
-                             <button 
-                               onClick={() => handleGenerateActa(s)} 
+                             <button
+                               onClick={() => handleGenerateActa(s)}
                                disabled={!s.surgery_consumption?.length}
                                title={s.surgery_consumption?.length ? "Generar Acta Quirúrgica (PDF)" : "Debes registrar consumos primero"}
                                className={cn(
                                  "p-2 rounded-lg transition-colors",
-                                 s.surgery_consumption?.length 
-                                   ? "text-slate-400 hover:bg-orange-50 hover:text-orange-600" 
+                                 s.surgery_consumption?.length
+                                   ? "text-slate-400 hover:bg-orange-50 hover:text-orange-600"
                                    : "text-slate-200 cursor-not-allowed"
                                )}
                              >
