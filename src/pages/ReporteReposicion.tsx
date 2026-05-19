@@ -5,6 +5,8 @@ import { printService } from '../services/printService';
 import { useToast } from '../components/ui/Toast';
 import { format } from 'date-fns';
 import { cn } from '../utils/cn';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export const ReporteReposicion: React.FC = () => {
   const toast = useToast();
@@ -115,8 +117,52 @@ export const ReporteReposicion: React.FC = () => {
     return acc;
   }, {});
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = () => window.print();
+
+  const handleDownloadPDF = () => {
+    if (view === 'material') {
+      printService.generateReplenishmentReport(data, dateRange, materialSummary);
+      return;
+    }
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    const margin = 20;
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Resumen de Gasto por Cirugía', margin, 20);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    doc.text(`Período: ${dateRange.start} — ${dateRange.end}`, margin, 28);
+
+    const rows = (Object.values(surgeriesSummary) as any[]).map(s => [
+      s.patient,
+      s.hospital,
+      s.date ? format(new Date(s.date), 'dd/MM/yyyy') : '—',
+      s.items_count,
+      `RD$ ${s.total_cost.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+    ]);
+
+    const totalCost = (Object.values(surgeriesSummary) as any[]).reduce((sum, s) => sum + s.total_cost, 0);
+
+    autoTable(doc, {
+      startY: 34,
+      head: [['Paciente', 'Hospital', 'Fecha', 'Items', 'Gasto Total']],
+      body: rows,
+      theme: 'grid',
+      headStyles: { fillColor: [59, 130, 246], fontSize: 8, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 8 },
+      margin: { left: margin, right: margin },
+    });
+
+    const finalY = (doc as any).lastAutoTable?.finalY ?? 34 + rows.length * 8 + 10;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Total del período: RD$ ${totalCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, pageWidth - margin, finalY + 8, { align: 'right' });
+
+    doc.save(`reporte-cirugias-${dateRange.start}_${dateRange.end}.pdf`);
   };
 
   return (
@@ -128,7 +174,7 @@ export const ReporteReposicion: React.FC = () => {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => printService.generateReplenishmentReport(data, dateRange, materialSummary)}
+            onClick={handleDownloadPDF}
             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all shadow-sm shadow-emerald-200 flex items-center gap-2"
           >
             <Download size={18} /> Descargar PDF
