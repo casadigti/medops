@@ -1,50 +1,52 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Stethoscope, 
-  Package, 
-  Users, 
-  BarChart3, 
-  Settings,
-  Bell,
-  LogOut,
-  Wrench,
-  CalendarDays,
-  Shield,
-  Box,
-  ShoppingCart,
-  History
+import {
+  LayoutDashboard, Stethoscope, Package, Users, BarChart3, Settings,
+  LogOut, Wrench, CalendarDays, Shield, Box, ShoppingCart, History,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { supabase } from '../../lib/supabase';
+import type { UserProfile } from '../../types/domain';
 
-const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor', 'Lector'] },
-  { icon: LayoutDashboard, label: 'Mi Portal', path: '/mis-solicitudes', roles: ['Cirujano'] },
-  { icon: CalendarDays, label: 'Calendario', path: '/calendario', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
-  { icon: Stethoscope, label: 'Cirugías', path: '/cirugias', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
-  { icon: Package, label: 'Bandejas / Sets', path: '/bandejas', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
-  { icon: Box, label: 'Inventario', path: '/inventario', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'], showStockAlert: true },
-  { icon: ShoppingCart, label: 'Reporte de Gasto', path: '/reporte-reposicion', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
-  { icon: History, label: 'Reporte Lotes', path: '/reporte-lotes', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
-  { icon: Wrench, label: 'Mantenimiento', path: '/mantenimiento', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
-  { icon: Users, label: 'Directorio', path: '/directorio', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor', 'Lector'] },
-  { icon: BarChart3, label: 'Reportes', path: '/reportes', roles: ['Superadmin', 'Administrador'] },
-  { icon: Settings, label: 'Configuración', path: '/configuracion', roles: ['Superadmin', 'Administrador'] },
-  // Vista de previsualización del portal del cirujano (solo admins)
-  { icon: Shield, label: 'Portal Cirujano', path: '/mis-solicitudes', roles: ['Superadmin', 'Administrador'], isPreview: true },
+interface NavItem {
+  icon: React.ElementType;
+  label: string;
+  path: string;
+  roles: string[];
+  showStockAlert?: boolean;
+  isPreview?: boolean;
+}
+
+const navItems: NavItem[] = [
+  { icon: LayoutDashboard, label: 'Dashboard',        path: '/',                  roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor', 'Lector'] },
+  { icon: LayoutDashboard, label: 'Mi Portal',        path: '/mis-solicitudes',   roles: ['Cirujano'] },
+  { icon: CalendarDays,    label: 'Calendario',        path: '/calendario',        roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
+  { icon: Stethoscope,     label: 'Cirugías',          path: '/cirugias',          roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
+  { icon: Package,         label: 'Bandejas / Sets',   path: '/bandejas',          roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
+  { icon: Box,             label: 'Inventario',         path: '/inventario',        roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'], showStockAlert: true },
+  { icon: ShoppingCart,    label: 'Reporte de Gasto',  path: '/reporte-reposicion',roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
+  { icon: History,         label: 'Reporte Lotes',     path: '/reporte-lotes',     roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
+  { icon: Wrench,          label: 'Mantenimiento',     path: '/mantenimiento',     roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
+  { icon: Users,           label: 'Directorio',        path: '/directorio',        roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor', 'Lector'] },
+  { icon: BarChart3,       label: 'Reportes',          path: '/reportes',          roles: ['Superadmin', 'Administrador'] },
+  { icon: Settings,        label: 'Configuración',     path: '/configuracion',     roles: ['Superadmin', 'Administrador'] },
+  { icon: Shield,          label: 'Portal Cirujano',   path: '/mis-solicitudes',   roles: ['Superadmin', 'Administrador'], isPreview: true },
 ];
 
-export const Sidebar = ({ className, role, profile, lowStockCount = 0 }) => {
-  // Show items that match the role. If role is null (profile still loading),
-  // show all non-Cirujano-exclusive items so the UI doesn't appear broken.
+interface SidebarProps {
+  className?: string;
+  role?: string;
+  profile?: Partial<UserProfile> | null;
+  lowStockCount?: number;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ className, role, profile, lowStockCount = 0 }) => {
   const filteredNavItems = navItems.filter(item => {
     if (!role) return item.roles.some(r => r !== 'Cirujano');
     return item.roles.includes(role);
   });
 
-  const getInitials = (name) => {
+  const getInitials = (name?: string | null): string => {
     if (!name) return 'U';
     const parts = name.split(' ');
     if (parts.length > 1) return (parts[0][0] + parts[1][0]).toUpperCase();
@@ -52,7 +54,7 @@ export const Sidebar = ({ className, role, profile, lowStockCount = 0 }) => {
   };
 
   return (
-    <aside className={cn("w-64 h-screen bg-white border-r border-slate-200 flex-col fixed left-0 top-0 z-50 hidden lg:flex", className)}>
+    <aside className={cn('w-64 h-screen bg-white border-r border-slate-200 flex-col fixed left-0 top-0 z-50 hidden lg:flex', className)}>
       <div className="p-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/20">
@@ -80,14 +82,10 @@ export const Sidebar = ({ className, role, profile, lowStockCount = 0 }) => {
               <NavLink
                 to={item.path}
                 className={({ isActive }) => cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+                  'flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group',
                   item.isPreview
-                    ? isActive
-                      ? "bg-violet-600 text-white shadow-md shadow-violet-200"
-                      : "text-violet-600 hover:bg-violet-50 hover:text-violet-700"
-                    : isActive
-                      ? "bg-primary text-white shadow-md shadow-primary/20"
-                      : "text-slate-600 hover:bg-slate-50 hover:text-primary"
+                    ? isActive ? 'bg-violet-600 text-white shadow-md shadow-violet-200' : 'text-violet-600 hover:bg-violet-50 hover:text-violet-700'
+                    : isActive ? 'bg-primary text-white shadow-md shadow-primary/20' : 'text-slate-600 hover:bg-slate-50 hover:text-primary'
                 )}
               >
                 <item.icon size={20} className="transition-transform group-hover:scale-110 opacity-80 group-hover:opacity-100" />
@@ -120,11 +118,10 @@ export const Sidebar = ({ className, role, profile, lowStockCount = 0 }) => {
               <Settings size={18} />
             </NavLink>
           )}
-          <button 
+          <button
             onClick={async () => {
-              if(confirm('¿Deseas cerrar sesión?')) {
+              if (confirm('¿Deseas cerrar sesión?')) {
                 await supabase.auth.signOut();
-                // El useEffect de App.jsx detectará el cambio y redirigirá al login automáticamente
               }
             }}
             className="text-slate-400 hover:text-danger transition-colors p-1.5 hover:bg-white rounded-lg shadow-sm"

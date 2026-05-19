@@ -110,7 +110,7 @@ export interface Notification {
   created_at: string;
 }
 
-export type UserRole = 'Superadmin' | 'Administrador' | 'Cirujano';
+export type UserRole = 'Superadmin' | 'Administrador' | 'Cirujano' | 'Técnico' | 'Editor' | 'Lector';
 
 export interface UserProfile {
   id: string;

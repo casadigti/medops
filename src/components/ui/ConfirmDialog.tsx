@@ -2,7 +2,19 @@ import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Modal } from './Modal';
 
-export const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmLabel = 'Eliminar', danger = true }) => (
+interface ConfirmDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  danger?: boolean;
+}
+
+export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
+  isOpen, onClose, onConfirm, title, message, confirmLabel = 'Eliminar', danger = true,
+}) => (
   <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
     <div className="flex flex-col items-center text-center gap-4">
       <div className={`w-14 h-14 rounded-full flex items-center justify-center ${danger ? 'bg-red-100' : 'bg-amber-100'}`}>

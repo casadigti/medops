@@ -1,42 +1,48 @@
 import React from 'react';
 import { Sidebar } from './Sidebar';
-import { Bell, Search, LayoutDashboard, Calendar, CalendarDays, Stethoscope, Package, Users, BarChart3, Settings, Shield, Wrench } from 'lucide-react';
+import { Bell, Search, LayoutDashboard, CalendarDays, Stethoscope, Package, Users, BarChart3, Settings, Wrench } from 'lucide-react';
 import { surgeryService } from '../../services/surgeryService';
 import { implantService } from '../../services/implantService';
 import { cn } from '../../utils/cn';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { NotificationPanel } from './NotificationPanel';
+import { notificationService } from '../../services/notificationService';
+import type { UserProfile } from '../../types/domain';
 
-const MobileNav = ({ role }) => {
+interface NavItem {
+  icon: React.ElementType;
+  path: string;
+  label: string;
+  roles: string[];
+}
+
+const MobileNav: React.FC<{ role?: string }> = ({ role }) => {
   const { pathname } = useLocation();
-  const navItems = [
-    { icon: LayoutDashboard, path: '/', label: role === 'Cirujano' ? 'Portal' : 'Inicio', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
-    { icon: CalendarDays, path: '/calendario', label: 'Agenda', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
-    { icon: Stethoscope, path: '/cirugias', label: role === 'Cirujano' ? 'Cirugías' : 'Cirugías', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
-    { icon: Package, path: '/bandejas', label: 'Sets', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
-    { icon: Wrench, path: '/mantenimiento', label: 'Mant.', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
-    { icon: Users, path: '/directorio', label: 'Dir.', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
-    { icon: BarChart3, path: '/reportes', label: 'Reportes', roles: ['Superadmin', 'Administrador'] },
-    { icon: Settings, path: '/configuracion', label: 'Ajustes', roles: ['Superadmin', 'Administrador'] },
+  const navItems: NavItem[] = [
+    { icon: LayoutDashboard, path: '/',              label: role === 'Cirujano' ? 'Portal' : 'Inicio', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
+    { icon: CalendarDays,    path: '/calendario',    label: 'Agenda',    roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
+    { icon: Stethoscope,     path: '/cirugias',      label: 'Cirugías',  roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
+    { icon: Package,         path: '/bandejas',      label: 'Sets',      roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
+    { icon: Wrench,          path: '/mantenimiento', label: 'Mant.',     roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
+    { icon: Users,           path: '/directorio',    label: 'Dir.',      roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
+    { icon: BarChart3,       path: '/reportes',      label: 'Reportes',  roles: ['Superadmin', 'Administrador'] },
+    { icon: Settings,        path: '/configuracion', label: 'Ajustes',   roles: ['Superadmin', 'Administrador'] },
   ];
 
-  const filteredNavItems = navItems.filter(item => {
-    if (!role) return item.roles.some(r => r !== 'Cirujano');
-    return item.roles.includes(role);
-  });
+  const filtered = navItems.filter(item =>
+    !role ? item.roles.some(r => r !== 'Cirujano') : item.roles.includes(role)
+  );
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 py-2 flex justify-around items-center z-50 pb-safe">
-      {filteredNavItems.map((item) => {
+      {filtered.map((item) => {
         const active = pathname === item.path;
         return (
-          <Link 
+          <Link
             key={`${item.path}-${item.label}`}
             to={item.path}
-            className={cn(
-              "flex flex-col items-center gap-1 p-2 rounded-xl transition-all",
-              active ? "text-primary bg-primary/5" : "text-slate-400"
-            )}
+            className={cn('flex flex-col items-center gap-1 p-2 rounded-xl transition-all', active ? 'text-primary bg-primary/5' : 'text-slate-400')}
           >
             <item.icon size={20} strokeWidth={active ? 2.5 : 2} />
             <span className="text-[10px] font-bold uppercase tracking-tighter">{item.label}</span>
@@ -47,12 +53,13 @@ const MobileNav = ({ role }) => {
   );
 };
 
-import { NotificationPanel } from './NotificationPanel';
-import { notificationService } from '../../services/notificationService';
+interface LayoutProps {
+  children: React.ReactNode;
+  userProfile: Partial<UserProfile> | null;
+}
 
-export const Layout = ({ children, userProfile }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, userProfile }) => {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
   const [globalSearch, setGlobalSearch] = React.useState('');
   const [time, setTime] = React.useState(new Date());
   const [unreadCount, setUnreadCount] = React.useState(0);
@@ -61,32 +68,21 @@ export const Layout = ({ children, userProfile }) => {
 
   React.useEffect(() => {
     if (!userProfile?.id) return;
-
-    // Load initial unread count
     notificationService.getMyNotifications().then(data => {
       setUnreadCount(data.filter(n => !n.is_read).length);
     });
-
-    // Subscribe to new notifications to update badge
     const subscription = notificationService.subscribeToNotifications(userProfile.id, () => {
       setUnreadCount(prev => prev + 1);
     });
-
-    return () => {
-      if (subscription) supabase.removeChannel(subscription);
-    };
+    return () => { if (subscription) supabase.removeChannel(subscription); };
   }, [userProfile?.id]);
 
-  // Fetch total critical inventory count (low stock + expiring lots)
   React.useEffect(() => {
-    Promise.all([
-      implantService.getLowStockImplants(),
-      implantService.getExpiringLots()
-    ]).then(([lowStock, expiring]) => {
-      setLowStockCount((lowStock?.length || 0) + (expiring?.length || 0));
-    }).catch(err => {
-      console.error('Layout: Error fetching inventory alerts:', err);
-    });
+    Promise.all([implantService.getLowStockImplants(), implantService.getExpiringLots()])
+      .then(([lowStock, expiring]) => {
+        setLowStockCount((lowStock?.length || 0) + (expiring?.length || 0));
+      })
+      .catch(err => console.error('Layout: Error fetching inventory alerts:', err));
   }, []);
 
   React.useEffect(() => {
@@ -94,30 +90,25 @@ export const Layout = ({ children, userProfile }) => {
     return () => clearInterval(timer);
   }, []);
 
-  const handleSearch = (e) => {
+  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && globalSearch.trim()) {
       navigate(`/cirugias?q=${encodeURIComponent(globalSearch.trim())}`);
       setGlobalSearch('');
     }
   };
 
-  const role = userProfile?.role;
-
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans selection:bg-primary/10 selection:text-primary">
-      {/* Sidebar - Desktop */}
       <Sidebar className="hidden lg:flex" role={userProfile?.role} profile={userProfile} lowStockCount={lowStockCount} />
 
-      {/* Main Content */}
       <main className="flex-1 lg:ml-64 min-h-screen flex flex-col pb-16 lg:pb-0">
-        {/* Topbar */}
         <header className="h-16 bg-white border-b border-slate-200 px-4 lg:px-8 flex items-center justify-between sticky top-0 z-40">
           <div className="flex-1 max-w-md">
             <div className="relative group">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={18} />
-              <input 
-                type="text" 
-                placeholder="Buscar..." 
+              <input
+                type="text"
+                placeholder="Buscar..."
                 value={globalSearch}
                 onChange={(e) => setGlobalSearch(e.target.value)}
                 onKeyDown={handleSearch}
@@ -128,12 +119,9 @@ export const Layout = ({ children, userProfile }) => {
 
           <div className="flex items-center gap-2 lg:gap-4 ml-2">
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setShowNotifs(!showNotifs)}
-                className={cn(
-                  "relative p-2 text-slate-500 hover:bg-slate-50 rounded-full transition-colors",
-                  showNotifs && "bg-slate-100 text-primary"
-                )}
+                className={cn('relative p-2 text-slate-500 hover:bg-slate-50 rounded-full transition-colors', showNotifs && 'bg-slate-100 text-primary')}
               >
                 <Bell size={20} />
                 {unreadCount > 0 && (
@@ -142,14 +130,13 @@ export const Layout = ({ children, userProfile }) => {
                   </span>
                 )}
               </button>
-
               {showNotifs && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setShowNotifs(false)} />
-                  <NotificationPanel 
-                    userId={userProfile?.id} 
-                    isOpen={showNotifs} 
-                    onClose={() => setShowNotifs(false)} 
+                  <NotificationPanel
+                    userId={userProfile?.id}
+                    isOpen={showNotifs}
+                    onClose={() => setShowNotifs(false)}
                     onUpdate={() => {
                       notificationService.getMyNotifications().then(data => {
                         setUnreadCount(data.filter(n => !n.is_read).length);
@@ -174,7 +161,6 @@ export const Layout = ({ children, userProfile }) => {
           </div>
         </header>
 
-        {/* Page Content */}
         <div className="p-4 lg:p-8 flex-1 animate-in fade-in slide-in-from-bottom-4 duration-700 overflow-x-hidden">
           {children}
         </div>

@@ -1,32 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Bell, CheckCircle2, Info, AlertTriangle, XCircle, Clock, Check } from 'lucide-react';
+import { Bell, CheckCircle2, Info, AlertTriangle, XCircle, Clock } from 'lucide-react';
 import { notificationService } from '../../services/notificationService';
 import { cn } from '../../utils/cn';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import type { Notification } from '../../types/domain';
+import type { LucideIcon } from 'lucide-react';
 
-export const NotificationPanel = ({ userId, isOpen, onClose, onUpdate }) => {
-  const [notifications, setNotifications] = useState([]);
+interface NotificationPanelProps {
+  userId: string | undefined;
+  isOpen: boolean;
+  onClose: () => void;
+  onUpdate?: () => void;
+}
+
+interface TypeStyle {
+  icon: LucideIcon;
+  color: string;
+  bg: string;
+}
+
+export const NotificationPanel: React.FC<NotificationPanelProps> = ({ userId, isOpen, onClose, onUpdate }) => {
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (isOpen) {
-      loadNotifications();
-    }
+    if (isOpen) loadNotifications();
   }, [isOpen]);
 
   useEffect(() => {
     if (!userId) return;
-
     const subscription = notificationService.subscribeToNotifications(userId, (newNotif) => {
       setNotifications(prev => [newNotif, ...prev]);
-      // Play a subtle sound if desired
     });
-
-    return () => {
-      supabase.removeChannel(subscription);
-    };
+    return () => { supabase.removeChannel(subscription); };
   }, [userId]);
 
   const loadNotifications = async () => {
@@ -40,11 +48,11 @@ export const NotificationPanel = ({ userId, isOpen, onClose, onUpdate }) => {
     }
   };
 
-  const markRead = async (id) => {
+  const markRead = async (id: string) => {
     try {
       await notificationService.markAsRead(id);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
-      if (onUpdate) onUpdate();
+      onUpdate?.();
     } catch (error) {
       console.error('Error marking read:', error);
     }
@@ -54,18 +62,18 @@ export const NotificationPanel = ({ userId, isOpen, onClose, onUpdate }) => {
     try {
       await notificationService.markAllAsRead();
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-      if (onUpdate) onUpdate();
+      onUpdate?.();
     } catch (error) {
       console.error('Error marking all read:', error);
     }
   };
 
-  const getTypeStyles = (type) => {
+  const getTypeStyles = (type: string): TypeStyle => {
     switch (type) {
-      case 'success': return { icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-50' };
+      case 'success': return { icon: CheckCircle2, color: 'text-green-500',  bg: 'bg-green-50' };
       case 'warning': return { icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50' };
-      case 'error': return { icon: XCircle, color: 'text-red-500', bg: 'bg-red-50' };
-      default: return { icon: Info, color: 'text-blue-500', bg: 'bg-blue-50' };
+      case 'error':   return { icon: XCircle,       color: 'text-red-500',   bg: 'bg-red-50'   };
+      default:        return { icon: Info,           color: 'text-blue-500',  bg: 'bg-blue-50'  };
     }
   };
 
@@ -83,10 +91,7 @@ export const NotificationPanel = ({ userId, isOpen, onClose, onUpdate }) => {
             </span>
           )}
         </div>
-        <button 
-          onClick={markAllRead}
-          className="text-[10px] font-black text-primary hover:text-blue-700 uppercase tracking-widest"
-        >
+        <button onClick={markAllRead} className="text-[10px] font-black text-primary hover:text-blue-700 uppercase tracking-widest">
           Marcar todo como leído
         </button>
       </div>
@@ -104,16 +109,16 @@ export const NotificationPanel = ({ userId, isOpen, onClose, onUpdate }) => {
             </div>
             <p className="text-sm font-bold text-slate-900">Todo al día</p>
             <p className="text-xs text-slate-400 mt-1">No tienes notificaciones pendientes.</p>
-            
-            <button 
+            <button
               onClick={() => {
-                const mockNotif = {
-                  id: Date.now(),
+                const mockNotif: Notification = {
+                  id: String(Date.now()),
+                  user_id: userId || '',
                   title: 'Notificación de Prueba',
                   message: 'Esta es una alerta simulada para verificar que el panel funciona correctamente.',
                   type: 'info',
                   created_at: new Date().toISOString(),
-                  is_read: false
+                  is_read: false,
                 };
                 setNotifications([mockNotif, ...notifications]);
               }}
@@ -127,35 +132,34 @@ export const NotificationPanel = ({ userId, isOpen, onClose, onUpdate }) => {
             {notifications.map((notif) => {
               const styles = getTypeStyles(notif.type);
               const Icon = styles.icon;
-              
               return (
-                <div 
+                <div
                   key={notif.id}
                   onClick={() => markRead(notif.id)}
                   className={cn(
-                    "p-4 flex gap-3 hover:bg-slate-50 transition-colors cursor-pointer relative",
-                    !notif.is_read && "bg-blue-50/30"
+                    'p-4 flex gap-3 hover:bg-slate-50 transition-colors cursor-pointer relative',
+                    !notif.is_read && 'bg-blue-50/30'
                   )}
                 >
                   {!notif.is_read && (
                     <div className="absolute left-1 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-full" />
                   )}
-                  <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", styles.bg)}>
+                  <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', styles.bg)}>
                     <Icon className={styles.color} size={20} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start mb-0.5">
-                      <h4 className={cn("text-sm truncate", notif.is_read ? "text-slate-600 font-medium" : "text-slate-900 font-bold")}>
+                      <h4 className={cn('text-sm truncate', notif.is_read ? 'text-slate-600 font-medium' : 'text-slate-900 font-bold')}>
                         {notif.title}
                       </h4>
                       <span className="text-[10px] text-slate-400 flex items-center gap-1 shrink-0 ml-2">
                         <Clock size={10} />
-                        {notif.created_at ? formatDistanceToNow(new Date(notif.created_at), { addSuffix: true, locale: es }) : 'Recientemente'}
+                        {notif.created_at
+                          ? formatDistanceToNow(new Date(notif.created_at), { addSuffix: true, locale: es })
+                          : 'Recientemente'}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
-                      {notif.message}
-                    </p>
+                    <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">{notif.message}</p>
                   </div>
                 </div>
               );

@@ -2,15 +2,27 @@ import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Shield, Eye, EyeOff, Lock, CheckCircle2 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import type { UserProfile } from '../../types/domain';
 
-export const ForcePasswordChange = ({ user, onPasswordChanged }) => {
+interface ForcePasswordChangeProps {
+  user: UserProfile;
+  onPasswordChanged: () => void;
+}
+
+const AlertCircle: React.FC<{ size: number }> = ({ size }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+  </svg>
+);
+
+export const ForcePasswordChange: React.FC<ForcePasswordChangeProps> = ({ user, onPasswordChanged }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -18,7 +30,6 @@ export const ForcePasswordChange = ({ user, onPasswordChanged }) => {
       setError('La contraseña debe tener al menos 6 caracteres.');
       return;
     }
-
     if (password !== confirmPassword) {
       setError('Las contraseñas no coinciden.');
       return;
@@ -26,24 +37,18 @@ export const ForcePasswordChange = ({ user, onPasswordChanged }) => {
 
     setLoading(true);
     try {
-      // 1. Actualizar contraseña en Auth
-      const { error: authError } = await supabase.auth.updateUser({
-        password: password
-      });
-
+      const { error: authError } = await supabase.auth.updateUser({ password });
       if (authError) throw authError;
 
-      // 2. Actualizar flag en perfil
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ must_change_password: false })
         .eq('id', user.id);
-
       if (profileError) throw profileError;
 
       onPasswordChanged();
     } catch (err) {
-      setError(err.message || 'Error al actualizar la contraseña');
+      setError((err as Error).message || 'Error al actualizar la contraseña');
     } finally {
       setLoading(false);
     }
@@ -65,7 +70,7 @@ export const ForcePasswordChange = ({ user, onPasswordChanged }) => {
 
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
           {error && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-xs font-medium flex items-center gap-2 animate-shake">
+            <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-xs font-medium flex items-center gap-2">
               <AlertCircle size={14} />
               {error}
             </div>
@@ -113,12 +118,12 @@ export const ForcePasswordChange = ({ user, onPasswordChanged }) => {
           <div className="bg-slate-50 rounded-2xl p-4 space-y-2">
             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Requisitos</h4>
             <div className="flex items-center gap-2 text-xs font-medium">
-              <CheckCircle2 size={14} className={password.length >= 6 ? "text-green-500" : "text-slate-300"} />
-              <span className={password.length >= 6 ? "text-slate-700" : "text-slate-400"}>Mínimo 6 caracteres</span>
+              <CheckCircle2 size={14} className={password.length >= 6 ? 'text-green-500' : 'text-slate-300'} />
+              <span className={password.length >= 6 ? 'text-slate-700' : 'text-slate-400'}>Mínimo 6 caracteres</span>
             </div>
             <div className="flex items-center gap-2 text-xs font-medium">
-              <CheckCircle2 size={14} className={password && password === confirmPassword ? "text-green-500" : "text-slate-300"} />
-              <span className={password && password === confirmPassword ? "text-slate-700" : "text-slate-400"}>Las contraseñas coinciden</span>
+              <CheckCircle2 size={14} className={password && password === confirmPassword ? 'text-green-500' : 'text-slate-300'} />
+              <span className={password && password === confirmPassword ? 'text-slate-700' : 'text-slate-400'}>Las contraseñas coinciden</span>
             </div>
           </div>
 
@@ -139,9 +144,3 @@ export const ForcePasswordChange = ({ user, onPasswordChanged }) => {
     </div>
   );
 };
-
-const AlertCircle = ({ size }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-  </svg>
-);

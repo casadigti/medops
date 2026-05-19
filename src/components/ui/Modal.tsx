@@ -2,9 +2,17 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
-const sizes = { sm: 'max-w-md', md: 'max-w-2xl', lg: 'max-w-4xl' };
+const sizes: Record<string, string> = { sm: 'max-w-md', md: 'max-w-2xl', lg: 'max-w-4xl' };
 
-export const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+  size?: 'sm' | 'md' | 'lg';
+}
+
+export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 'md' }) => {
   if (!isOpen) return null;
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">

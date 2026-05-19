@@ -2,16 +2,30 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { CheckCircle2, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
-// ─── Context ──────────────────────────────────────────────────────────────────
-const ToastContext = createContext(null);
+type ToastType = 'success' | 'error' | 'warning' | 'info';
 
-export const useToast = () => {
+interface ToastOptions {
+  type?: ToastType;
+  message: string;
+  duration?: number;
+}
+
+interface ToastFn {
+  (opts: ToastOptions): string;
+  success: (msg: string, opts?: Partial<ToastOptions>) => string;
+  error:   (msg: string, opts?: Partial<ToastOptions>) => string;
+  warning: (msg: string, opts?: Partial<ToastOptions>) => string;
+  info:    (msg: string, opts?: Partial<ToastOptions>) => string;
+}
+
+const ToastContext = createContext<ToastFn | null>(null);
+
+export const useToast = (): ToastFn => {
   const ctx = useContext(ToastContext);
   if (!ctx) throw new Error('useToast must be used inside <ToastProvider>');
   return ctx;
 };
 
-// ─── Individual Toast Item ─────────────────────────────────────────────────────
 const ICONS = {
   success: { icon: CheckCircle2, color: 'text-emerald-500', bar: 'bg-emerald-500', bg: 'bg-emerald-50 border-emerald-100' },
   error:   { icon: XCircle,      color: 'text-red-500',     bar: 'bg-red-500',     bg: 'bg-red-50 border-red-100' },
@@ -19,17 +33,22 @@ const ICONS = {
   info:    { icon: Info,          color: 'text-blue-500',   bar: 'bg-blue-500',    bg: 'bg-blue-50 border-blue-100' },
 };
 
-const ToastItem = ({ id, type = 'info', message, onDismiss, duration = 4000 }) => {
+interface ToastItemProps {
+  id: string;
+  type?: ToastType;
+  message: string;
+  duration?: number;
+  onDismiss: (id: string) => void;
+}
+
+const ToastItem: React.FC<ToastItemProps> = ({ id, type = 'info', message, onDismiss, duration = 4000 }) => {
   const [visible, setVisible] = useState(false);
   const [progress, setProgress] = useState(100);
   const cfg = ICONS[type] || ICONS.info;
   const Icon = cfg.icon;
 
   useEffect(() => {
-    // Slide in
     requestAnimationFrame(() => setVisible(true));
-
-    // Progress bar
     const step = 50;
     const decrement = (step / duration) * 100;
     const interval = setInterval(() => {
@@ -38,13 +57,10 @@ const ToastItem = ({ id, type = 'info', message, onDismiss, duration = 4000 }) =
         return p - decrement;
       });
     }, step);
-
-    // Auto-dismiss
     const timer = setTimeout(() => {
       setVisible(false);
       setTimeout(() => onDismiss(id), 300);
     }, duration);
-
     return () => { clearTimeout(timer); clearInterval(interval); };
   }, []);
 
@@ -65,7 +81,6 @@ const ToastItem = ({ id, type = 'info', message, onDismiss, duration = 4000 }) =
       >
         <X size={15} />
       </button>
-      {/* Progress bar */}
       <div
         className={cn('absolute bottom-0 left-0 h-0.5 transition-all ease-linear', cfg.bar)}
         style={{ width: `${progress}%`, transitionDuration: '50ms' }}
@@ -74,21 +89,23 @@ const ToastItem = ({ id, type = 'info', message, onDismiss, duration = 4000 }) =
   );
 };
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
-export const ToastProvider = ({ children }) => {
-  const [toasts, setToasts] = useState([]);
+interface ToastEntry extends ToastOptions {
+  id: string;
+}
 
-  const dismiss = useCallback((id) => {
+export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [toasts, setToasts] = useState<ToastEntry[]>([]);
+
+  const dismiss = useCallback((id: string) => {
     setToasts(t => t.filter(toast => toast.id !== id));
   }, []);
 
-  const toast = useCallback(({ type = 'info', message, duration }) => {
+  const toast = useCallback(({ type = 'info', message, duration }: ToastOptions): string => {
     const id = `${Date.now()}-${Math.random()}`;
     setToasts(t => [...t, { id, type, message, duration }]);
     return id;
-  }, []);
+  }, []) as ToastFn;
 
-  // Convenience methods
   toast.success = (msg, opts) => toast({ type: 'success', message: msg, ...opts });
   toast.error   = (msg, opts) => toast({ type: 'error',   message: msg, ...opts });
   toast.warning = (msg, opts) => toast({ type: 'warning', message: msg, ...opts });
@@ -97,7 +114,6 @@ export const ToastProvider = ({ children }) => {
   return (
     <ToastContext.Provider value={toast}>
       {children}
-      {/* Portal-like fixed container */}
       <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-3 items-end pointer-events-none">
         {toasts.map(t => (
           <div key={t.id} className="pointer-events-auto">
