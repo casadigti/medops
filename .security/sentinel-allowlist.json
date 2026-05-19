@@ -1,5 +1,5 @@
 {
-  "paths": ["import.meta.env", ".env.local"],
+  "paths": ["import.meta.env", ".env.local", "process.env.CI"],
   "domains": [],
   "commands": []
 }
