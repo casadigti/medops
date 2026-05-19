@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import {
   Package,
   Calendar,
@@ -79,6 +80,36 @@ export const ReporteLotes: React.FC = () => {
 
   const handlePrint = () => window.print();
 
+  const handleExport = () => {
+    const rows = filteredLots.map(lot => {
+      const implant = lot.implants || lot.implant;
+      const exp = lot.expiration_date ? new Date(lot.expiration_date) : null;
+      const diff = exp ? (exp.getTime() - Date.now()) / (1000 * 60 * 60 * 24) : null;
+      const status = !exp ? 'Sin vencimiento'
+        : diff !== null && diff < 0 ? 'Vencido'
+        : diff !== null && diff <= 90 ? 'Por vencer'
+        : 'Vigente';
+      return {
+        'Producto': implant?.name || '—',
+        'SKU': implant?.sku || '—',
+        'Lote': lot.lot_number || '—',
+        'Categoría': implant?.category || '—',
+        'Fecha Entrada': lot.created_at ? format(new Date(lot.created_at), 'dd/MM/yyyy') : '—',
+        'Vencimiento': exp ? format(exp, 'dd/MM/yyyy') : '—',
+        'Estado': status,
+        'Stock': lot.current_quantity ?? 0,
+        'Costo Unitario': implant?.unit_cost ?? 0,
+        'Valor Stock': ((lot.current_quantity ?? 0) * (implant?.unit_cost ?? 0)),
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Lotes');
+    XLSX.writeFile(wb, `reporte-lotes-${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    toast.success('Archivo exportado');
+  };
+
   if (loading) return <PageLoader />;
 
   return (
@@ -95,7 +126,7 @@ export const ReporteLotes: React.FC = () => {
           <button onClick={handlePrint} className="btn btn-secondary flex items-center gap-2">
             <Printer size={18} /> Imprimir
           </button>
-          <button className="btn btn-primary flex items-center gap-2 shadow-lg shadow-primary/20">
+          <button onClick={handleExport} className="btn btn-primary flex items-center gap-2 shadow-lg shadow-primary/20">
             <Download size={18} /> Exportar
           </button>
         </div>
