@@ -7,9 +7,19 @@ import { supabase } from '../lib/supabase';
 import { arsService } from '../services/arsService';
 import { auditService } from '../services/auditService';
 import { useToast } from '../components/ui/Toast';
-import type { UserProfile } from '../types/domain';
+import type { UserProfile, ARS, AuditLog } from '../types/domain';
 
-const UserForm = ({ onSave, onCancel, loading, initialData }) => {
+interface ConfigUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  password: string;
+  isTemporal: boolean;
+}
+
+const UserForm = ({ onSave, onCancel, loading, initialData }: { onSave: (data: any) => void; onCancel: () => void; loading: boolean; initialData?: ConfigUser | null }) => {
   const [form, setForm] = React.useState({
     full_name: initialData?.name || '',
     email: initialData?.email || '',
@@ -18,9 +28,9 @@ const UserForm = ({ onSave, onCancel, loading, initialData }) => {
     is_active: initialData?.status === 'Activo',
     must_change_password: initialData?.isTemporal ?? true
   });
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
 
-  const submit = e => {
+  const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (initialData) {
       onSave({ ...initialData, ...form });
@@ -92,14 +102,14 @@ const UserForm = ({ onSave, onCancel, loading, initialData }) => {
   );
 };
 
-const SectionHeader = ({ title, description }) => (
+const SectionHeader = ({ title, description }: { title: string; description: string }) => (
   <div className="mb-6">
     <h3 className="text-lg font-bold text-slate-900">{title}</h3>
     <p className="text-sm text-slate-500">{description}</p>
   </div>
 );
 
-const ConfigCard = ({ children, className = '' }) => (
+const ConfigCard = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
   <div className={cn("bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden", className)}>
     <div className="p-6">{children}</div>
   </div>
@@ -115,17 +125,17 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
   const [activeTab, setActiveTab] = React.useState('identity');
   const [orgName, setOrgName] = React.useState('Casadig TI');
   const [primaryColor, setPrimaryColor] = React.useState('#1e40af');
-  const [logoPreview, setLogoPreview] = React.useState(null);
-  const [editingUser, setEditingUser] = React.useState(null);
-  const [users, setUsers] = React.useState([]);
+  const [logoPreview, setLogoPreview] = React.useState<string | null>(null);
+  const [editingUser, setEditingUser] = React.useState<ConfigUser | null>(null);
+  const [users, setUsers] = React.useState<ConfigUser[]>([]);
   const [isUserModalOpen, setIsUserModalOpen] = React.useState(false);
   const [isCreatingUser, setIsCreatingUser] = React.useState(false);
-  const [arsList, setArsList] = React.useState([]);
+  const [arsList, setArsList] = React.useState<ARS[]>([]);
   const [newArsName, setNewArsName] = React.useState('');
-  const [editingArsId, setEditingArsId] = React.useState(null);
+  const [editingArsId, setEditingArsId] = React.useState<string | null>(null);
   const [editingArsName, setEditingArsName] = React.useState('');
   const [isArsLoading, setIsArsLoading] = React.useState(false);
-  const [logs, setLogs] = React.useState([]);
+  const [logs, setLogs] = React.useState<AuditLog[]>([]);
   const [logsCount, setLogsCount] = React.useState(0);
   const [isLogsLoading, setIsLogsLoading] = React.useState(false);
   const [logPage, setLogPage] = React.useState(0);
@@ -189,9 +199,9 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
         setIsLoading(true);
         const settings = await configService.getSettings() as any;
         if (settings) {
-          setOrgName(settings.name || '');
+          setOrgName((settings.name as string) || '');
           setPrimaryColor(settings.primary_color || '#1e40af');
-          setLogoPreview(settings.logo_url);
+          setLogoPreview(settings.logo_url || null);
         }
         await Promise.all([fetchUsers(), fetchArs(), fetchLogs()]);
       } catch (error) {
@@ -207,7 +217,7 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
     }
   }, [profile]);
 
-  const handleCreateUser = async (data) => {
+  const handleCreateUser = async (data: any) => {
     setIsCreatingUser(true);
     try {
       await configService.createUser(data);
@@ -216,13 +226,13 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
       toast.success('Usuario creado correctamente.');
     } catch (error) {
       console.error('Error creating user:', error);
-      toast.error('Error al crear el usuario: ' + (error.message || 'Error desconocido'));
+      toast.error('Error al crear el usuario: ' + ((error as Error).message || 'Error desconocido'));
     } finally {
       setIsCreatingUser(false);
     }
   };
 
-  const handleUpdateUser = async (user) => {
+  const handleUpdateUser = async (user: any) => {
     try {
       const updates: any = {
         full_name: user.full_name,
@@ -242,11 +252,11 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
       toast.success('Usuario actualizado correctamente.');
     } catch (error) {
       console.error('Error actualizando usuario:', error);
-      toast.error('Error al actualizar: ' + (error.message || 'Error desconocido'));
+      toast.error('Error al actualizar: ' + ((error as Error).message || 'Error desconocido'));
     }
   };
 
-  const handleDeleteUser = async (userId) => {
+  const handleDeleteUser = async (userId: string) => {
     if (confirm('¿Estás seguro de que deseas eliminar este usuario de forma permanente?')) {
       try {
         await configService.deleteUser(userId);
@@ -254,12 +264,12 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
         toast.success('Usuario eliminado.');
       } catch (error) {
         console.error('Error eliminando usuario:', error);
-        toast.error('Error al eliminar el usuario: ' + (error.message || ''));
+        toast.error('Error al eliminar el usuario: ' + ((error as Error).message || ''));
       }
     }
   };
 
-  const handleAddArs = async (e) => {
+  const handleAddArs = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newArsName.trim()) return;
     setIsArsLoading(true);
@@ -269,24 +279,24 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
       await fetchArs();
       toast.success('ARS agregada correctamente.');
     } catch (error) {
-      toast.error('Error al agregar ARS: ' + error.message);
+      toast.error('Error al agregar ARS: ' + (error as Error).message);
     } finally {
       setIsArsLoading(false);
     }
   };
 
-  const handleDeleteArs = async (id) => {
+  const handleDeleteArs = async (id: string) => {
     if (!confirm('¿Eliminar esta aseguradora?')) return;
     try {
       await arsService.delete(id);
       await fetchArs();
       toast.success('Aseguradora eliminada.');
     } catch (error) {
-      toast.error('Error al eliminar: ' + error.message);
+      toast.error('Error al eliminar: ' + (error as Error).message);
     }
   };
 
-  const handleUpdateArs = async (id) => {
+  const handleUpdateArs = async (id: string) => {
     if (!editingArsName.trim()) return;
     try {
       await arsService.update(id, { name: editingArsName.trim() });
@@ -294,17 +304,20 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
       await fetchArs();
       toast.success('Aseguradora actualizada.');
     } catch (error) {
-      toast.error('Error al actualizar: ' + error.message);
+      toast.error('Error al actualizar: ' + (error as Error).message);
     }
   };
 
-  const fileInputRef = React.useRef(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleLogoUpload = (e) => {
-    const file = e.target.files[0];
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => setLogoPreview(reader.result);
+      reader.onloadend = () => {
+        const result = reader.result;
+        setLogoPreview(typeof result === 'string' ? result : null);
+      };
       reader.readAsDataURL(file);
     }
   };
@@ -335,12 +348,12 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
     { id: 'system', label: 'Sistema y Alertas', icon: Settings, roles: ['Superadmin', 'Administrador'] },
   ];
 
-  const filteredTabs = tabs.filter(t => !t.roles || t.roles.includes(profile?.role));
+  const filteredTabs = tabs.filter(t => !t.roles || t.roles.includes(profile?.role as string));
 
   const [passForm, setPassForm] = React.useState({ new: '', confirm: '' });
   const [passLoading, setPassLoading] = React.useState(false);
 
-  const handlePasswordUpdate = async (e) => {
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passForm.new !== passForm.confirm) { toast.error('Las contraseñas no coinciden'); return; }
     if (passForm.new.length < 6) { toast.warning('La contraseña debe tener al menos 6 caracteres'); return; }
@@ -350,12 +363,13 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
       const { error } = await supabase.auth.updateUser({ password: passForm.new });
       if (error) throw error;
 
+      if (!profile) return;
       await supabase.from('profiles').update({ must_change_password: false }).eq('id', profile.id);
 
       setPassForm({ new: '', confirm: '' });
       toast.success('Contraseña actualizada correctamente.');
     } catch (err) {
-      toast.error(err.message || 'Error al actualizar contraseña');
+      toast.error((err as Error).message || 'Error al actualizar contraseña');
     } finally {
       setPassLoading(false);
     }

@@ -22,7 +22,7 @@ import { getLocalDateString } from '../utils/dateUtils';
 export const ReporteLotes: React.FC = () => {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
-  const [lots, setLots] = useState([]);
+  const [lots, setLots] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [dateRange, setDateRange] = useState({
     start: '2020-01-01',

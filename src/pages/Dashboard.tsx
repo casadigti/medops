@@ -8,8 +8,9 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../utils/cn';
 import { supabase } from '../lib/supabase';
+import type { Surgery, ImplantLot, Implant } from '../types/domain';
 
-const MetricCard = ({ icon: Icon, label, value, sub, color = 'text-primary', bg = 'bg-blue-50' }) => (
+const MetricCard = ({ icon: Icon, label, value, sub, color = 'text-primary', bg = 'bg-blue-50' }: { icon: React.ElementType; label: string; value: React.ReactNode; sub?: React.ReactNode; color?: string; bg?: string }) => (
   <div className="card flex items-center gap-4">
     <div className={cn('w-12 h-12 rounded-2xl flex items-center justify-center shrink-0', bg)}>
       <Icon size={22} className={color} />
@@ -24,12 +25,12 @@ const MetricCard = ({ icon: Icon, label, value, sub, color = 'text-primary', bg 
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [surgeries, setSurgeries] = useState([]);
-  const [expiringLots, setExpiringLots] = useState([]);
-  const [lowStock, setLowStock] = useState([]);
+  const [surgeries, setSurgeries] = useState<Surgery[]>([]);
+  const [expiringLots, setExpiringLots] = useState<any[]>([]);
+  const [lowStock, setLowStock] = useState<Implant[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -61,7 +62,7 @@ export const Dashboard: React.FC = () => {
 
     loadData();
 
-    let channel = null;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
     const setupRealtime = () => {
       channel = supabase
         .channel(`dashboard-surgeries-${Date.now()}`)
@@ -111,14 +112,14 @@ export const Dashboard: React.FC = () => {
   const pending   = surgeries.filter(s => s.status === 'Pendiente');
   const inTransit = surgeries.filter(s => ['En tránsito','Entregada'].includes(s.status));
 
-  const alerts = surgeries
+  const alerts = (surgeries
     .filter(s => s.status === 'Pendiente')
     .map(s => {
       const diff = Math.ceil((new Date(s.surgery_date).getTime() - now.getTime()) / 86400000);
       if (diff <= 1) return { ...s, alertType: 'critical', msg: 'Bandeja sin preparar — cirugía inmediata' };
       if (diff <= 2) return { ...s, alertType: 'urgent', msg: 'Preparar bandeja en las próximas 24h' };
       return null;
-    }).filter(Boolean);
+    }).filter(Boolean)) as Array<Surgery & { alertType: string; msg: string }>;
 
   const next10 = surgeries.filter(s => {
     const d = new Date(s.surgery_date);
@@ -252,7 +253,7 @@ export const Dashboard: React.FC = () => {
                     </div>
                     <p className="font-bold text-slate-900">{item.name}</p>
                     <p className="text-xs text-rose-700 font-medium mt-1">
-                      ¡Atención! Solo quedan {item.implant_lots?.reduce((acc, l) => acc + (l.current_quantity || 0), 0) || 0} unidades.
+                      ¡Atención! Solo quedan {item.implant_lots?.reduce((acc: number, l: ImplantLot) => acc + (l.current_quantity || 0), 0) || 0} unidades.
                     </p>
                     <p className="text-[10px] text-slate-500 mt-1 uppercase">Mínimo requerido: {item.min_stock}</p>
                   </div>

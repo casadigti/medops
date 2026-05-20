@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import type { SurgeryConsumption } from '../types/domain';
 import { ShoppingCart, Calendar, Download, Search, Printer, FileText, RefreshCw } from 'lucide-react';
 import { implantService } from '../services/implantService';
 import { printService } from '../services/printService';
@@ -13,8 +14,8 @@ export const ReporteReposicion: React.FC = () => {
   const [view, setView] = useState('material');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState([]);
-  const [currentStock, setCurrentStock] = useState({});
+  const [data, setData] = useState<SurgeryConsumption[]>([]);
+  const [currentStock, setCurrentStock] = useState<Record<string, number>>({});
   const [dateRange, setDateRange] = useState({
     start: format(new Date().setDate(new Date().getDate() - 7), 'yyyy-MM-dd'),
     end: format(new Date(), 'yyyy-MM-dd')
@@ -25,23 +26,23 @@ export const ReporteReposicion: React.FC = () => {
       setLoading(true);
       const [reportData, implants] = await Promise.all([
         implantService.getConsumptionReport(
-          dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : null,
-          dateRange.end ? new Date(dateRange.end + 'T23:59:59').toISOString() : null
+          dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined,
+          dateRange.end ? new Date(dateRange.end + 'T23:59:59').toISOString() : undefined
         ),
         implantService.getAll()
       ]);
 
       setData(reportData);
 
-      const stockMap = {};
+      const stockMap: Record<string, number> = {};
       implants.forEach(imp => {
-        const total = (imp.implant_lots || []).reduce((acc, lot) => acc + (lot.current_quantity || 0), 0);
+        const total = (imp.implant_lots || []).reduce((acc: number, lot: any) => acc + (lot.current_quantity || 0), 0);
         stockMap[imp.id] = total;
       });
       setCurrentStock(stockMap);
 
     } catch (error) {
-      toast.error('Error al generar reporte: ' + error.message);
+      toast.error('Error al generar reporte: ' + (error as Error).message);
     } finally {
       setLoading(false);
     }
@@ -53,12 +54,12 @@ export const ReporteReposicion: React.FC = () => {
 
   const daysInRange = Math.max(1, Math.ceil((new Date(dateRange.end).getTime() - new Date(dateRange.start).getTime()) / 86400000));
 
-  const materialSummary = data.reduce((acc, curr) => {
-    const productId = curr.implant_lots?.implants?.id;
+  const materialSummary: Record<string, any> = data.reduce((acc: Record<string, any>, curr) => {
+    const productId = (curr as any).implant_lots?.implants?.id;
     if (!productId) return acc;
 
-    const name = curr.implant_lots.implants.name;
-    const sku = curr.implant_lots.implants.sku;
+    const name = (curr as any).implant_lots.implants.name;
+    const sku = (curr as any).implant_lots.implants.sku;
 
     if (search && !name.toLowerCase().includes(search.toLowerCase()) && !sku.toLowerCase().includes(search.toLowerCase())) {
       return acc;
@@ -69,8 +70,8 @@ export const ReporteReposicion: React.FC = () => {
       acc[productId] = {
         name,
         sku,
-        category: curr.implant_lots.implants.category,
-        unit_cost: curr.implant_lots.implants.unit_cost || 0,
+        category: (curr as any).implant_lots.implants.category,
+        unit_cost: (curr as any).implant_lots.implants.unit_cost || 0,
         total_used: 0,
         current_stock: stock,
         surgeries: []
@@ -89,12 +90,12 @@ export const ReporteReposicion: React.FC = () => {
     return acc;
   }, {});
 
-  const surgeriesSummary = data.reduce((acc, curr) => {
+  const surgeriesSummary: Record<string, any> = data.reduce((acc: Record<string, any>, curr) => {
     const surgeryId = curr.surgeries?.id;
     if (!surgeryId) return acc;
 
-    const patient = curr.surgeries.patient_name;
-    const hospital = curr.surgeries.hospital?.name || '';
+    const patient = curr.surgeries?.patient_name ?? '';
+    const hospital = curr.surgeries?.hospital?.name ?? '';
 
     if (search && !patient.toLowerCase().includes(search.toLowerCase()) && !hospital.toLowerCase().includes(search.toLowerCase())) {
       return acc;
@@ -103,14 +104,14 @@ export const ReporteReposicion: React.FC = () => {
     if (!acc[surgeryId]) {
       acc[surgeryId] = {
         patient,
-        date: curr.surgeries.surgery_date,
+        date: curr.surgeries?.surgery_date,
         hospital,
         total_cost: 0,
         items_count: 0
       };
     }
 
-    const cost = (curr.implant_lots?.implants?.unit_cost || 0) * curr.quantity_used;
+    const cost = ((curr as any).implant_lots?.implants?.unit_cost || 0) * curr.quantity_used;
     acc[surgeryId].total_cost += cost;
     acc[surgeryId].items_count += curr.quantity_used;
 
@@ -257,7 +258,7 @@ export const ReporteReposicion: React.FC = () => {
             <div className="text-right">
               <p className="text-[10px] font-black text-slate-400 uppercase">Costo Total del Periodo</p>
               <p className="text-xl font-black text-primary">
-                RD$ {data.reduce((sum, curr) => sum + (curr.quantity_used * (curr.implant_lots?.implants?.unit_cost || 0)), 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                RD$ {data.reduce((sum, curr) => sum + (curr.quantity_used * ((curr as any).implant_lots?.implants?.unit_cost || 0)), 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </p>
             </div>
           </div>
@@ -329,7 +330,7 @@ export const ReporteReposicion: React.FC = () => {
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex flex-wrap gap-1">
-                          {item.surgeries.slice(0, 2).map((s, sIdx) => (
+                          {item.surgeries.slice(0, 2).map((s: any, sIdx: number) => (
                             <span key={sIdx} className="text-[9px] bg-white border border-slate-200 px-1 py-0.5 rounded text-slate-500 truncate max-w-[80px]" title={s.patient}>
                               {s.patient}
                             </span>

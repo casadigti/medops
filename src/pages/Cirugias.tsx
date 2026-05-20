@@ -17,17 +17,17 @@ import { implantService } from '../services/implantService';
 import { useToast } from '../components/ui/Toast';
 import { ShoppingCart, CheckCircle2, FileText } from 'lucide-react';
 import { generateActaQuirurgica } from '../utils/pdfGenerator';
-import type { UserProfile } from '../types/domain';
+import type { UserProfile, Surgery, Surgeon, Hospital, ARS, Implant, SurgeryConsumption, TrayWithAvailability, SurgeryStatus } from '../types/domain';
 
 // ─── Consumption Form ─────────────────────────────────────────────────────────
-const ConsumptionForm = ({ surgery, onSave, onCancel, loading }) => {
-  const [implants, setImplants] = useState([]);
+const ConsumptionForm = ({ surgery, onSave, onCancel, loading }: { surgery: Surgery; onSave: (data: any) => void; onCancel: () => void; loading: boolean }) => {
+  const [implants, setImplants] = useState<Implant[]>([]);
   const [selectedImplantId, setSelectedImplantId] = useState('');
   const [selectedLotId, setSelectedLotId] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [authNumber, setAuthNumber] = useState('');
   const [notes, setNotes] = useState('');
-  const [currentConsumption, setCurrentConsumption] = useState([]);
+  const [currentConsumption, setCurrentConsumption] = useState<SurgeryConsumption[]>([]);
   const [fetching, setFetching] = useState(true);
 
   const fetchImplants = async () => {
@@ -52,7 +52,7 @@ const ConsumptionForm = ({ surgery, onSave, onCancel, loading }) => {
   const selectedImplant = implants.find(i => i.id === selectedImplantId);
   const availableLots = selectedImplant?.implant_lots?.filter(l => l.current_quantity > 0) || [];
 
-  const handleAdd = async (e) => {
+  const handleAdd = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedLotId) return;
 
@@ -167,7 +167,7 @@ const ConsumptionForm = ({ surgery, onSave, onCancel, loading }) => {
                 <div className="flex items-center gap-4">
                   <div className="text-right">
                     <p className="text-sm font-black text-primary">x{c.quantity_used}</p>
-                    <p className="text-[10px] text-slate-400">{new Date(c.used_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                    <p className="text-[10px] text-slate-400">{c.used_at ? new Date(c.used_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '—'}</p>
                   </div>
                   <CheckCircle2 size={18} className="text-emerald-500" />
                 </div>
@@ -212,7 +212,7 @@ const ConsumptionForm = ({ surgery, onSave, onCancel, loading }) => {
 };
 
 // ─── Surgery Form ────────────────────────────────────────────────────────────
-const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, loading }) => {
+const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, loading }: { initial?: Partial<Surgery> | null; surgeons: Surgeon[]; hospitals: Hospital[]; arsList: ARS[]; onSave: (data: any, trayIds: string[]) => void; onCancel: () => void; loading: boolean }) => {
   const [form, setForm] = useState(() => ({
     patient_name: '', surgery_date: '', surgeon_id: '', hospital_id: '',
     operating_room: '', procedure_type: '', status: 'Pendiente',
@@ -220,14 +220,14 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, 
     ...(initial || {}),
     ars_id: initial?.ars_id || ''
   }));
-  const [selectedTrayIds, setSelectedTrayIds] = useState([]);
-  const [availableTrays, setAvailableTrays] = useState([]);
+  const [selectedTrayIds, setSelectedTrayIds] = useState<string[]>([]);
+  const [availableTrays, setAvailableTrays] = useState<TrayWithAvailability[]>([]);
   const [trayLoading, setTrayLoading] = useState(false);
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
 
   useEffect(() => {
     if (initial?.surgery_trays) {
-      setSelectedTrayIds(initial.surgery_trays.map(st => st.tray?.id).filter(Boolean));
+      setSelectedTrayIds(initial.surgery_trays.map(st => st.tray?.id).filter((id): id is string => Boolean(id)));
     }
   }, [initial]);
 
@@ -235,15 +235,15 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, 
     if (!form.surgery_date) return;
     setTrayLoading(true);
     trayService.getAvailableForDate(new Date(form.surgery_date), initial?.id)
-      .then(setAvailableTrays)
+      .then((trays: TrayWithAvailability[]) => setAvailableTrays(trays))
       .finally(() => setTrayLoading(false));
   }, [form.surgery_date]);
 
-  const toggleTray = (id) => setSelectedTrayIds(prev =>
+  const toggleTray = (id: string) => setSelectedTrayIds(prev =>
     prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
   );
 
-  const submit = e => { e.preventDefault(); onSave(form, selectedTrayIds); };
+  const submit = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); onSave(form, selectedTrayIds); };
 
   return (
     <form onSubmit={submit} className="space-y-5">
@@ -354,7 +354,7 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, 
 };
 
 // ─── Status Quick-Change Menu ─────────────────────────────────────────────────
-const StatusMenu = ({ surgery, onUpdate }) => {
+const StatusMenu = ({ surgery, onUpdate }: { surgery: Surgery; onUpdate: (id: string, status: string) => void }) => {
   const colors = STATUS_COLORS[surgery.status] || { bg: 'bg-slate-100', text: 'text-slate-600' };
   return (
     <select
@@ -384,22 +384,22 @@ interface CirugiasProps {
 export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
   const toast = useToast();
   const [searchParams] = useSearchParams();
-  const [surgeries, setSurgeries] = useState([]);
-  const [surgeons, setSurgeons]   = useState([]);
-  const [hospitals, setHospitals] = useState([]);
-  const [arsList, setArsList]     = useState([]);
+  const [surgeries, setSurgeries] = useState<Surgery[]>([]);
+  const [surgeons, setSurgeons]   = useState<Surgeon[]>([]);
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [arsList, setArsList]     = useState<ARS[]>([]);
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
   const [search, setSearch]       = useState(searchParams.get('q') || '');
   const [filterStatus, setFilterStatus] = useState('');
-  const [modal, setModal]         = useState(null);
-  const [consumptionModal, setConsumptionModal] = useState(null);
-  const [confirm, setConfirm]     = useState(null);
+  const [modal, setModal]         = useState<{ data: Surgery | null } | null>(null);
+  const [consumptionModal, setConsumptionModal] = useState<Surgery | null>(null);
+  const [confirm, setConfirm]     = useState<{ id: string; name: string } | null>(null);
 
   const isSurgeon = userProfile?.role === 'Cirujano';
   const mySurgeonId = (userProfile as any)?.surgeon_id;
 
-  const [fetchError, setFetchError] = useState(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -441,13 +441,13 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
     return matchSearch && (!filterStatus || s.status === filterStatus);
   });
 
-  const handleSave = async (data, trayIds) => {
+  const handleSave = async (data: any, trayIds: string[]) => {
     setSaving(true);
     try {
       let finalData = { ...data };
       if (isSurgeon) finalData.surgeon_id = mySurgeonId;
 
-      if (modal.data?.id) {
+      if (modal?.data?.id) {
         await surgeryService.update(modal.data.id, finalData, trayIds);
       } else {
         const newSurgery = await surgeryService.create(finalData, trayIds);
@@ -466,14 +466,15 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
     } finally { setSaving(false); }
   };
 
-  const handleStatusUpdate = async (id, status) => {
+  const handleStatusUpdate = async (id: string, status: string) => {
     try {
-      await surgeryService.updateStatus(id, status);
-      setSurgeries(prev => prev.map(s => s.id === id ? { ...s, status } : s));
+      await surgeryService.updateStatus(id, status as SurgeryStatus);
+      setSurgeries(prev => prev.map(s => s.id === id ? { ...s, status: status as Surgery['status'] } : s));
       toast.success(`Estado actualizado: ${status}`);
     } catch (err) {
       console.error('Error actualizando estado:', err);
-      const isRLS = err?.message?.includes('row-level security') || err?.code === '42501';
+      const e = err as any;
+      const isRLS = e?.message?.includes('row-level security') || e?.code === '42501';
       toast.error(
         isRLS
           ? 'Error de permisos en base de datos. Contacta al administrador del sistema.'
@@ -483,24 +484,24 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
   };
 
   const handleDelete = async () => {
-    if (isSurgeon) return;
+    if (isSurgeon || !confirm) return;
     await surgeryService.delete(confirm.id);
     setConfirm(null); fetchAll();
   };
 
-  const handleConsumptionReport = async (consumptionData) => {
+  const handleConsumptionReport = async (consumptionData: any) => {
     setSaving(true);
     try {
       await implantService.reportConsumption(consumptionData);
       toast.success('Gasto registrado y stock actualizado');
     } catch (err) {
-      toast.error('Error: ' + err.message);
+      toast.error('Error: ' + (err as Error).message);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleGenerateActa = async (surgery) => {
+  const handleGenerateActa = async (surgery: Surgery) => {
     try {
       toast.success('Generando acta quirúrgica...');
       const consumptions = await implantService.getConsumptionBySurgery(surgery.id);
@@ -511,7 +512,7 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
     }
   };
 
-  const getDaysLabel = (dateStr) => {
+  const getDaysLabel = (dateStr: string) => {
     const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
     if (diff < 0) return { label: 'Pasada', color: 'text-slate-400' };
     if (diff === 0) return { label: 'Hoy', color: 'text-red-600 font-bold' };
@@ -656,7 +657,7 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
          <SurgeryForm initial={modal?.data} surgeons={surgeons} hospitals={hospitals} arsList={arsList} onSave={handleSave} onCancel={() => setModal(null)} loading={saving} />
        </Modal>
        <Modal isOpen={!!consumptionModal} onClose={() => setConsumptionModal(null)} title={`Reportar Gasto: ${consumptionModal?.patient_name}`} size="md">
-         <ConsumptionForm surgery={consumptionModal} onSave={handleConsumptionReport} onCancel={() => setConsumptionModal(null)} loading={saving} />
+         {consumptionModal && <ConsumptionForm surgery={consumptionModal} onSave={handleConsumptionReport} onCancel={() => setConsumptionModal(null)} loading={saving} />}
        </Modal>
       <ConfirmDialog
         isOpen={!!confirm} onClose={() => setConfirm(null)} onConfirm={handleDelete}

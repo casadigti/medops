@@ -9,15 +9,16 @@ import { TRAY_STATUSES, MAX_STERILIZATIONS } from '../data/catalogo';
 import { Package, Plus, Pencil, Trash2, Search, AlertTriangle, Wrench, Stethoscope, MapPin } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useToast } from '../components/ui/Toast';
+import type { Tray } from '../types/domain';
 
-const TrayForm = ({ initial, onSave, onCancel, loading }) => {
+const TrayForm = ({ initial, onSave, onCancel, loading }: { initial: Partial<Tray> | null; onSave: (data: any) => void; onCancel: () => void; loading: boolean }) => {
   const [form, setForm] = useState(initial || {
     name: '', code: '', procedure_type: '', content: '',
     status: 'Disponible', location: '', sterilization_count: 0,
     last_sterilization: '', next_maintenance: ''
   });
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const submit = e => { e.preventDefault(); onSave(form); };
+  const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
+  const submit = (e: React.FormEvent) => { e.preventDefault(); onSave(form); };
   return (
     <form onSubmit={submit} className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -53,11 +54,11 @@ const TrayForm = ({ initial, onSave, onCancel, loading }) => {
         </div>
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-1">Última Esterilización</label>
-          <input type="date" className="input" value={getLocalDateString(form.last_sterilization)} onChange={e => set('last_sterilization', e.target.value)} />
+          <input type="date" className="input" value={getLocalDateString(form.last_sterilization ?? undefined)} onChange={e => set('last_sterilization', e.target.value)} />
         </div>
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-1">Próximo Mantenimiento</label>
-          <input type="date" className="input" value={getLocalDateString(form.next_maintenance)} onChange={e => set('next_maintenance', e.target.value)} />
+          <input type="date" className="input" value={getLocalDateString(form.next_maintenance ?? undefined)} onChange={e => set('next_maintenance', e.target.value)} />
         </div>
       </div>
       <div className="flex gap-3 pt-2">
@@ -72,13 +73,13 @@ const TrayForm = ({ initial, onSave, onCancel, loading }) => {
 
 export const Bandejas: React.FC = () => {
   const toast = useToast();
-  const [trays, setTrays] = useState([]);
+  const [trays, setTrays] = useState<Tray[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [modal, setModal] = useState(null);
-  const [confirm, setConfirm] = useState(null);
+  const [modal, setModal] = useState<{ data: Tray | null } | null>(null);
+  const [confirm, setConfirm] = useState<{ id: string; name: string } | null>(null);
 
   const fetchTrays = async () => { setLoading(true); const d = await trayService.getAll(); setTrays(d); setLoading(false); };
   useEffect(() => { fetchTrays(); }, []);
@@ -89,7 +90,8 @@ export const Bandejas: React.FC = () => {
     return matchSearch && matchStatus;
   });
 
-  const handleSave = async (data) => {
+  const handleSave = async (data: any) => {
+    if (!modal) return;
     setSaving(true);
     try {
       if (modal.data?.id) await trayService.update(modal.data.id, data);
@@ -99,12 +101,12 @@ export const Bandejas: React.FC = () => {
       toast.success(modal.data?.id ? 'Bandeja actualizada' : 'Bandeja creada');
     } catch (err) {
       console.error('Error saving tray:', err);
-      toast.error('Error al guardar la bandeja: ' + (err.message || ''));
+      toast.error('Error al guardar la bandeja: ' + ((err as Error).message || ''));
     } finally {
       setSaving(false);
     }
   };
-  const handleStatusUpdate = async (id, status) => {
+  const handleStatusUpdate = async (id: string, status: string) => {
     try {
       await trayService.update(id, { status });
       setTrays(prev => prev.map(t => t.id === id ? { ...t, status } : t));
@@ -116,6 +118,7 @@ export const Bandejas: React.FC = () => {
   };
 
   const handleDelete = async () => {
+    if (!confirm) return;
     try {
       await trayService.delete(confirm.id);
       setConfirm(null);
@@ -127,7 +130,7 @@ export const Bandejas: React.FC = () => {
     }
   };
 
-  const warnings = trays.filter(t => t.sterilization_count >= MAX_STERILIZATIONS * 0.9);
+  const warnings = trays.filter(t => (t.sterilization_count ?? 0) >= MAX_STERILIZATIONS * 0.9);
 
   return (
     <div className="space-y-6">
@@ -167,9 +170,9 @@ export const Bandejas: React.FC = () => {
         : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map(t => {
-              const pct = Math.min(100, Math.round((t.sterilization_count / MAX_STERILIZATIONS) * 100));
-              const danger = t.sterilization_count >= MAX_STERILIZATIONS;
-              const warn = t.sterilization_count >= MAX_STERILIZATIONS * 0.9;
+              const pct = Math.min(100, Math.round(((t.sterilization_count ?? 0) / MAX_STERILIZATIONS) * 100));
+              const danger = (t.sterilization_count ?? 0) >= MAX_STERILIZATIONS;
+              const warn = (t.sterilization_count ?? 0) >= MAX_STERILIZATIONS * 0.9;
               return (
                 <div key={t.id} className={cn('card group border-2', danger ? 'border-red-200' : warn ? 'border-amber-200' : 'border-slate-200')}>
                   <div className="flex items-start justify-between gap-2 mb-3">
@@ -234,7 +237,7 @@ export const Bandejas: React.FC = () => {
         )}
 
       <Modal isOpen={!!modal} onClose={() => setModal(null)} title={modal?.data ? 'Editar Bandeja' : 'Nueva Bandeja'} size="md">
-        <TrayForm initial={modal?.data} onSave={handleSave} onCancel={() => setModal(null)} loading={saving} />
+        <TrayForm initial={modal?.data ?? null} onSave={handleSave} onCancel={() => setModal(null)} loading={saving} />
       </Modal>
       <ConfirmDialog
         isOpen={!!confirm} onClose={() => setConfirm(null)} onConfirm={handleDelete}
