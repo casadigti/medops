@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import type { Tray, MaintenanceLog } from '../types/domain';
 import { trayService } from '../services/trayService';
 import { StatusBadge } from '../components/ui/Badge';
 import { PageLoader } from '../components/ui/Spinner';
@@ -9,13 +10,13 @@ import { useToast } from '../components/ui/Toast';
 
 export const Mantenimiento: React.FC = () => {
   const toast = useToast();
-  const [trays, setTrays] = useState([]);
+  const [trays, setTrays] = useState<Tray[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  const [activeModal, setActiveModal] = useState(null);
-  const [selectedTray, setSelectedTray] = useState(null);
-  const [historyLogs, setHistoryLogs] = useState([]);
+  const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [selectedTray, setSelectedTray] = useState<Tray | null>(null);
+  const [historyLogs, setHistoryLogs] = useState<MaintenanceLog[]>([]);
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
@@ -40,13 +41,13 @@ export const Mantenimiento: React.FC = () => {
     fetchData();
   }, []);
 
-  const handleOpenMaintenance = (tray) => {
+  const handleOpenMaintenance = (tray: Tray) => {
     setSelectedTray(tray);
     setForm({ action: 'Reparación General', notes: '' });
     setActiveModal('maintenance');
   };
 
-  const handleOpenHistory = async (tray) => {
+  const handleOpenHistory = async (tray: Tray) => {
     setSelectedTray(tray);
     setActiveModal('history');
     try {
@@ -57,8 +58,9 @@ export const Mantenimiento: React.FC = () => {
     }
   };
 
-  const handleSubmitMaintenance = async (e) => {
+  const handleSubmitMaintenance = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedTray) return;
     setSaving(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -78,7 +80,7 @@ export const Mantenimiento: React.FC = () => {
     }
   };
 
-  const handleReintegrate = async (tray) => {
+  const handleReintegrate = async (tray: Tray) => {
     if(window.confirm(`¿Estás seguro de reintegrar el set ${tray.name} y reiniciar su contador de usos?`)) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -95,7 +97,7 @@ export const Mantenimiento: React.FC = () => {
 
   const filteredTrays = trays.filter(t =>
     t.name.toLowerCase().includes(search.toLowerCase()) ||
-    t.code.toLowerCase().includes(search.toLowerCase())
+    (t.code ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
   if (loading) return <PageLoader />;
@@ -135,9 +137,9 @@ export const Mantenimiento: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredTrays.map((tray) => {
-                const isCritical = tray.sterilization_count >= MAX_USES;
-                const isWarning = tray.sterilization_count >= MAX_USES * 0.8;
-                const progressPercentage = Math.min((tray.sterilization_count / MAX_USES) * 100, 100);
+                const isCritical = (tray as any).sterilization_count >= MAX_USES;
+                const isWarning = (tray as any).sterilization_count >= MAX_USES * 0.8;
+                const progressPercentage = Math.min(((tray as any).sterilization_count / MAX_USES) * 100, 100);
 
                 return (
                   <tr key={tray.id} className="hover:bg-slate-50/50 transition-colors">
@@ -165,7 +167,7 @@ export const Mantenimiento: React.FC = () => {
                             "text-xs font-bold",
                             isCritical ? "text-danger" : isWarning ? "text-amber-500" : "text-slate-600"
                           )}>
-                            {tray.sterilization_count} / {MAX_USES}
+                            {(tray as any).sterilization_count} / {MAX_USES}
                           </span>
                           {isCritical && <ShieldAlert size={14} className="text-danger animate-pulse" />}
                         </div>

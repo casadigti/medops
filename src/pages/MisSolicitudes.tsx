@@ -7,7 +7,7 @@ import { PROCEDURE_TYPES } from '../data/catalogo';
 import { Plus, Calendar, Building2, Package, Clock, ShieldCheck } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ui/Toast';
-import type { UserProfile } from '../types/domain';
+import type { UserProfile, Surgery, Surgeon, Hospital } from '../types/domain';
 
 interface MisSolicitudesProps {
   userProfile?: Partial<UserProfile> | null;
@@ -16,9 +16,9 @@ interface MisSolicitudesProps {
 export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
-  const [surgeries, setSurgeries] = useState([]);
-  const [surgeonProfile, setSurgeonProfile] = useState(null);
-  const [hospitals, setHospitals] = useState([]);
+  const [surgeries, setSurgeries] = useState<Surgery[]>([]);
+  const [surgeonProfile, setSurgeonProfile] = useState<Surgeon | null>(null);
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -33,7 +33,7 @@ export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
   const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
   const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-  const fetchData = async (mounted) => {
+  const fetchData = async (mounted: boolean) => {
     try {
       setLoading(true);
 
@@ -88,7 +88,7 @@ export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
     return () => { mounted = false; };
   }, []);
 
-  const handleCreateRequest = async (e) => {
+  const handleCreateRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!surgeonProfile) return;
 
@@ -105,7 +105,7 @@ export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
       await fetchData(true);
     } catch (error) {
       console.error('Error creating request:', error);
-      toast.error('Error al enviar la solicitud: ' + (error.message || ''));
+      toast.error('Error al enviar la solicitud: ' + ((error as Error).message || ''));
     } finally {
       setSaving(false);
     }
@@ -157,7 +157,7 @@ export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
             />
           ) : (
             <div className="space-y-3">
-              {surgeries.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(s => (
+              {surgeries.sort((a: Surgery, b: Surgery) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime()).map(s => (
                 <div key={s.id} className="bg-white border border-slate-100 rounded-2xl p-5 hover:shadow-xl hover:border-primary/20 transition-all group">
                   <div className="flex justify-between items-start mb-4">
                     <div>
@@ -181,9 +181,9 @@ export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
                       <Building2 size={14} className="text-slate-400" /> {s.hospital?.name}
                     </div>
-                    {s.surgery_trays?.length > 0 && (
+                    {(s.surgery_trays?.length ?? 0) > 0 && (
                       <div className="flex items-center gap-2 text-xs font-bold text-primary">
-                        <Package size={14} /> {s.surgery_trays.length} Sets Asignados
+                        <Package size={14} /> {s.surgery_trays?.length} Sets Asignados
                       </div>
                     )}
                   </div>

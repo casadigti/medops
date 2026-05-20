@@ -9,7 +9,7 @@ import { surgeonService } from '../services/surgeonService';
 import { Calendar, Loader2, User } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useToast } from '../components/ui/Toast';
-import type { UserProfile } from '../types/domain';
+import type { UserProfile, Surgery, Surgeon } from '../types/domain';
 
 interface CalendarioProps {
   userProfile: Partial<UserProfile> | null;
@@ -17,8 +17,8 @@ interface CalendarioProps {
 
 export const Calendario: React.FC<CalendarioProps> = ({ userProfile }) => {
   const toast = useToast();
-  const [surgeries, setSurgeries] = useState([]);
-  const [surgeons, setSurgeons] = useState([]);
+  const [surgeries, setSurgeries] = useState<Surgery[]>([]);
+  const [surgeons, setSurgeons] = useState<Surgeon[]>([]);
   const [selectedSurgeonId, setSelectedSurgeonId] = useState('all');
   const [loading, setLoading] = useState(true);
 
@@ -53,7 +53,7 @@ export const Calendario: React.FC<CalendarioProps> = ({ userProfile }) => {
     }
   };
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'Completada': return '#10b981';
       case 'En preparación': return '#3b82f6';
@@ -62,7 +62,7 @@ export const Calendario: React.FC<CalendarioProps> = ({ userProfile }) => {
     }
   };
 
-  const handleEventDrop = async (info) => {
+  const handleEventDrop = async (info: any) => {
     const surgeryId = info.event.id;
     const newDateStr = info.event.start.toISOString();
 
@@ -104,7 +104,7 @@ export const Calendario: React.FC<CalendarioProps> = ({ userProfile }) => {
       };
     });
 
-  const renderEventContent = (eventInfo) => {
+  const renderEventContent = (eventInfo: any) => {
     return (
       <div className="p-0.5 overflow-hidden text-xs leading-tight">
         <div className="font-bold truncate">{eventInfo.event.title}</div>

@@ -5,7 +5,11 @@
       "Bash(git -C \"C:\\\\Users\\\\Jose Luis Marte\\\\.claude\\\\skills\\\\mcp-sentinel\" remote -v)",
       "WebFetch(domain:www.ox.security)",
       "WebFetch(domain:github.com)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(grep \"src/pages/Dashboard\\\\|src/pages/Configuracion\" /tmp/strict_errors.txt)",
+      "Bash(grep \"src/pages/Cirugias\\\\|src/pages/Directorio\" /tmp/strict_errors.txt)",
+      "Bash(grep \"src/pages/InventarioQuirurgico\\\\|src/pages/Reportes\" /tmp/strict_errors.txt)",
+      "Bash(grep \"src/pages/ReporteLotes\\\\|src/pages/ReporteReposicion\" /tmp/strict_errors.txt)"
     ]
   }
 }

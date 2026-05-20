@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import type { Surgeon, Hospital, Surgery } from '../types/domain';
 import { surgeonService } from '../services/surgeonService';
 import { hospitalService } from '../services/hospitalService';
 import { surgeryService } from '../services/surgeryService';
@@ -14,24 +15,24 @@ import { cn } from '../utils/cn';
 import { useToast } from '../components/ui/Toast';
 
 // ── Surgeon Profile View ──────────────────────────────────────────
-const SurgeonProfile = ({ surgeon, surgeries }) => {
-  const mySurgeries = surgeries.filter(s => s.surgeon_id === surgeon.id);
+const SurgeonProfile = ({ surgeon, surgeries }: { surgeon: Surgeon; surgeries: Surgery[] }) => {
+  const mySurgeries = surgeries.filter((s: Surgery) => s.surgeon_id === surgeon.id);
 
-  const hospitalCounts: Record<string, number> = mySurgeries.reduce((acc: Record<string, number>, s) => {
-    const name = s.hospital?.name || 'Otro';
+  const hospitalCounts: Record<string, number> = mySurgeries.reduce((acc: Record<string, number>, s: Surgery) => {
+    const name = (s as any).hospital?.name || 'Otro';
     acc[name] = (acc[name] || 0) + 1;
     return acc;
   }, {});
-  const topHospital = Object.entries(hospitalCounts).sort((a,b) => b[1] - a[1])[0];
+  const topHospital = Object.entries(hospitalCounts).sort((a: [string, number], b: [string, number]) => b[1] - a[1])[0];
 
-  const trayCounts: Record<string, number> = mySurgeries.reduce((acc: Record<string, number>, s) => {
-    (s.surgery_trays || []).forEach(st => {
+  const trayCounts: Record<string, number> = mySurgeries.reduce((acc: Record<string, number>, s: Surgery) => {
+    ((s as any).surgery_trays || []).forEach((st: any) => {
       const name = st.tray?.name;
       if (name) acc[name] = (acc[name] || 0) + 1;
     });
     return acc;
   }, {});
-  const topTrays = Object.entries(trayCounts).sort((a,b) => b[1] - a[1]).slice(0, 3);
+  const topTrays = Object.entries(trayCounts).sort((a: [string, number], b: [string, number]) => b[1] - a[1]).slice(0, 3);
 
   return (
     <div className="space-y-6">
@@ -103,10 +104,10 @@ const SurgeonProfile = ({ surgeon, surgeries }) => {
 };
 
 // ── Hospital Profile View ──────────────────────────────────────────
-const HospitalProfile = ({ hospital, surgeries }) => {
+const HospitalProfile = ({ hospital, surgeries }: { hospital: Hospital; surgeries: Surgery[] }) => {
   const upcoming = surgeries
-    .filter(s => s.hospital_id === hospital.id && new Date(s.surgery_date) >= new Date())
-    .sort((a,b) => new Date(a.surgery_date).getTime() - new Date(b.surgery_date).getTime());
+    .filter((s: Surgery) => s.hospital_id === hospital.id && new Date(s.surgery_date) >= new Date())
+    .sort((a: Surgery, b: Surgery) => new Date(a.surgery_date).getTime() - new Date(b.surgery_date).getTime());
 
   return (
     <div className="space-y-6">
@@ -122,7 +123,7 @@ const HospitalProfile = ({ hospital, surgeries }) => {
           <Calendar size={16} className="text-primary" /> Próximas Cirugías ({upcoming.length})
         </h4>
         <div className="space-y-2 overflow-y-auto max-h-64 pr-1">
-          {upcoming.length > 0 ? upcoming.map(s => (
+          {upcoming.length > 0 ? upcoming.map((s: any) => (
             <div key={s.id} className="p-3 bg-white border border-slate-100 rounded-xl hover:shadow-md transition-all group">
               <div className="flex justify-between items-start mb-1">
                 <p className="text-sm font-bold text-slate-900 group-hover:text-primary transition-colors">{s.patient_name}</p>
@@ -146,12 +147,12 @@ const HospitalProfile = ({ hospital, surgeries }) => {
 };
 
 // ── Surgeon Form ────────────────────────────────────────────────
-const SurgeonForm = ({ initial, onSave, onCancel, loading }) => {
+const SurgeonForm = ({ initial, onSave, onCancel, loading }: { initial?: Partial<Surgeon> | null; onSave: (data: any) => void; onCancel: () => void; loading: boolean }) => {
   const [form, setForm] = useState(initial || { full_name:'', specialty:'', phone:'', email:'', preferences:'', user_id: null });
   const [hasPortalAccess, setHasPortalAccess] = useState(!!(initial?.user_id));
 
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const submit = e => {
+  const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
+  const submit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({ ...form, _enablePortal: hasPortalAccess });
   };
@@ -225,15 +226,15 @@ const SurgeonForm = ({ initial, onSave, onCancel, loading }) => {
 };
 
 // ── Hospital Form ───────────────────────────────────────────────
-const HospitalForm = ({ initial, onSave, onCancel, loading }) => {
+const HospitalForm = ({ initial, onSave, onCancel, loading }: { initial?: Partial<Hospital> | null; onSave: (data: any) => void; onCancel: () => void; loading: boolean }) => {
   const [form, setForm] = useState(initial || { name:'', address:'', coordinator_contact:'', logistics_notes:'', operating_rooms:[] });
   const [roomInput, setRoomInput] = useState('');
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
   const addRoom = () => {
     if (roomInput.trim()) { set('operating_rooms', [...(form.operating_rooms||[]), roomInput.trim()]); setRoomInput(''); }
   };
-  const removeRoom = (i) => set('operating_rooms', form.operating_rooms.filter((_,idx) => idx !== i));
-  const submit = e => { e.preventDefault(); onSave(form); };
+  const removeRoom = (i: any) => set('operating_rooms', (form.operating_rooms as any[]).filter((_: any, idx: any) => idx !== i));
+  const submit = (e: React.FormEvent) => { e.preventDefault(); onSave(form); };
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
@@ -255,7 +256,7 @@ const HospitalForm = ({ initial, onSave, onCancel, loading }) => {
           <button type="button" onClick={addRoom} className="btn btn-secondary px-3">+</button>
         </div>
         <div className="flex flex-wrap gap-2">
-          {(form.operating_rooms||[]).map((r,i) => (
+          {(form.operating_rooms||[]).map((r: any, i: any) => (
             <span key={i} className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
               {r}<button type="button" onClick={() => removeRoom(i)} className="ml-1 text-blue-400 hover:text-blue-700">×</button>
             </span>
@@ -280,14 +281,14 @@ const HospitalForm = ({ initial, onSave, onCancel, loading }) => {
 export const Directorio: React.FC = () => {
   const toast = useToast();
   const [tab, setTab] = useState('cirujanos');
-  const [surgeons, setSurgeons] = useState([]);
-  const [hospitals, setHospitals] = useState([]);
-  const [surgeries, setSurgeries] = useState([]);
+  const [surgeons, setSurgeons] = useState<Surgeon[]>([]);
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [surgeries, setSurgeries] = useState<Surgery[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-  const [modal, setModal] = useState(null);
-  const [confirm, setConfirm] = useState(null);
+  const [modal, setModal] = useState<{ type: string; data: any; name?: string } | null>(null);
+  const [confirm, setConfirm] = useState<{ id: string; name: string; type: string } | null>(null);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -310,9 +311,9 @@ export const Directorio: React.FC = () => {
     h.address?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const [portalCredentials, setPortalCredentials] = useState(null);
+  const [portalCredentials, setPortalCredentials] = useState<{ name: string; email: string; tempPassword: string } | null>(null);
 
-  const handleSaveSurgeon = async (data) => {
+  const handleSaveSurgeon = async (data: any) => {
     setSaving(true);
     try {
       let finalData = { ...data };
@@ -347,6 +348,7 @@ export const Directorio: React.FC = () => {
         finalData.user_id = null;
       }
 
+      if (!modal) return;
       if (modal.data?.id) await surgeonService.update(modal.data.id, finalData);
       else await surgeonService.create(finalData);
 
@@ -355,15 +357,16 @@ export const Directorio: React.FC = () => {
       toast.success(modal?.data?.id ? 'Cirujano actualizado.' : 'Cirujano creado correctamente.');
     } catch (err) {
       console.error('Error saving surgeon:', err);
-      toast.error(`Error al guardar el cirujano: ${err.message}`);
+      toast.error(`Error al guardar el cirujano: ${(err as Error).message}`);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleSaveHospital = async (data) => {
+  const handleSaveHospital = async (data: any) => {
     setSaving(true);
     try {
+      if (!modal) return;
       if (modal.data?.id) await hospitalService.update(modal.data.id, data);
       else await hospitalService.create(data);
       setModal(null); fetchAll();
@@ -371,6 +374,7 @@ export const Directorio: React.FC = () => {
   };
 
   const handleDelete = async () => {
+    if (!confirm) return;
     if (confirm.type === 'surgeon') await surgeonService.delete(confirm.id);
     else await hospitalService.delete(confirm.id);
     setConfirm(null); fetchAll();
@@ -480,7 +484,7 @@ export const Directorio: React.FC = () => {
                       <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between">
                          <div className="flex gap-1">
                             {(h.operating_rooms||[]).slice(0,3).map((r,i) => <span key={i} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-bold">{r}</span>)}
-                            {(h.operating_rooms||[]).length > 3 && <span className="text-[10px] text-slate-400 font-bold">+{h.operating_rooms.length - 3}</span>}
+                            {(h.operating_rooms||[]).length > 3 && <span className="text-[10px] text-slate-400 font-bold">+{(h.operating_rooms ?? []).length - 3}</span>}
                          </div>
                          {h.coordinator_contact && <p className="text-[11px] text-slate-500 font-medium flex items-center gap-1"><Phone size={10} /> Contacto Disponible</p>}
                       </div>

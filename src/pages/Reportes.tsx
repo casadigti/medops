@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import type { Surgery, Surgeon, Hospital, Tray, SurgeryConsumption, Implant } from '../types/domain';
 import { surgeryService } from '../services/surgeryService';
 import { surgeonService } from '../services/surgeonService';
 import { hospitalService } from '../services/hospitalService';
@@ -16,7 +17,7 @@ import { implantService } from '../services/implantService';
 
 const COLORS = ['#1e40af','#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899'];
 
-const StatCard = ({ icon: Icon, label, value, color = 'text-primary', bg = 'bg-blue-50' }) => (
+const StatCard = ({ icon: Icon, label, value, color = 'text-primary', bg = 'bg-blue-50' }: { icon: React.ElementType; label: string; value: React.ReactNode; color?: string; bg?: string }) => (
   <div className="card flex items-center gap-4">
     <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center shrink-0', bg)}>
       <Icon size={20} className={color} />
@@ -28,7 +29,7 @@ const StatCard = ({ icon: Icon, label, value, color = 'text-primary', bg = 'bg-b
   </div>
 );
 
-const SectionTitle = ({ children }) => (
+const SectionTitle = ({ children }: { children: React.ReactNode }) => (
   <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">
     <span className="w-1 h-5 bg-primary rounded-full inline-block" />
     {children}
@@ -36,17 +37,17 @@ const SectionTitle = ({ children }) => (
 );
 
 export const Reportes: React.FC = () => {
-  const [surgeries, setSurgeries] = useState([]);
-  const [surgeons, setSurgeons]   = useState([]);
-  const [hospitals, setHospitals] = useState([]);
-  const [trays, setTrays]         = useState([]);
+  const [surgeries, setSurgeries] = useState<Surgery[]>([]);
+  const [surgeons, setSurgeons]   = useState<Surgeon[]>([]);
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [trays, setTrays]         = useState<Tray[]>([]);
   const [loading, setLoading]     = useState(true);
   const [period, setPeriod]       = useState('month');
   const [filterSpecialty, setFilterSpecialty] = useState('');
   const [filterHospital, setFilterHospital] = useState('');
   const [viewMode, setViewMode] = useState('operational');
-  const [consumption, setConsumption] = useState([]);
-  const [allImplants, setAllImplants] = useState([]);
+  const [consumption, setConsumption] = useState<SurgeryConsumption[]>([]);
+  const [allImplants, setAllImplants] = useState<Implant[]>([]);
   const [filterSurgeon, setFilterSurgeon] = useState('');
 
   useEffect(() => {
@@ -68,7 +69,7 @@ export const Reportes: React.FC = () => {
 
   const now = new Date();
 
-  const applyFilters = (arr) => {
+  const applyFilters = (arr: any[]) => {
     let result = [...arr];
 
     const cutoff = new Date();
@@ -107,8 +108,8 @@ export const Reportes: React.FC = () => {
 
   const trayUsage = trays.map(t => ({
     name: t.name?.split(' ').slice(0,3).join(' '),
-    usos: filtered.filter(s => s.surgery_trays?.some(st => st.tray?.id === t.id)).length,
-    esterilizaciones: t.sterilization_count,
+    usos: filtered.filter(s => s.surgery_trays?.some((st: any) => st.tray?.id === t.id)).length,
+    esterilizaciones: t.sterilization_count ?? 0,
   })).filter(d => d.usos > 0).sort((a,b) => b.usos - a.usos);
 
   const filteredConsumption = consumption.filter(c => {
@@ -116,7 +117,7 @@ export const Reportes: React.FC = () => {
     if (period === 'week') cutoff.setDate(now.getDate() - 7);
     if (period === 'month') cutoff.setDate(now.getDate() - 30);
     if (period === 'year') cutoff.setDate(now.getDate() - 365);
-    return new Date(c.used_at || c.surgeries?.surgery_date) >= cutoff;
+    return new Date(c.used_at ?? c.surgeries?.surgery_date ?? '') >= cutoff;
   });
 
   const totalCost = filteredConsumption.reduce((acc, c) => acc + (c.quantity_used * (c.implant_lots?.implants?.unit_cost || 0)), 0);
@@ -145,7 +146,7 @@ export const Reportes: React.FC = () => {
     const d = new Date(); d.setMonth(now.getMonth() - (5 - i));
     const label = d.toLocaleDateString('es-ES', { month:'short' });
     const monthCons = consumption.filter(c => {
-      const cDate = new Date(c.used_at || c.surgeries?.surgery_date);
+      const cDate = new Date(c.used_at ?? c.surgeries?.surgery_date ?? '');
       return cDate.getMonth() === d.getMonth() && cDate.getFullYear() === d.getFullYear();
     });
     return {
@@ -171,7 +172,7 @@ export const Reportes: React.FC = () => {
       'Cirujano': s.surgeon?.full_name || 'N/A',
       'Hospital': s.hospital?.name || 'N/A',
       'Estado': s.status,
-      'Bandejas': s.surgery_trays?.map(st => st.tray?.name).join(', ') || ''
+      'Bandejas': s.surgery_trays?.map((st: any) => st.tray?.name).join(', ') || ''
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(data);
@@ -292,7 +293,7 @@ export const Reportes: React.FC = () => {
                 : (
                   <ResponsiveContainer width="100%" height={220}>
                     <PieChart>
-                      <Pie data={byStatus} dataKey="total" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false} fontSize={11}>
+                      <Pie data={byStatus} dataKey="total" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }: any) => `${name} ${((percent ?? 0)*100).toFixed(0)}%`} labelLine={false} fontSize={11}>
                         {byStatus.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                       </Pie>
                       <Tooltip contentStyle={{ borderRadius:12, border:'none', boxShadow:'0 4px 20px rgba(0,0,0,.1)', fontSize:12 }} />
@@ -348,7 +349,7 @@ export const Reportes: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                   <XAxis dataKey="name" tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(value) => `RD$ ${value.toLocaleString()}`} contentStyle={{ borderRadius:12, border:'none', boxShadow:'0 4px 20px rgba(0,0,0,.1)', fontSize:12 }} />
+                  <Tooltip formatter={(value: any) =>`RD$ ${(value ?? 0).toLocaleString()}`} contentStyle={{ borderRadius:12, border:'none', boxShadow:'0 4px 20px rgba(0,0,0,.1)', fontSize:12 }} />
                   <Legend iconType="circle" wrapperStyle={{ fontSize:12, paddingTop:10 }} />
                   <Bar dataKey="costo" name="Costo Material" fill="#f87171" radius={[4,4,0,0]} />
                   <Bar dataKey="venta" name="Valor Facturado" fill="#3b82f6" radius={[4,4,0,0]} />
@@ -366,7 +367,7 @@ export const Reportes: React.FC = () => {
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
                       <XAxis type="number" tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
                       <YAxis type="category" dataKey="name" width={110} tick={{ fontSize:11, fill:'#475569' }} axisLine={false} tickLine={false} />
-                      <Tooltip formatter={(value) => `RD$ ${value.toLocaleString()}`} contentStyle={{ borderRadius:12, border:'none', boxShadow:'0 4px 20px rgba(0,0,0,.1)', fontSize:12 }} />
+                      <Tooltip formatter={(value: any) =>`RD$ ${(value ?? 0).toLocaleString()}`} contentStyle={{ borderRadius:12, border:'none', boxShadow:'0 4px 20px rgba(0,0,0,.1)', fontSize:12 }} />
                       <Bar dataKey="valor" name="Valor Consumido" fill="#8b5cf6" radius={[0,6,6,0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -385,7 +386,7 @@ export const Reportes: React.FC = () => {
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
                       <XAxis type="number" tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
                       <YAxis type="category" dataKey="name" width={110} tick={{ fontSize:11, fill:'#475569' }} axisLine={false} tickLine={false} />
-                      <Tooltip formatter={(value) => `RD$ ${value.toLocaleString('en-US', {minimumFractionDigits: 2})}`} contentStyle={{ borderRadius:12, border:'none', boxShadow:'0 4px 20px rgba(0,0,0,.1)', fontSize:12 }} />
+                      <Tooltip formatter={(value: any) =>`RD$ ${(value ?? 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`} contentStyle={{ borderRadius:12, border:'none', boxShadow:'0 4px 20px rgba(0,0,0,.1)', fontSize:12 }} />
                       <Legend iconType="circle" wrapperStyle={{ fontSize:12, paddingTop:10 }} />
                       <Bar dataKey="costo" stackId="a" name="Costo" fill="#f87171" />
                       <Bar dataKey="margen" stackId="a" name="Margen Bruto" fill="#10b981" radius={[0,6,6,0]} />
@@ -405,7 +406,7 @@ export const Reportes: React.FC = () => {
               {filteredConsumption.length === 0 ? (
                 <div className="flex items-center justify-center h-[180px] text-slate-400 text-sm">Sin datos en el período</div>
               ) : (() => {
-                const bySurgeonImplant = {};
+                const bySurgeonImplant: Record<string, Record<string, { sku: string; qty: number; cost: number }>> = {};
                 filteredConsumption.forEach(c => {
                   const surgeonName = c.surgeries?.surgeon?.full_name || 'Sin asignar';
                   const implantName = c.implant_lots?.implants?.name || 'Desconocido';
@@ -435,6 +436,7 @@ export const Reportes: React.FC = () => {
 
                 const exportPDF = () => {
                   const win = window.open('', '_blank', 'width=950,height=700');
+                  if (!win) return;
                   win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
                     <title>Implantes por Cirujano — MedOps</title>
                     <style>
@@ -561,7 +563,7 @@ export const Reportes: React.FC = () => {
                 const periodDays = period === 'week' ? 7 : period === 'month' ? 30 : 365;
 
                 const aggregated = (Object.values(
-                  filteredConsumption.reduce((acc, c) => {
+                  filteredConsumption.reduce((acc: Record<string, any>, c: SurgeryConsumption) => {
                     const implantId = c.implant_lots?.implants?.id || c.implant_lots?.implant_id;
                     const key = c.implant_lots?.implants?.sku || implantId || c.implant_lot_id;
                     if (!key) return acc;

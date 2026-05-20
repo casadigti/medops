@@ -7,6 +7,7 @@ export interface Surgeon {
   email?: string;
   phone?: string;
   user_id?: string;
+  preferences?: string;
   created_at?: string;
 }
 
@@ -16,6 +17,9 @@ export interface Hospital {
   city?: string;
   address?: string;
   phone?: string;
+  coordinator_contact?: string;
+  logistics_notes?: string;
+  operating_rooms?: string[];
   created_at?: string;
 }
 
@@ -32,6 +36,7 @@ export interface ImplantLot {
   lot_number: string;
   expiration_date: string;
   current_quantity: number;
+  location?: string;
   created_at?: string;
 }
 
@@ -40,6 +45,7 @@ export interface Implant {
   name: string;
   sku: string;
   category?: string;
+  description?: string;
   unit_cost: number;
   selling_price: number;
   min_stock: number;
@@ -52,10 +58,13 @@ export interface Tray {
   name: string;
   code?: string;
   procedure_type?: string;
-  status: 'Disponible' | 'En limpieza' | 'En reparación' | 'Baja';
+  status: 'Disponible' | 'En limpieza' | 'En reparación' | 'Baja' | string;
   last_sterilization?: string | null;
   next_maintenance?: string | null;
   usage_count?: number;
+  sterilization_count?: number;
+  location?: string;
+  content?: string;
   surgery_trays?: Array<{ count: number }>;
   created_at?: string;
 }
@@ -65,7 +74,7 @@ export interface TrayWithAvailability extends Tray {
   unavailable_reason: string | null;
 }
 
-export type SurgeryStatus = 'Programada' | 'En Proceso' | 'Completada' | 'Cancelada';
+export type SurgeryStatus = 'Pendiente' | 'Programada' | 'En Proceso' | 'En preparación' | 'Completada' | 'Cancelada';
 
 export interface Surgery {
   id: string;
@@ -95,7 +104,9 @@ export interface SurgeryConsumption {
   notes?: string;
   auth_number?: string;
   used_at?: string;
-  implant_lots?: ImplantLot & { implants?: Pick<Implant, 'name' | 'sku' | 'unit_cost'> };
+  implant_lots?: ImplantLot & { implants?: Pick<Implant, 'id' | 'name' | 'sku' | 'unit_cost' | 'selling_price'> };
+  // join field from some queries
+  surgeries?: Pick<Surgery, 'id' | 'patient_name' | 'surgery_date' | 'hospital_id' | 'surgeon_id'> & { hospital?: Pick<Hospital, 'name'>; surgeon?: Pick<Surgeon, 'full_name'> };
 }
 
 export type NotificationType = 'info' | 'warning' | 'error' | 'success';

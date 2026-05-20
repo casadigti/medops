@@ -5,8 +5,9 @@ import { implantService } from '../services/implantService';
 import { useToast } from '../components/ui/Toast';
 import { Modal } from '../components/ui/Modal';
 import { cn } from '../utils/cn';
+import type { Implant, ImplantLot } from '../types/domain';
 
-const ImplantForm = ({ onSave, onCancel, initialData, loading }) => {
+const ImplantForm = ({ onSave, onCancel, initialData, loading }: { onSave: (data: any) => void; onCancel: () => void; initialData?: Partial<Implant> | null; loading: boolean }) => {
   const [form, setForm] = useState({
     name: initialData?.name || '',
     sku: initialData?.sku || '',
@@ -17,7 +18,7 @@ const ImplantForm = ({ onSave, onCancel, initialData, loading }) => {
     selling_price: initialData?.selling_price || 0,
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(form);
   };
@@ -110,7 +111,7 @@ const ImplantForm = ({ onSave, onCancel, initialData, loading }) => {
   );
 };
 
-const LotForm = ({ onSave, onCancel, implantId, loading }) => {
+const LotForm = ({ onSave, onCancel, implantId, loading }: { onSave: (data: any) => void; onCancel: () => void; implantId: string; loading: boolean }) => {
   const [form, setForm] = useState({
     implant_id: implantId,
     lot_number: '',
@@ -119,7 +120,7 @@ const LotForm = ({ onSave, onCancel, implantId, loading }) => {
     location: 'Almacén Central'
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(form);
   };
@@ -180,16 +181,17 @@ const LotForm = ({ onSave, onCancel, implantId, loading }) => {
   );
 };
 
-const ImportModal = ({ onImport, onCancel, loading }) => {
-  const [file, setFile] = useState(null);
-  const [data, setData] = useState([]);
+const ImportModal = ({ onImport, onCancel, loading }: { onImport: (data: any[]) => void; onCancel: () => void; loading: boolean }) => {
+  const [file, setFile] = useState<File | null>(null);
+  const [data, setData] = useState<any[]>([]);
 
-  const handleFileChange = (e) => {
-    const f = e.target.files[0];
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
     if (!f) return;
 
     const reader = new FileReader();
     reader.onload = (evt) => {
+      if (!evt.target) return;
       const bstr = evt.target.result;
       const wb = read(bstr, { type: 'binary' });
       const wsname = wb.SheetNames[0];
@@ -299,15 +301,15 @@ const ImportModal = ({ onImport, onCancel, loading }) => {
 
 export const InventarioQuirurgico: React.FC = () => {
   const toast = useToast();
-  const [implants, setImplants] = useState([]);
+  const [implants, setImplants] = useState<Implant[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [expandedId, setExpandedId] = useState(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [isImplantModalOpen, setIsImplantModalOpen] = useState(false);
   const [isLotModalOpen, setIsLotModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [selectedImplant, setSelectedImplant] = useState(null);
+  const [selectedImplant, setSelectedImplant] = useState<Implant | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchImplants = async () => {
@@ -316,7 +318,7 @@ export const InventarioQuirurgico: React.FC = () => {
       const data = await implantService.getAll();
       setImplants(data);
     } catch (error) {
-      toast.error('Error al cargar inventario: ' + error.message);
+      toast.error('Error al cargar inventario: ' + (error as Error).message);
     } finally {
       setLoading(false);
     }
@@ -326,10 +328,10 @@ export const InventarioQuirurgico: React.FC = () => {
     fetchImplants();
   }, []);
 
-  const handleSaveImplant = async (formData) => {
+  const handleSaveImplant = async (formData: any) => {
     setActionLoading(true);
     try {
-      if (selectedImplant) {
+      if (selectedImplant?.id) {
         await implantService.update(selectedImplant.id, formData);
         toast.success('Producto actualizado');
       } else {
@@ -339,13 +341,13 @@ export const InventarioQuirurgico: React.FC = () => {
       setIsImplantModalOpen(false);
       fetchImplants();
     } catch (error) {
-      toast.error('Error: ' + error.message);
+      toast.error('Error: ' + (error as Error).message);
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleAddLot = async (formData) => {
+  const handleAddLot = async (formData: any) => {
     setActionLoading(true);
     try {
       await implantService.addLot(formData);
@@ -353,13 +355,13 @@ export const InventarioQuirurgico: React.FC = () => {
       setIsLotModalOpen(false);
       fetchImplants();
     } catch (error) {
-      toast.error('Error: ' + error.message);
+      toast.error('Error: ' + (error as Error).message);
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleBulkImport = async (data) => {
+  const handleBulkImport = async (data: any[]) => {
     setActionLoading(true);
     try {
       await implantService.bulkCreateImplants(data);
@@ -367,25 +369,25 @@ export const InventarioQuirurgico: React.FC = () => {
       setIsImportModalOpen(false);
       fetchImplants();
     } catch (error) {
-      toast.error('Error en la importación: ' + error.message);
+      toast.error('Error en la importación: ' + (error as Error).message);
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     if (!confirm('¿Seguro que deseas eliminar este producto y todos sus lotes?')) return;
     try {
       await implantService.delete(id);
       toast.success('Producto eliminado');
       fetchImplants();
     } catch (error) {
-      toast.error('Error al eliminar: ' + error.message);
+      toast.error('Error al eliminar: ' + (error as Error).message);
     }
   };
 
-  const isExpired = (date) => new Date(date) < new Date();
-  const isExpiringSoon = (date) => {
+  const isExpired = (date: string) => new Date(date) < new Date();
+  const isExpiringSoon = (date: string) => {
     const exp = new Date(date);
     const today = new Date();
     const diff = (exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
@@ -407,8 +409,8 @@ export const InventarioQuirurgico: React.FC = () => {
     i.sku.toLowerCase().includes(search.toLowerCase())
   );
 
-  const getStockStatus = (implant) => {
-    const total = (implant.implant_lots || []).reduce((acc, lot) => acc + lot.current_quantity, 0);
+  const getStockStatus = (implant: Implant) => {
+    const total = (implant.implant_lots || []).reduce((acc: number, lot: ImplantLot) => acc + lot.current_quantity, 0);
     if (total === 0) return { label: 'Sin Stock', color: 'bg-rose-100 text-rose-700', icon: AlertTriangle };
     if (total <= (implant.min_stock || 0)) return { label: 'Stock Bajo', color: 'bg-amber-100 text-amber-700', icon: AlertTriangle };
     return { label: `${total} unidades`, color: 'bg-emerald-100 text-emerald-700', icon: Box };
@@ -556,7 +558,7 @@ export const InventarioQuirurgico: React.FC = () => {
                       <tbody className="divide-y divide-slate-100">
                         {(implant.implant_lots || []).length === 0 ? (
                           <tr><td colSpan={5} className="py-4 text-center text-slate-400 italic">No hay lotes registrados para este producto.</td></tr>
-                        ) : implant.implant_lots.map(lot => (
+                        ) : (implant.implant_lots ?? []).map(lot => (
                           <tr key={lot.id} className="group">
                             <td className="py-3 px-2 font-mono font-bold text-slate-700">{lot.lot_number}</td>
                             <td className="py-3 px-2">
@@ -614,7 +616,7 @@ export const InventarioQuirurgico: React.FC = () => {
         <LotForm
           onSave={handleAddLot}
           onCancel={() => setIsLotModalOpen(false)}
-          implantId={selectedImplant?.id}
+          implantId={selectedImplant?.id ?? ''}
           loading={actionLoading}
         />
       </Modal>
