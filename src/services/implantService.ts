@@ -62,6 +62,11 @@ export const implantService = {
   async reportConsumption(consumptionData: ConsumptionInput): Promise<true> {
     const { surgery_id, implant_lot_id, quantity_used, notes, auth_number } = consumptionData;
 
+    // SECURITY F-08: the previous read-check-write was not atomic, so two
+    // concurrent calls could both pass the stock check and over-consume the
+    // lot. Decrement first with a compare-and-swap update guarded by the
+    // quantity we read; if another transaction changed the stock in between,
+    // this update matches zero rows and we abort instead of over-consuming.
     const { data: lot, error: lotError } = await supabase
       .from('implant_lots')
       .select('current_quantity')
@@ -72,16 +77,36 @@ export const implantService = {
       throw new Error('Stock insuficiente en el lote seleccionado');
     }
 
+    const { data: updatedLot, error: updateError } = await supabase
+      .from('implant_lots')
+      .update({ current_quantity: lot.current_quantity - quantity_used })
+      .eq('id', implant_lot_id)
+      .eq('current_quantity', lot.current_quantity)
+      .select('id');
+    if (updateError) throw updateError;
+    if (!updatedLot || updatedLot.length === 0) {
+      throw new Error('El stock del lote cambió durante la operación. Reintente.');
+    }
+
     const { error: consumptionError } = await supabase
       .from('surgery_consumption')
       .insert({ surgery_id, implant_lot_id, quantity_used, notes, auth_number });
-    if (consumptionError) throw consumptionError;
-
-    const { error: updateError } = await supabase
-      .from('implant_lots')
-      .update({ current_quantity: lot.current_quantity - quantity_used })
-      .eq('id', implant_lot_id);
-    if (updateError) throw updateError;
+    if (consumptionError) {
+      // Compensating action: the consumption record failed, so give the
+      // decremented stock back (best effort).
+      const { data: fresh } = await supabase
+        .from('implant_lots')
+        .select('current_quantity')
+        .eq('id', implant_lot_id)
+        .single();
+      if (fresh) {
+        await supabase
+          .from('implant_lots')
+          .update({ current_quantity: fresh.current_quantity + quantity_used })
+          .eq('id', implant_lot_id);
+      }
+      throw consumptionError;
+    }
 
     await auditService.log('CONSUMPTION_REPORT', 'surgery_consumption', surgery_id, consumptionData as unknown as Record<string, unknown>);
     return true;
