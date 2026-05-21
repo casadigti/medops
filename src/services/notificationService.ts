@@ -18,10 +18,17 @@ export const notificationService = {
   },
 
   async markAsRead(id: string): Promise<void> {
+    // SECURITY F-11: scope the update to the current user so a client
+    // cannot mark another user's notification as read (IDOR). This is
+    // defence-in-depth alongside the RLS policy on the notifications table.
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const { error } = await supabase
       .from('notifications')
       .update({ is_read: true })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', user.id);
     if (error) throw error;
   },
 

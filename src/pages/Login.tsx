@@ -1,27 +1,131 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Stethoscope, Lock, Mail, ChevronRight, ShieldAlert } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { supabase } from '../lib/supabase';
+
+// SECURITY F-04: client-side login throttling. After LOCK_THRESHOLD failed
+// attempts the form locks with exponential backoff. This adds friction
+// against brute force; the authoritative control is server-side rate
+// limiting in the Supabase Auth dashboard (see ACCION MANUAL).
+const LOCK_THRESHOLD = 5;
+const BACKOFF_BASE_SECONDS = 30;
+const BACKOFF_MAX_SECONDS = 15 * 60;
+const THROTTLE_STORAGE_KEY = 'medops_login_throttle';
+
+interface ThrottleState {
+  attempts: number;
+  lockUntil: number;
+}
+
+function loadThrottle(): ThrottleState {
+  try {
+    const raw = localStorage.getItem(THROTTLE_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as ThrottleState;
+      if (typeof parsed.attempts === 'number' && typeof parsed.lockUntil === 'number') {
+        return parsed;
+      }
+    }
+  } catch {
+    /* ignore corrupt storage */
+  }
+  return { attempts: 0, lockUntil: 0 };
+}
+
+function saveThrottle(state: ThrottleState): void {
+  try {
+    localStorage.setItem(THROTTLE_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    /* ignore storage failures */
+  }
+}
+
+function clearThrottle(): void {
+  try {
+    localStorage.removeItem(THROTTLE_STORAGE_KEY);
+  } catch {
+    /* ignore storage failures */
+  }
+}
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [infoMsg, setInfoMsg] = useState('');
+  const [lockRemaining, setLockRemaining] = useState(0);
   const navigate = useNavigate();
+
+  // Tick down the lockout countdown once per second.
+  useEffect(() => {
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((loadThrottle().lockUntil - Date.now()) / 1000));
+      setLockRemaining(remaining);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // SECURITY F-14: real password recovery flow (the link was dead, href="#").
+  const handleForgotPassword = async () => {
+    setErrorMsg('');
+    setInfoMsg('');
+    if (!email) {
+      setErrorMsg('Ingresa tu correo electrónico para recuperar la contraseña.');
+      return;
+    }
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/`,
+      });
+      if (error) throw error;
+    } catch (error) {
+      // Do not reveal whether the email is registered (account enumeration).
+      console.error('Error al enviar recuperación:', error);
+    }
+    // Always show the same message regardless of outcome.
+    setInfoMsg('Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.');
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const throttle = loadThrottle();
+    if (Date.now() < throttle.lockUntil) {
+      const remaining = Math.ceil((throttle.lockUntil - Date.now()) / 1000);
+      setErrorMsg(`Demasiados intentos fallidos. Espera ${remaining}s antes de reintentar.`);
+      return;
+    }
+
     setIsLoading(true);
     setErrorMsg('');
+    setInfoMsg('');
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
+      clearThrottle();
       navigate('/');
     } catch (error) {
       console.error('Error al iniciar sesión:', error);
-      setErrorMsg('Credenciales inválidas. Por favor, verifica tu correo y contraseña.');
+      const attempts = throttle.attempts + 1;
+      let lockUntil = 0;
+      if (attempts >= LOCK_THRESHOLD) {
+        const backoff = Math.min(
+          BACKOFF_BASE_SECONDS * Math.pow(2, attempts - LOCK_THRESHOLD),
+          BACKOFF_MAX_SECONDS
+        );
+        lockUntil = Date.now() + backoff * 1000;
+      }
+      saveThrottle({ attempts, lockUntil });
+      if (lockUntil) {
+        setLockRemaining(Math.ceil((lockUntil - Date.now()) / 1000));
+        setErrorMsg(`Demasiados intentos fallidos. Acceso bloqueado temporalmente.`);
+      } else {
+        setErrorMsg(`Credenciales inválidas. Intento ${attempts} de ${LOCK_THRESHOLD}.`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -51,6 +155,12 @@ export const Login: React.FC = () => {
                 {errorMsg}
               </div>
             )}
+            {infoMsg && (
+              <div className="p-3 bg-green-50 text-green-700 text-sm font-semibold rounded-xl border border-green-100 flex items-center gap-2 animate-in fade-in zoom-in-95">
+                <Mail size={16} />
+                {infoMsg}
+              </div>
+            )}
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Correo Electrónico</label>
               <div className="relative group">
@@ -69,7 +179,13 @@ export const Login: React.FC = () => {
             <div>
               <div className="flex justify-between items-center mb-1.5">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contraseña</label>
-                <a href="#" className="text-[10px] font-bold text-primary hover:text-primary-600 transition-colors">¿Olvidaste tu contraseña?</a>
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-[10px] font-bold text-primary hover:text-primary-600 transition-colors"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
               </div>
               <div className="relative group">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={18} />
@@ -87,14 +203,18 @@ export const Login: React.FC = () => {
             <div className="pt-4">
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || lockRemaining > 0}
                 className={cn(
                   'w-full bg-primary text-white py-3.5 px-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-xl shadow-primary/20 transition-all',
-                  isLoading ? 'opacity-70 cursor-wait' : 'hover:-translate-y-1 hover:shadow-primary/40 active:translate-y-0'
+                  isLoading ? 'opacity-70 cursor-wait'
+                    : lockRemaining > 0 ? 'opacity-50 cursor-not-allowed'
+                    : 'hover:-translate-y-1 hover:shadow-primary/40 active:translate-y-0'
                 )}
               >
                 {isLoading ? (
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : lockRemaining > 0 ? (
+                  <>Bloqueado · {lockRemaining}s</>
                 ) : (
                   <>Iniciar Sesión <ChevronRight size={18} /></>
                 )}

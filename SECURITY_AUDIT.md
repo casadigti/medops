@@ -1,100 +1,294 @@
-# SECURITY AUDIT - MedOps Platform
-
-## 1. RECONNAISSANCE (Fase 1)
-
-### Stack Tecnológico
-- **Frontend**: React 19 + Vite + Tailwind CSS 4.
-- **Backend/Base de Datos**: Supabase (PostgreSQL + PostgREST).
-- **Autenticación**: Supabase Auth (JWT).
-- **Gestión de Estado**: Zustand.
-- **Infraestructura**: Supabase Edge Functions (`manage-users`, `send-surgery-alert`).
-
-### Inventario de Endpoints (Rutas Frontend)
-- `/`: Dashboard / Principal.
-- `/login`: Acceso al sistema.
-- `/cirugias`: Gestión de cirugías y pacientes.
-- `/calendario`: Vista de agenda quirúrgica.
-- `/bandejas`: Inventario de bandejas de instrumentos.
-- `/mantenimiento`: Catálogos (Hospitales, Doctores, etc.).
-- `/directorio`: Directorio de contactos y entidades.
-- `/reportes`: BI y analíticas.
-- `/mis-solicitudes`: Portal específico para cirujanos.
-- `/configuracion`: Ajustes del sistema, usuarios y roles.
-
-### Mecanismos de Autenticación y Sesión
-- **Auth**: Basado en Supabase Auth con JWT.
-- **Sesión**: Persistencia en `localStorage` vía cliente oficial de Supabase.
-- **MFA**: No detectado en la configuración actual.
-- **Roles**:
-  - `Superadmin`: Acceso total, incluyendo logs de auditoría.
-  - `Administrador`: Gestión operativa y de usuarios.
-  - `Editor`: Creación y edición de datos operativos.
-  - `Técnico`: Enfocado en almacén/bandejas.
-  - `Cirujano`: Acceso limitado a sus propias solicitudes.
-  - `Lector`: Solo lectura.
-
-### Funcionalidades de Carga de Archivos (Uploads)
-- **Logotipo de Organización**: En la página de Configuración.
-  - *Nota*: Actualmente implementado mediante `FileReader.readAsDataURL` y almacenado como string base64 en la tabla `organization_settings`. No utiliza Supabase Storage.
-
-### Observaciones Iniciales
-- Se detectó un uso extensivo de queries REST manuales (`fetch`) en paralelo con el cliente oficial de Supabase para evitar "congelamientos" del cliente JS.
-- La gestión de usuarios (creación/edición/borrado) se delega a una Edge Function (`manage-users`) para preservar la sesión del administrador.
-- Existe una tabla de auditoría (`audit_log`) que registra acciones críticas.
+# SECURITY AUDIT — MedOps
+**Fecha:** 2026-05-21 | **Estado:** Fases 1+2 completadas | **Total hallazgos:** 16
 
 ---
 
-## 2. ANÁLISIS DE VULNERABILIDADES (Fase 2)
+## INVENTARIO DEL STACK (Fase 1)
 
-### A. Broken Access Control (OWASP A01:2021)
-- **RLS Permisivo**: Las políticas de Row Level Security en `apply_rls.sql` utilizan `auth.role() = 'authenticated'` para todas las operaciones (SELECT, INSERT, UPDATE, DELETE).
-- **Riesgo**: Cualquier usuario autenticado (incluyendo un 'Lector' o 'Cirujano') puede modificar o borrar registros de cualquier otro usuario, hospital o cirugía.
-- **IDOR**: No hay validación de que un Cirujano solo acceda a sus propias cirugías.
+### Tecnologías principales
+| Capa | Tecnología | Versión |
+|------|-----------|---------|
+| Frontend | React + Vite | 19 / 6 |
+| Auth | Supabase JS | 2.105.1 |
+| Router | React Router | 7 |
+| State | Zustand | 5 |
+| PDF | jsPDF + jspdf-autotable | 4 / 5 |
+| Excel | xlsx (SheetJS CDN) | 0.20.3 |
+| Validation | Zod | 4 |
 
-### B. Vulnerable Dependencies
-- **xlsx (<0.20.2)**: Detectada vulnerabilidad de Alta Severidad (ReDoS - Regular Expression Denial of Service).
-- **Riesgo**: Un atacante podría enviar un archivo malicioso o causar que el servidor/cliente se bloquee al procesar hojas de cálculo.
+### Superficie de Ataque
+- Supabase REST `/rest/v1/*` — CRUD completo
+- Supabase Auth `/auth/v1/*` — signIn, signUp, updateUser
+- Edge Functions: `manage-users`, `send-surgery-alert`
+- Realtime: `postgres_changes` en tabla `notifications`
+- REST fallback manual en `surgeryService.ts`
 
-### C. Information Exposure (OWASP A03:2021)
-- **Audit Logs**: El servicio `auditService.js` guarda el objeto `details` completo. Si se pasan objetos con datos sensibles (aunque no se detectó pass hash, sí otros metadatos), estos quedan expuestos a cualquier usuario con rol `Superadmin` en la vista de logs.
-
-### D. Missing Anti-Automation / Rate Limiting
-- No se detectó implementación de Rate Limiting en endpoints sensibles (Login, Password Reset, Creación de Usuarios).
-- **Riesgo**: Ataques de fuerza bruta o denegación de servicio.
-
-### E. Security Misconfiguration (OWASP A05:2021)
-- **Políticas Públicas**: El archivo `supabase_schema.sql` contiene políticas `FOR ALL USING (true)`, lo que permitiría acceso total sin autenticación si no se aplicó el script de hardening.
-- **MFA**: No está habilitado el segundo factor de autenticación.
-
-### F. Mass Assignment
-- Las funciones de `update` y `create` en los servicios (ej: `surgeryService.js`) pasan objetos de datos casi sin filtrar a Supabase.
-- **Riesgo**: Un atacante podría inyectar campos no previstos en el formulario (ej: cambiar el ID de la organización o estados internos) si las políticas RLS no restringen columnas.
-
----
-
-## 3. REPORTE DE HALLAZGOS (Fase 3 - VERIFICADO)
-
-| ID | Hallazgo | Categoría OWASP | Severidad | Estado | Fix Sugerido |
-|:---|:---|:---|:---|:---|:---|
-| **VULN-001** | Auth Bypass en Edge Functions | A01:2021-Broken Access Control | 🔥 **CRÍTICA** | ✅ Corregido | Implementar verificación de JWT y RBAC. |
-| **VULN-002** | Insecure RLS en Audit Logs | A01:2021-Broken Access Control | 🔴 **ALTA** | ✅ Corregido | Restringir INSERT a roles operativos. |
-| **VULN-003** | Mass Assignment en Gestión | A01:2021-Broken Access Control | 🔴 **ALTA** | ✅ Corregido | Implementar Whitelist de campos (DTO). |
-| **VULN-004** | Exposición de Catálogos | A03:2021-Injection/Exposure | 🟡 **MEDIA** | ✅ Corregido | Refinar RLS para restringir visibilidad. |
-| **VULN-006** | Inyección de Parámetros REST | A03:2021-Injection/Exposure | 🟢 **BAJA** | ✅ Corregido | Usar URLSearchParams y objetos de query. |
+### Auth / Sesiones
+- JWT via Supabase, `persistSession: true` (localStorage)
+- Sin MFA, sin lockout, sin rate limiting en login
+- Contraseña mínima: 6 caracteres
+- Guard de rutas: solo client-side
 
 ---
 
-## 4. PLAN DE REMEDIACIÓN (Fase 4 - COMPLETADO)
-*Correcciones realizadas y verificadas en la arquitectura actual.*
-
-### ✅ Correcciones Aplicadas
-1.  **Seguridad en Edge Functions (VULN-001)**: Se añadió validación de JWT y chequeo de roles en `manage-users`. Solo personal administrativo puede gestionar usuarios.
-2.  **Hardening de RLS (VULN-002 & VULN-004)**: Se actualizaron las políticas en `apply_rls.sql` para proteger los logs de auditoría y restringir el acceso a catálogos operativos (Hospitales, Cirujanos, Bandejas).
-3.  **Prevención de Mass Assignment (VULN-003)**: Se implementó una capa de filtrado de datos en `configService.js` antes de cualquier operación de escritura.
-4.  **Sanitización REST (VULN-006)**: Se refactorizó la comunicación REST nativa para usar métodos de construcción de URLs seguros y tipados.
-
-### ⚠️ Acciones Manuales Requeridas (Infraestructura)
-- **Base de Datos**: Es imperativo ejecutar el script `apply_rls.sql` en el SQL Editor de Supabase para activar las nuevas políticas.
+## HALLAZGOS (Fase 2 — ordenados por severidad)
 
 ---
-*Fin del Reporte de Seguridad - Mayo 2026*
+
+### 🔴 CRITICO — F-01: Stored XSS via document.write
+**OWASP:** A03:2021 Injection (XSS) | **Archivo:** `src/pages/Reportes.tsx:469-473`
+
+Datos de DB (`r.surgeon`, `r.topImplant`, `r.sku`) interpolados sin escapado en `win.document.write()`. Cualquier usuario que pueda editar un cirujano o implante puede almacenar HTML/JS que ejecuta al abrir el reporte.
+
+**PoC:** Nombre de cirujano `Dr. García<img src=x onerror=alert(1)>` → ejecuta JS en ventana de impresión.
+
+**Fix:**
+```typescript
+function escapeHtml(s: string) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;')
+          .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+// Aplicar a r.surgeon, r.topImplant, r.sku antes de interpolar
+```
+
+---
+
+### 🔴 CRITICO — F-02: Credenciales de produccion en git
+**OWASP:** A02:2021 Cryptographic Failures | **Archivo:** `e2e/fixtures/mockData.ts:1-2`
+
+`SUPABASE_URL` y `PROJECT_REF` de produccion hardcodeados en codigo versionado. Con URL + anon key (ya en historial git) un atacante puede llamar la API directamente eludiendo el frontend.
+
+**Fix (sin rotar key):** Usar variables de entorno en tests e2e:
+```typescript
+export const SUPABASE_URL = process.env['SUPABASE_URL'] ?? 'http://localhost:54321';
+export const PROJECT_REF = process.env['SUPABASE_PROJECT_REF'] ?? 'local';
+```
+**ACCION MANUAL:** Verificar RLS activo en TODAS las tablas. Con anon key expuesta, RLS es la única barrera.
+
+---
+
+### 🟠 ALTO — F-03: Math.random() para contraseñas temporales
+**OWASP:** A02:2021 | **Archivo:** `src/services/surgeonService.ts:58-60`
+
+`Math.random()` no es criptográficamente seguro. Contraseñas temporales de cirujanos son predecibles si el atacante conoce el timestamp de creación.
+
+**Fix:**
+```typescript
+const arr = new Uint32Array(10);
+crypto.getRandomValues(arr);
+const tempPassword = Array.from(arr, n => chars[n % chars.length]).join('');
+```
+
+---
+
+### 🟠 ALTO — F-04: Sin rate limiting ni lockout en login
+**OWASP:** A07:2021 | **Archivo:** `src/pages/Login.tsx`
+
+Fuerza bruta ilimitada. Sin delay, CAPTCHA, ni bloqueo tras N intentos fallidos.
+
+**Fix código:** Contador de intentos con backoff exponencial y bloqueo temporal local.
+**ACCION MANUAL:** Supabase Dashboard → Authentication → Rate Limits. Habilitar CAPTCHA (hCaptcha / Cloudflare Turnstile).
+
+---
+
+### 🟠 ALTO — F-05: Dependencias vulnerables (npm audit)
+**OWASP:** A06:2021
+
+| Paquete | Severidad | CVSS | Tipo |
+|---------|----------|------|------|
+| `@babel/plugin-transform-modules-systemjs` | HIGH | 8.2 | Código arbitrario (CWE-94) |
+| `fast-uri` | HIGH | 7.5 | Path traversal (CWE-22) |
+| `serialize-javascript` (via `@rollup/plugin-terser`) | HIGH | — | Code injection |
+| `brace-expansion` | MODERATE | 6.5 | DoS (CWE-400) |
+
+**Fix:** `npm audit fix` en raíz del proyecto. Verificar que el build siga pasando.
+
+---
+
+### 🟠 ALTO — F-06: Supply chain — xlsx desde CDN externo
+**OWASP:** A06:2021 | **Archivo:** `package.json`
+
+`"xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"` — si el CDN es comprometido, código malicioso se instala durante `npm install`. Sin hash de integridad verificado.
+
+**Decisión:** NO migrar al registry npm. SheetJS dejó de publicar en npmjs; la última versión ahí es `0.18.5`, con CVEs conocidos (prototype pollution GHSA-4r6h-8v6p-xvw6, ReDoS GHSA-5pgg-2g8v-p4x9) corregidos recién en `0.20.2`. Bajar a `0.18.5` empeoraría la seguridad. La versión actual `0.20.3` del CDN es la parcheada.
+
+**Acción:** Mantener `0.20.3`. `package-lock.json` ya fija el hash de integridad del tarball una vez instalado. RIESGO RESIDUAL ACEPTADO — monitorear avisos de SheetJS y considerar `exceljs` si se requiere proveedor del registry npm (cambio de API mayor).
+
+---
+
+### 🟡 MEDIO — F-07: Política de contraseñas débil (mínimo 6 chars)
+**OWASP:** A07:2021 | **Archivo:** `src/components/auth/ForcePasswordChange.tsx`
+
+App maneja datos médicos sensibles. 6 caracteres es insuficiente.
+
+**Fix:** Mínimo 12 chars + mayúscula + minúscula + número + carácter especial.
+**ACCION MANUAL:** Supabase Dashboard → Authentication → Password strength.
+
+---
+
+### 🟡 MEDIO — F-08: Race condition en stock de implantes
+**OWASP:** A04:2021 Insecure Design | **Archivo:** `src/services/implantService.ts:65-85`
+
+`reportConsumption` hace read-check-write no atómico. Dos requests concurrentes pueden ambas pasar la verificación y over-consumir stock (double-spend de inventario médico).
+
+**Fix:** RPC PostgreSQL con transacción atómica:
+```sql
+CREATE FUNCTION consume_lot(p_lot_id uuid, p_qty int) RETURNS void AS $$
+BEGIN
+  UPDATE implant_lots SET current_quantity = current_quantity - p_qty
+  WHERE id = p_lot_id AND current_quantity >= p_qty;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Stock insuficiente'; END IF;
+END; $$ LANGUAGE plpgsql;
+```
+```typescript
+await supabase.rpc('consume_lot', { p_lot_id: implant_lot_id, p_qty: quantity_used });
+```
+
+---
+
+### 🟡 MEDIO — F-09: Sin allowlist en hospitalService / surgeonService
+**OWASP:** A04:2021 Mass Assignment
+**Archivos:** `src/services/hospitalService.ts:19`, `src/services/surgeonService.ts:33`
+
+`update()` acepta `Partial<T>` completo sin filtrar campos. A diferencia de `surgeryService` (que usa `pickAllowed()`), cualquier campo puede sobrescribirse.
+
+**Fix:** Agregar allowlist de campos permitidos, igual que `surgeryService.pickAllowed()`.
+
+---
+
+### 🟡 MEDIO — F-10: Sin CSP / Security Headers
+**OWASP:** A05:2021 Security Misconfiguration
+
+Sin `Content-Security-Policy`: XSS de F-01 tiene impacto máximo. Sin `X-Frame-Options`: clickjacking posible. No existe `vercel.json`. `vite.config.js` no configura headers.
+
+**Fix:** Crear `vercel.json`:
+```json
+{
+  "headers": [{
+    "source": "/(.*)",
+    "headers": [
+      { "key": "X-Frame-Options", "value": "DENY" },
+      { "key": "X-Content-Type-Options", "value": "nosniff" },
+      { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+      { "key": "Content-Security-Policy", "value": "default-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none';" }
+    ]
+  }]
+}
+```
+
+---
+
+### 🟡 MEDIO — F-11: IDOR en notificationService.markAsRead
+**OWASP:** A01:2021 Broken Access Control | **Archivo:** `src/services/notificationService.ts:21-26`
+
+`UPDATE notifications ... WHERE id=?` sin filtrar por `user_id`. Si RLS mal configurado, usuario autenticado puede marcar notificaciones ajenas.
+
+**Fix:** Agregar `.eq('user_id', user.id)` al query.
+**ACCION MANUAL:** Verificar RLS: `USING (user_id = auth.uid())`.
+
+---
+
+### 🟢 BAJO — F-12: dangerouslySetInnerHTML en Calendario
+**OWASP:** A03:2021 | **Archivo:** `src/pages/Calendario.tsx:188`
+
+CSS estático hardcodeado, sin datos de usuario. Riesgo bajo pero patrón peligroso.
+**Fix:** Mover a archivo CSS o clase Tailwind.
+
+---
+
+### 🟢 BAJO — F-13: Sin MFA
+**OWASP:** A07:2021
+
+App médica sin segundo factor de autenticación.
+**ACCION MANUAL:** Habilitar TOTP MFA en Supabase Dashboard → Authentication → Multi-Factor Auth.
+
+---
+
+### 🟢 BAJO — F-14: Link de recuperación de contraseña muerto
+**OWASP:** A07:2021 | **Archivo:** `src/pages/Login.tsx`
+
+`href="#"` — recuperación de contraseña no funcional. Usuarios bloqueados sin mecanismo de auto-recuperación.
+
+**Fix:** Implementar `supabase.auth.resetPasswordForEmail(email)` con redirectTo.
+
+---
+
+### 🟢 BAJO — F-15: bulkCreateImplants sin límite de tamaño
+**OWASP:** A04:2021 | **Archivo:** `src/services/implantService.ts:99-103`
+
+Array de tamaño arbitrario puede causar carga en DB.
+**Fix:** `if (implants.length > 500) throw new Error('Máximo 500 por lote');`
+
+---
+
+### 🔵 INFO — F-16: sendAlert envía objeto Surgery completo
+**OWASP:** A04:2021 least privilege | **Archivo:** `src/services/surgeryService.ts:152-158`
+
+Edge Function recibe más datos de paciente de los necesarios (principio de mínimo privilegio).
+**Fix:** Enviar solo los campos requeridos por el Edge Function.
+
+---
+
+## RESUMEN EJECUTIVO
+
+| Severidad | Cantidad | IDs |
+|----------|---------|-----|
+| 🔴 CRITICO | 2 | F-01, F-02 |
+| 🟠 ALTO | 4 | F-03, F-04, F-05, F-06 |
+| 🟡 MEDIO | 5 | F-07, F-08, F-09, F-10, F-11 |
+| 🟢 BAJO | 4 | F-12, F-13, F-14, F-15 |
+| 🔵 INFO | 1 | F-16 |
+| **Total** | **16** | |
+
+### Acciones Manuales (Supabase Dashboard / infraestructura)
+| ID | Acción |
+|----|--------|
+| F-02 | Verificar RLS en TODAS las tablas de Supabase |
+| F-04 | Habilitar rate limiting + CAPTCHA en Supabase Auth |
+| F-07 | Configurar política de contraseñas en Supabase Auth |
+| F-11 | Verificar RLS en tabla `notifications` |
+| F-13 | Habilitar MFA en Supabase Auth |
+
+---
+
+## FASE 4 — RESULTADO
+
+Rama `security/audit-fixes`. Commits separados por hallazgo. `tsc --noEmit`
+y `npm run build` pasan. `npm audit` → 0 vulnerabilidades.
+
+### Corregido en código
+| ID | Severidad | Estado | Commit |
+|----|-----------|--------|--------|
+| F-01 | CRITICO | ✅ Corregido | escapeHtml en Reportes.tsx |
+| F-02 | CRITICO | ✅ Corregido | URL/ref e2e desde env |
+| F-03 | ALTO | ✅ Corregido | crypto.getRandomValues |
+| F-04 | ALTO | ✅ Parcial | throttling cliente (server = manual) |
+| F-05 | ALTO | ✅ Corregido | npm audit fix → 0 vulns |
+| F-06 | ALTO | ⚠️ Riesgo aceptado | mantener xlsx 0.20.3 CDN (ver F-06) |
+| F-07 | MEDIO | ✅ Parcial | política 12+ chars (Supabase = manual) |
+| F-08 | MEDIO | ✅ Corregido | compare-and-swap en stock |
+| F-09 | MEDIO | ✅ Corregido | allowlist hospital/surgeon |
+| F-10 | MEDIO | ✅ Corregido | vercel.json security headers |
+| F-11 | MEDIO | ✅ Corregido | filtro user_id en markAsRead |
+| F-12 | BAJO | ✅ Corregido | CSS movido a Calendario.css |
+| F-13 | BAJO | ⏳ Manual | habilitar MFA en Supabase |
+| F-14 | BAJO | ✅ Corregido | resetPasswordForEmail |
+| F-15 | BAJO | ✅ Corregido | límite 500 en bulkCreateImplants |
+| F-16 | INFO | ✅ Corregido | payload mínimo en sendAlert |
+
+### Acciones Manuales Pendientes (NO automatizables — requieren Dashboard Supabase)
+| ID | Acción |
+|----|--------|
+| F-02 | Verificar RLS habilitado en TODAS las tablas |
+| F-04 | Habilitar rate limiting + CAPTCHA en Supabase Auth |
+| F-07 | Configurar password strength en Supabase Auth |
+| F-11 | Verificar RLS en tabla `notifications`: `USING (user_id = auth.uid())` |
+| F-13 | Habilitar TOTP MFA en Supabase Auth (forzar para Administrador) |
+| F-06 | Monitorear avisos de seguridad de SheetJS |
+
+### Hallazgo adicional detectado durante Fase 4
+**F-17 (INFO):** El Edge Function `send-surgery-alert` interpola datos de
+DB sin escapar en el HTML del email (`${surgery.patient_name}` etc.) y
+usa `Access-Control-Allow-Origin: '*'`. Bajo impacto (los clientes de
+correo no ejecutan JS), pero conviene escapar y restringir CORS. Requiere
+editar y redesplegar el Edge Function (acción manual de infraestructura).

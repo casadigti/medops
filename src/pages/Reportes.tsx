@@ -17,6 +17,17 @@ import { implantService } from '../services/implantService';
 
 const COLORS = ['#1e40af','#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899'];
 
+// Escapes HTML special chars to prevent stored XSS when DB data is
+// interpolated into a document.write() print template (SECURITY F-01).
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const StatCard = ({ icon: Icon, label, value, color = 'text-primary', bg = 'bg-blue-50' }: { icon: React.ElementType; label: string; value: React.ReactNode; color?: string; bg?: string }) => (
   <div className="card flex items-center gap-4">
     <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center shrink-0', bg)}>
@@ -466,11 +477,11 @@ export const Reportes: React.FC = () => {
                       <th>Cirujano</th><th>Implante Más Usado</th><th>SKU</th>
                       <th style="text-align:center">Usos</th><th>Gasto Total</th><th style="text-align:center">% del Total</th>
                     </tr></thead><tbody>
-                    ${rows.map(r => `<tr><td>${r.surgeon}</td><td>${r.topImplant}</td>
-                      <td style="font-family:monospace">${r.sku}</td>
-                      <td style="text-align:center">${r.qty}</td>
-                      <td>RD$ ${r.cost.toLocaleString('en-US',{minimumFractionDigits:2})}</td>
-                      <td style="text-align:center">${r.pct}%</td></tr>`).join('')}
+                    ${rows.map(r => `<tr><td>${escapeHtml(r.surgeon)}</td><td>${escapeHtml(r.topImplant)}</td>
+                      <td style="font-family:monospace">${escapeHtml(r.sku)}</td>
+                      <td style="text-align:center">${escapeHtml(r.qty)}</td>
+                      <td>RD$ ${escapeHtml(r.cost.toLocaleString('en-US',{minimumFractionDigits:2}))}</td>
+                      <td style="text-align:center">${escapeHtml(r.pct)}%</td></tr>`).join('')}
                     </tbody></table>
                     <div class="footer">Generado por MedOps · ${new Date().toLocaleString('es-ES')} · Confidencial — Solo para uso interno</div>
                     </body></html>`);

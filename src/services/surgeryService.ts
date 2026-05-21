@@ -150,8 +150,21 @@ export const surgeryService = {
   },
 
   async sendAlert(surgery: Surgery, recipientEmail: string): Promise<unknown> {
+    // SECURITY F-16: send only the fields the send-surgery-alert Edge
+    // Function actually consumes, instead of the full Surgery object
+    // (data minimisation / least privilege).
+    const hospital = (surgery as { hospital?: { name?: string } }).hospital;
+    const surgeon = (surgery as { surgeon?: { full_name?: string } }).surgeon;
+    const payload = {
+      patient_name: surgery.patient_name,
+      surgery_date: surgery.surgery_date,
+      procedure_type: surgery.procedure_type,
+      hospital: hospital ? { name: hospital.name } : null,
+      surgeon: surgeon ? { full_name: surgeon.full_name } : null,
+    };
+
     const { data, error } = await supabase.functions.invoke('send-surgery-alert', {
-      body: { surgery, recipientEmail },
+      body: { surgery: payload, recipientEmail },
     });
     if (error) throw error;
     return data;

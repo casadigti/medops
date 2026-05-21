@@ -7,6 +7,10 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    // Playwright e2e specs must not be picked up by vitest; they use
+    // test.describe() from @playwright/test and fail under the vitest runner.
+    // Keep the vitest defaults (node_modules, dist) and add e2e.
+    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', '**/.claude/**'],
   },
   plugins: [
     react(),

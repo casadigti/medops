@@ -15,6 +15,32 @@ const AlertCircle: React.FC<{ size: number }> = ({ size }) => (
   </svg>
 );
 
+// SECURITY F-07: strong password policy. The app handles sensitive
+// medical data, so a 6-char minimum is insufficient.
+const PASSWORD_MIN_LENGTH = 12;
+
+interface PasswordChecks {
+  length: boolean;
+  upper: boolean;
+  lower: boolean;
+  digit: boolean;
+  special: boolean;
+}
+
+function checkPassword(pwd: string): PasswordChecks {
+  return {
+    length: pwd.length >= PASSWORD_MIN_LENGTH,
+    upper: /[A-Z]/.test(pwd),
+    lower: /[a-z]/.test(pwd),
+    digit: /\d/.test(pwd),
+    special: /[^A-Za-z0-9]/.test(pwd),
+  };
+}
+
+function isPasswordValid(checks: PasswordChecks): boolean {
+  return checks.length && checks.upper && checks.lower && checks.digit && checks.special;
+}
+
 export const ForcePasswordChange: React.FC<ForcePasswordChangeProps> = ({ user, onPasswordChanged }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -22,12 +48,15 @@ export const ForcePasswordChange: React.FC<ForcePasswordChangeProps> = ({ user, 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const checks = checkPassword(password);
+  const passwordValid = isPasswordValid(checks);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres.');
+    if (!isPasswordValid(checkPassword(password))) {
+      setError(`La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres e incluir mayúscula, minúscula, número y carácter especial.`);
       return;
     }
     if (password !== confirmPassword) {
@@ -85,7 +114,7 @@ export const ForcePasswordChange: React.FC<ForcePasswordChangeProps> = ({ user, 
                   required
                   type={showPass ? 'text' : 'password'}
                   className="w-full pl-10 pr-12 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/5 outline-none transition-all text-sm"
-                  placeholder="Min. 6 caracteres"
+                  placeholder="Mín. 12 caracteres"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
@@ -117,19 +146,24 @@ export const ForcePasswordChange: React.FC<ForcePasswordChangeProps> = ({ user, 
 
           <div className="bg-slate-50 rounded-2xl p-4 space-y-2">
             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Requisitos</h4>
-            <div className="flex items-center gap-2 text-xs font-medium">
-              <CheckCircle2 size={14} className={password.length >= 6 ? 'text-green-500' : 'text-slate-300'} />
-              <span className={password.length >= 6 ? 'text-slate-700' : 'text-slate-400'}>Mínimo 6 caracteres</span>
-            </div>
-            <div className="flex items-center gap-2 text-xs font-medium">
-              <CheckCircle2 size={14} className={password && password === confirmPassword ? 'text-green-500' : 'text-slate-300'} />
-              <span className={password && password === confirmPassword ? 'text-slate-700' : 'text-slate-400'}>Las contraseñas coinciden</span>
-            </div>
+            {([
+              [checks.length, `Mínimo ${PASSWORD_MIN_LENGTH} caracteres`],
+              [checks.upper, 'Una letra mayúscula'],
+              [checks.lower, 'Una letra minúscula'],
+              [checks.digit, 'Un número'],
+              [checks.special, 'Un carácter especial'],
+              [!!password && password === confirmPassword, 'Las contraseñas coinciden'],
+            ] as Array<[boolean, string]>).map(([ok, label]) => (
+              <div key={label} className="flex items-center gap-2 text-xs font-medium">
+                <CheckCircle2 size={14} className={ok ? 'text-green-500' : 'text-slate-300'} />
+                <span className={ok ? 'text-slate-700' : 'text-slate-400'}>{label}</span>
+              </div>
+            ))}
           </div>
 
           <button
             type="submit"
-            disabled={loading || password.length < 6 || password !== confirmPassword}
+            disabled={loading || !passwordValid || password !== confirmPassword}
             className="w-full py-4 bg-primary text-white rounded-2xl font-bold shadow-lg shadow-primary/20 hover:bg-blue-700 hover:shadow-primary/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
           >
             {loading ? (
