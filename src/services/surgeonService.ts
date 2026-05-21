@@ -55,10 +55,14 @@ export const surgeonService = {
     email: string;
     full_name: string;
   }): Promise<{ userId: string; tempPassword: string }> {
+    // SECURITY F-03: use a cryptographically secure RNG for temp passwords.
+    // Math.random() is predictable and unsuitable for credentials.
     const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    const randomBytes = new Uint32Array(10);
+    crypto.getRandomValues(randomBytes);
     const tempPassword = Array.from(
-      { length: 10 },
-      () => chars[Math.floor(Math.random() * chars.length)]
+      randomBytes,
+      (n) => chars[n % chars.length]
     ).join('');
 
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
