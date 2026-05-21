@@ -1,6 +1,22 @@
 import { supabase } from '../lib/supabase';
 import type { Surgeon, UserProfile } from '../types/domain';
 
+// SECURITY F-09: allowlist the fields a client may write to prevent mass
+// assignment of unintended columns (e.g. id, created_at).
+const ALLOWED_FIELDS: Array<keyof Surgeon> = [
+  'full_name', 'specialty', 'email', 'phone', 'user_id', 'preferences',
+];
+
+function pickAllowed(surgeon: Partial<Surgeon>): Partial<Surgeon> {
+  const clean: Partial<Surgeon> = {};
+  ALLOWED_FIELDS.forEach(field => {
+    if (surgeon[field] !== undefined) {
+      (clean as Record<string, unknown>)[field] = surgeon[field];
+    }
+  });
+  return clean;
+}
+
 export function withTimeout<T>(promise: PromiseLike<T>, ms = 8000, label = 'Query'): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout>;
   const timeout = new Promise<never>((_, reject) => {
@@ -24,14 +40,14 @@ export const surgeonService = {
 
   async create(surgeon: Omit<Surgeon, 'id' | 'created_at'>): Promise<Surgeon> {
     const { data, error } = await supabase
-      .from('surgeons').insert(surgeon).select().single();
+      .from('surgeons').insert(pickAllowed(surgeon)).select().single();
     if (error) throw error;
     return data;
   },
 
   async update(id: string, surgeon: Partial<Surgeon>): Promise<Surgeon> {
     const { data, error } = await supabase
-      .from('surgeons').update(surgeon).eq('id', id).select().single();
+      .from('surgeons').update(pickAllowed(surgeon)).eq('id', id).select().single();
     if (error) throw error;
     return data;
   },
