@@ -9,7 +9,29 @@ export const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [infoMsg, setInfoMsg] = useState('');
   const navigate = useNavigate();
+
+  // SECURITY F-14: real password recovery flow (the link was dead, href="#").
+  const handleForgotPassword = async () => {
+    setErrorMsg('');
+    setInfoMsg('');
+    if (!email) {
+      setErrorMsg('Ingresa tu correo electrónico para recuperar la contraseña.');
+      return;
+    }
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/`,
+      });
+      if (error) throw error;
+    } catch (error) {
+      // Do not reveal whether the email is registered (account enumeration).
+      console.error('Error al enviar recuperación:', error);
+    }
+    // Always show the same message regardless of outcome.
+    setInfoMsg('Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.');
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +73,12 @@ export const Login: React.FC = () => {
                 {errorMsg}
               </div>
             )}
+            {infoMsg && (
+              <div className="p-3 bg-green-50 text-green-700 text-sm font-semibold rounded-xl border border-green-100 flex items-center gap-2 animate-in fade-in zoom-in-95">
+                <Mail size={16} />
+                {infoMsg}
+              </div>
+            )}
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Correo Electrónico</label>
               <div className="relative group">
@@ -69,7 +97,13 @@ export const Login: React.FC = () => {
             <div>
               <div className="flex justify-between items-center mb-1.5">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contraseña</label>
-                <a href="#" className="text-[10px] font-bold text-primary hover:text-primary-600 transition-colors">¿Olvidaste tu contraseña?</a>
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-[10px] font-bold text-primary hover:text-primary-600 transition-colors"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
               </div>
               <div className="relative group">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={18} />
