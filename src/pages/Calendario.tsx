@@ -10,6 +10,7 @@ import { Calendar, Loader2, User } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useToast } from '../components/ui/Toast';
 import type { UserProfile, Surgery, Surgeon } from '../types/domain';
+import './Calendario.css';
 
 interface CalendarioProps {
   userProfile: Partial<UserProfile> | null;
@@ -185,55 +186,6 @@ export const Calendario: React.FC<CalendarioProps> = ({ userProfile }) => {
         <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-green-500"></div><span className="text-xs text-slate-600">Completada</span></div>
       </div>
 
-      <style dangerouslySetInnerHTML={{__html: `
-        .calendar-wrapper .fc-theme-standard td, .calendar-wrapper .fc-theme-standard th {
-          border-color: #e2e8f0;
-        }
-        .calendar-wrapper .fc-col-header-cell {
-          background-color: #f8fafc;
-          padding: 8px 0;
-        }
-        .calendar-wrapper .fc-col-header-cell-cushion {
-          color: #475569;
-          font-weight: 700;
-          text-transform: capitalize;
-        }
-        .calendar-wrapper .fc-daygrid-day-number {
-          color: #1e293b;
-          font-weight: 600;
-          padding: 8px;
-        }
-        .calendar-wrapper .fc-button-primary {
-          background-color: #1e40af;
-          border-color: #1e40af;
-          border-radius: 8px;
-          text-transform: capitalize;
-          font-weight: 600;
-        }
-        .calendar-wrapper .fc-button-primary:hover {
-          background-color: #1e3a8a;
-          border-color: #1e3a8a;
-        }
-        .calendar-wrapper .fc-button-active {
-          background-color: #172554 !important;
-          border-color: #172554 !important;
-        }
-        .calendar-wrapper .fc-event {
-          border-radius: 4px;
-          border: none;
-          padding: 1px 2px;
-          transition: transform 0.1s;
-        }
-        .calendar-wrapper .fc-event:hover {
-          transform: scale(1.02);
-          cursor: grab;
-        }
-        .calendar-wrapper .fc-event-dragging {
-          cursor: grabbing !important;
-          opacity: 0.8;
-          box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-        }
-      `}} />
     </div>
   );
 };
