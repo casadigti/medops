@@ -10,6 +10,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// SECURITY F-17: escape DB-sourced values before interpolating them into
+// the email HTML to prevent HTML injection via stored data.
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -47,11 +58,11 @@ serve(async (req) => {
         <div style="padding: 30px; color: #1e293b; line-height: 1.6;">
           <h2 style="margin-top: 0; color: #1e40af;">Detalles de la Cirugía</h2>
           <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-            <p style="margin: 8px 0;"><strong>👤 Paciente:</strong> ${surgery.patient_name}</p>
-            <p style="margin: 8px 0;"><strong>🏥 Hospital:</strong> ${surgery.hospital?.name || 'No especificado'}</p>
-            <p style="margin: 8px 0;"><strong>👨‍⚕️ Cirujano:</strong> ${surgery.surgeon?.full_name || 'No especificado'}</p>
-            <p style="margin: 8px 0;"><strong>📅 Fecha:</strong> ${new Date(surgery.surgery_date).toLocaleString('es-ES')}</p>
-            <p style="margin: 8px 0;"><strong>⚙️ Procedimiento:</strong> ${surgery.procedure_type}</p>
+            <p style="margin: 8px 0;"><strong>👤 Paciente:</strong> ${escapeHtml(surgery.patient_name)}</p>
+            <p style="margin: 8px 0;"><strong>🏥 Hospital:</strong> ${escapeHtml(surgery.hospital?.name || 'No especificado')}</p>
+            <p style="margin: 8px 0;"><strong>👨‍⚕️ Cirujano:</strong> ${escapeHtml(surgery.surgeon?.full_name || 'No especificado')}</p>
+            <p style="margin: 8px 0;"><strong>📅 Fecha:</strong> ${escapeHtml(new Date(surgery.surgery_date).toLocaleString('es-ES'))}</p>
+            <p style="margin: 8px 0;"><strong>⚙️ Procedimiento:</strong> ${escapeHtml(surgery.procedure_type)}</p>
           </div>
           <p style="font-size: 14px; color: #64748b; text-align: center;">Este es un mensaje automático generado por el sistema MedOps.</p>
         </div>
