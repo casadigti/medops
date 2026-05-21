@@ -1,5 +1,8 @@
-export const SUPABASE_URL = 'https://rlygbfossyzqljdtlvfk.supabase.co';
-export const PROJECT_REF = 'rlygbfossyzqljdtlvfk';
+// SECURITY F-02: do not hardcode the production Supabase URL/ref in
+// versioned code. Read from the environment; default to local Supabase.
+const ENV = process.env;
+export const SUPABASE_URL = ENV['E2E_SUPABASE_URL'] || 'http://localhost:54321';
+export const PROJECT_REF = ENV['E2E_SUPABASE_PROJECT_REF'] || 'local';
 
 export const MOCK_USER = {
   id: 'mock-user-id-e2e',
