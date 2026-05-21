@@ -122,6 +122,12 @@ export const implantService = {
   },
 
   async bulkCreateImplants(implants: Array<Omit<Implant, 'id' | 'created_at' | 'implant_lots'>>): Promise<Implant[]> {
+    // SECURITY F-15: cap batch size so a client cannot push an
+    // unbounded payload that loads the database.
+    if (implants.length === 0) return [];
+    if (implants.length > 500) {
+      throw new Error('Máximo 500 implantes por lote');
+    }
     const { data, error } = await supabase
       .from('implants').insert(implants).select();
     if (error) throw error;
