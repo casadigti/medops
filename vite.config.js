@@ -56,6 +56,9 @@ export default defineConfig({
             if (id.includes('@supabase')) return 'vendor-supabase';
             if (id.includes('lucide')) return 'vendor-icons';
             if (id.includes('recharts') || id.includes('d3')) return 'vendor-charts';
+            if (id.includes('fullcalendar')) return 'vendor-calendar';
+            if (id.includes('jspdf')) return 'vendor-pdf';
+            if (id.includes('xlsx')) return 'vendor-xlsx';
             return 'vendor-core';
           }
         }
