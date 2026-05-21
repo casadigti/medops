@@ -1,8 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Stethoscope, Lock, Mail, ChevronRight, ShieldAlert } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { supabase } from '../lib/supabase';
+
+// SECURITY F-04: client-side login throttling. After LOCK_THRESHOLD failed
+// attempts the form locks with exponential backoff. This adds friction
+// against brute force; the authoritative control is server-side rate
+// limiting in the Supabase Auth dashboard (see ACCION MANUAL).
+const LOCK_THRESHOLD = 5;
+const BACKOFF_BASE_SECONDS = 30;
+const BACKOFF_MAX_SECONDS = 15 * 60;
+const THROTTLE_STORAGE_KEY = 'medops_login_throttle';
+
+interface ThrottleState {
+  attempts: number;
+  lockUntil: number;
+}
+
+function loadThrottle(): ThrottleState {
+  try {
+    const raw = localStorage.getItem(THROTTLE_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as ThrottleState;
+      if (typeof parsed.attempts === 'number' && typeof parsed.lockUntil === 'number') {
+        return parsed;
+      }
+    }
+  } catch {
+    /* ignore corrupt storage */
+  }
+  return { attempts: 0, lockUntil: 0 };
+}
+
+function saveThrottle(state: ThrottleState): void {
+  try {
+    localStorage.setItem(THROTTLE_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    /* ignore storage failures */
+  }
+}
+
+function clearThrottle(): void {
+  try {
+    localStorage.removeItem(THROTTLE_STORAGE_KEY);
+  } catch {
+    /* ignore storage failures */
+  }
+}
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -10,7 +55,19 @@ export const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [infoMsg, setInfoMsg] = useState('');
+  const [lockRemaining, setLockRemaining] = useState(0);
   const navigate = useNavigate();
+
+  // Tick down the lockout countdown once per second.
+  useEffect(() => {
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((loadThrottle().lockUntil - Date.now()) / 1000));
+      setLockRemaining(remaining);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // SECURITY F-14: real password recovery flow (the link was dead, href="#").
   const handleForgotPassword = async () => {
@@ -35,15 +92,40 @@ export const Login: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const throttle = loadThrottle();
+    if (Date.now() < throttle.lockUntil) {
+      const remaining = Math.ceil((throttle.lockUntil - Date.now()) / 1000);
+      setErrorMsg(`Demasiados intentos fallidos. Espera ${remaining}s antes de reintentar.`);
+      return;
+    }
+
     setIsLoading(true);
     setErrorMsg('');
+    setInfoMsg('');
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
+      clearThrottle();
       navigate('/');
     } catch (error) {
       console.error('Error al iniciar sesión:', error);
-      setErrorMsg('Credenciales inválidas. Por favor, verifica tu correo y contraseña.');
+      const attempts = throttle.attempts + 1;
+      let lockUntil = 0;
+      if (attempts >= LOCK_THRESHOLD) {
+        const backoff = Math.min(
+          BACKOFF_BASE_SECONDS * Math.pow(2, attempts - LOCK_THRESHOLD),
+          BACKOFF_MAX_SECONDS
+        );
+        lockUntil = Date.now() + backoff * 1000;
+      }
+      saveThrottle({ attempts, lockUntil });
+      if (lockUntil) {
+        setLockRemaining(Math.ceil((lockUntil - Date.now()) / 1000));
+        setErrorMsg(`Demasiados intentos fallidos. Acceso bloqueado temporalmente.`);
+      } else {
+        setErrorMsg(`Credenciales inválidas. Intento ${attempts} de ${LOCK_THRESHOLD}.`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -121,14 +203,18 @@ export const Login: React.FC = () => {
             <div className="pt-4">
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || lockRemaining > 0}
                 className={cn(
                   'w-full bg-primary text-white py-3.5 px-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-xl shadow-primary/20 transition-all',
-                  isLoading ? 'opacity-70 cursor-wait' : 'hover:-translate-y-1 hover:shadow-primary/40 active:translate-y-0'
+                  isLoading ? 'opacity-70 cursor-wait'
+                    : lockRemaining > 0 ? 'opacity-50 cursor-not-allowed'
+                    : 'hover:-translate-y-1 hover:shadow-primary/40 active:translate-y-0'
                 )}
               >
                 {isLoading ? (
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : lockRemaining > 0 ? (
+                  <>Bloqueado · {lockRemaining}s</>
                 ) : (
                   <>Iniciar Sesión <ChevronRight size={18} /></>
                 )}
