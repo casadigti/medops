@@ -110,7 +110,9 @@ Fuerza bruta ilimitada. Sin delay, CAPTCHA, ni bloqueo tras N intentos fallidos.
 
 `"xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"` — si el CDN es comprometido, código malicioso se instala durante `npm install`. Sin hash de integridad verificado.
 
-**Fix:** Migrar a paquete npm oficial (`npm install xlsx`) o `exceljs`.
+**Decisión:** NO migrar al registry npm. SheetJS dejó de publicar en npmjs; la última versión ahí es `0.18.5`, con CVEs conocidos (prototype pollution GHSA-4r6h-8v6p-xvw6, ReDoS GHSA-5pgg-2g8v-p4x9) corregidos recién en `0.20.2`. Bajar a `0.18.5` empeoraría la seguridad. La versión actual `0.20.3` del CDN es la parcheada.
+
+**Acción:** Mantener `0.20.3`. `package-lock.json` ya fija el hash de integridad del tarball una vez instalado. RIESGO RESIDUAL ACEPTADO — monitorear avisos de SheetJS y considerar `exceljs` si se requiere proveedor del registry npm (cambio de API mayor).
 
 ---
 
@@ -249,20 +251,44 @@ Edge Function recibe más datos de paciente de los necesarios (principio de mín
 
 ---
 
-## FASE 4 — PLAN DE FIXES (pendiente aprobación del usuario)
+## FASE 4 — RESULTADO
 
-Al confirmar, se crea rama `security/audit-fixes` con commits separados por severidad:
+Rama `security/audit-fixes`. Commits separados por hallazgo. `tsc --noEmit`
+y `npm run build` pasan. `npm audit` → 0 vulnerabilidades.
 
-1. F-01 — escapeHtml en Reportes.tsx
-2. F-02 — Eliminar hardcoded URL en mockData.ts
-3. F-03 — crypto.getRandomValues en surgeonService.ts
-4. F-07 — Política de contraseñas en ForcePasswordChange.tsx
-5. F-08 — RPC atómica para consumo de stock
-6. F-09 — Allowlist en hospitalService / surgeonService
-7. F-10 — Crear vercel.json con security headers
-8. F-11 — Filtro user_id en notificationService.markAsRead
-9. F-12 — Eliminar dangerouslySetInnerHTML en Calendario
-10. F-14 — Implementar forgot password flow
-11. F-15 — Límite en bulkCreateImplants
-12. F-16 — Reducir payload de sendAlert
-13. F-05/06 — npm audit fix + documentar acciones manuales F-04/13
+### Corregido en código
+| ID | Severidad | Estado | Commit |
+|----|-----------|--------|--------|
+| F-01 | CRITICO | ✅ Corregido | escapeHtml en Reportes.tsx |
+| F-02 | CRITICO | ✅ Corregido | URL/ref e2e desde env |
+| F-03 | ALTO | ✅ Corregido | crypto.getRandomValues |
+| F-04 | ALTO | ✅ Parcial | throttling cliente (server = manual) |
+| F-05 | ALTO | ✅ Corregido | npm audit fix → 0 vulns |
+| F-06 | ALTO | ⚠️ Riesgo aceptado | mantener xlsx 0.20.3 CDN (ver F-06) |
+| F-07 | MEDIO | ✅ Parcial | política 12+ chars (Supabase = manual) |
+| F-08 | MEDIO | ✅ Corregido | compare-and-swap en stock |
+| F-09 | MEDIO | ✅ Corregido | allowlist hospital/surgeon |
+| F-10 | MEDIO | ✅ Corregido | vercel.json security headers |
+| F-11 | MEDIO | ✅ Corregido | filtro user_id en markAsRead |
+| F-12 | BAJO | ✅ Corregido | CSS movido a Calendario.css |
+| F-13 | BAJO | ⏳ Manual | habilitar MFA en Supabase |
+| F-14 | BAJO | ✅ Corregido | resetPasswordForEmail |
+| F-15 | BAJO | ✅ Corregido | límite 500 en bulkCreateImplants |
+| F-16 | INFO | ✅ Corregido | payload mínimo en sendAlert |
+
+### Acciones Manuales Pendientes (NO automatizables — requieren Dashboard Supabase)
+| ID | Acción |
+|----|--------|
+| F-02 | Verificar RLS habilitado en TODAS las tablas |
+| F-04 | Habilitar rate limiting + CAPTCHA en Supabase Auth |
+| F-07 | Configurar password strength en Supabase Auth |
+| F-11 | Verificar RLS en tabla `notifications`: `USING (user_id = auth.uid())` |
+| F-13 | Habilitar TOTP MFA en Supabase Auth (forzar para Administrador) |
+| F-06 | Monitorear avisos de seguridad de SheetJS |
+
+### Hallazgo adicional detectado durante Fase 4
+**F-17 (INFO):** El Edge Function `send-surgery-alert` interpola datos de
+DB sin escapar en el HTML del email (`${surgery.patient_name}` etc.) y
+usa `Access-Control-Allow-Origin: '*'`. Bajo impacto (los clientes de
+correo no ejecutan JS), pero conviene escapar y restringir CORS. Requiere
+editar y redesplegar el Edge Function (acción manual de infraestructura).
