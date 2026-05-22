@@ -139,6 +139,7 @@ export const implantService = {
   },
 
   async getConsumptionReport(startDate?: string, endDate?: string): Promise<SurgeryConsumption[]> {
+    const orgOverride = getImpersonatedOrgId();
     let query = supabase
       .from('surgery_consumption')
       .select(`
@@ -150,6 +151,7 @@ export const implantService = {
       .eq('surgeries.status', 'Completada')
       .order('used_at', { ascending: false });
 
+    if (orgOverride) query = query.eq('org_id', orgOverride);
     if (startDate) query = query.gte('used_at', startDate);
     if (endDate) query = query.lte('used_at', endDate);
 
@@ -159,20 +161,26 @@ export const implantService = {
   },
 
   async getExpiringLots(): Promise<ImplantLot[]> {
-    const { data, error } = await supabase
+    const orgOverride = getImpersonatedOrgId();
+    let query = supabase
       .from('implant_lots')
       .select(`*, implants (name, sku)`)
       .lte('expiration_date', getLocalDateString(new Date(Date.now() + 90 * 86400000)))
       .gt('current_quantity', 0)
       .order('expiration_date');
+    if (orgOverride) query = query.eq('org_id', orgOverride);
+    const { data, error } = await query;
     if (error) throw error;
     return data;
   },
 
   async getLowStockImplants(): Promise<Implant[]> {
-    const { data, error } = await supabase
+    const orgOverride = getImpersonatedOrgId();
+    let query = supabase
       .from('implants')
       .select(`*, implant_lots (current_quantity)`);
+    if (orgOverride) query = query.eq('org_id', orgOverride);
+    const { data, error } = await query;
     if (error) throw error;
 
     return data.filter((imp: Implant) => {
@@ -184,9 +192,12 @@ export const implantService = {
   },
 
   async getAllLotsDetailed(): Promise<ImplantLot[]> {
-    const { data, error } = await supabase
+    const orgOverride = getImpersonatedOrgId();
+    let query = supabase
       .from('implant_lots')
       .select(`*, implants (id, name, sku, category, unit_cost, selling_price)`);
+    if (orgOverride) query = query.eq('org_id', orgOverride);
+    const { data, error } = await query;
     if (error) throw error;
     return data;
   },
