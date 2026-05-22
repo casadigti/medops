@@ -72,26 +72,28 @@ export const ForcePasswordChange: React.FC<ForcePasswordChangeProps> = ({ user, 
 
     setLoading(true);
     try {
-      // Re-autenticar con la contraseña temporal antes de cambiarla
-      // (requerido cuando Supabase tiene "Secure password change" activado).
-      const { error: reAuthError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: currentPassword,
+      // Usar Admin API via edge function para evitar "Secure Password Change"
+      // de Supabase, que requiere OTP por email y bloquea el flujo de primer ingreso.
+      const { error: fnError } = await supabase.functions.invoke('manage-users', {
+        body: {
+          action: 'change-own-password',
+          currentPassword,
+          newPassword: password,
+        },
       });
-      if (reAuthError) {
-        setError('Contraseña temporal incorrecta.');
-        setLoading(false);
+      if (fnError) {
+        let msg = fnError.message || '';
+        try {
+          const body = await (fnError as any).context?.json?.();
+          if (body?.error) msg = body.error;
+        } catch { /* ignorar */ }
+        if (msg.toLowerCase().includes('temporal') || msg.toLowerCase().includes('incorrect')) {
+          setError('Contraseña temporal incorrecta.');
+        } else {
+          setError(msg || 'Error al actualizar la contraseña.');
+        }
         return;
       }
-
-      const { error: authError } = await supabase.auth.updateUser({ password });
-      if (authError) throw authError;
-
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ must_change_password: false })
-        .eq('id', user.id);
-      if (profileError) throw profileError;
 
       onPasswordChanged();
     } catch (err) {
