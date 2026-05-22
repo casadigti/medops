@@ -23,8 +23,8 @@ export const configService = {
     const { data, error } = await supabase
       .from('organization_settings')
       .select('*')
-      .single();
-    if (error && (error as { code?: string }).code !== 'PGRST116') throw error;
+      .maybeSingle();
+    if (error) throw error;
     return data;
   },
 
