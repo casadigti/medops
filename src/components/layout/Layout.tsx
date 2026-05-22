@@ -1,6 +1,8 @@
 import React from 'react';
 import { Sidebar } from './Sidebar';
 import { ImpersonationBanner } from '../ImpersonationBanner';
+import { SessionTimeoutModal } from '../SessionTimeoutModal';
+import { useSessionTimeout } from '../../hooks/useSessionTimeout';
 import { Bell, Search, LayoutDashboard, CalendarDays, Stethoscope, Package, Users, BarChart3, Settings, Wrench } from 'lucide-react';
 import { surgeryService } from '../../services/surgeryService';
 import { implantService } from '../../services/implantService';
@@ -66,6 +68,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, userProfile }) => {
   const [unreadCount, setUnreadCount] = React.useState(0);
   const [showNotifs, setShowNotifs] = React.useState(false);
   const [lowStockCount, setLowStockCount] = React.useState(0);
+
+  const { showWarning, secondsLeft, extendSession, doLogout } = useSessionTimeout({
+    onTimeout: () => navigate('/login'),
+  });
 
   React.useEffect(() => {
     if (!userProfile?.id) return;
@@ -169,6 +175,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, userProfile }) => {
 
         <MobileNav role={userProfile?.role} />
       </main>
+
+      {showWarning && (
+        <SessionTimeoutModal
+          secondsLeft={secondsLeft}
+          onExtend={extendSession}
+          onLogout={doLogout}
+        />
+      )}
     </div>
   );
 };
