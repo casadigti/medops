@@ -42,9 +42,11 @@ function isPasswordValid(checks: PasswordChecks): boolean {
 }
 
 export const ForcePasswordChange: React.FC<ForcePasswordChangeProps> = ({ user, onPasswordChanged }) => {
+  const [currentPassword, setCurrentPassword] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
+  const [showCurrent, setShowCurrent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +57,10 @@ export const ForcePasswordChange: React.FC<ForcePasswordChangeProps> = ({ user, 
     e.preventDefault();
     setError(null);
 
+    if (!currentPassword) {
+      setError('Ingresa tu contraseña temporal.');
+      return;
+    }
     if (!isPasswordValid(checkPassword(password))) {
       setError(`La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres e incluir mayúscula, minúscula, número y carácter especial.`);
       return;
@@ -66,6 +72,18 @@ export const ForcePasswordChange: React.FC<ForcePasswordChangeProps> = ({ user, 
 
     setLoading(true);
     try {
+      // Re-autenticar con la contraseña temporal antes de cambiarla
+      // (requerido cuando Supabase tiene "Secure password change" activado).
+      const { error: reAuthError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+      if (reAuthError) {
+        setError('Contraseña temporal incorrecta.');
+        setLoading(false);
+        return;
+      }
+
       const { error: authError } = await supabase.auth.updateUser({ password });
       if (authError) throw authError;
 
@@ -106,6 +124,28 @@ export const ForcePasswordChange: React.FC<ForcePasswordChangeProps> = ({ user, 
           )}
 
           <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">Contraseña Temporal</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  required
+                  type={showCurrent ? 'text' : 'password'}
+                  className="w-full pl-10 pr-12 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/5 outline-none transition-all text-sm"
+                  placeholder="La que te entregó el administrador"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrent(!showCurrent)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                >
+                  {showCurrent ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">Nueva Contraseña</label>
               <div className="relative">
