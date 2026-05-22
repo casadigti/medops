@@ -28,9 +28,12 @@ export const configService = {
   },
 
   async updateSettings(settings: Partial<OrganizationSettings>): Promise<OrganizationSettings[]> {
+    // Multi-tenancy: la fila de settings se identifica por org_id (único).
+    // org_id lo llena el DEFAULT get_my_org_id() en INSERT; RLS impide tocar
+    // settings de otra organización.
     const { data, error } = await supabase
       .from('organization_settings')
-      .upsert({ id: 1, ...settings })
+      .upsert({ ...settings }, { onConflict: 'org_id' })
       .select();
     if (error) throw error;
     return data;

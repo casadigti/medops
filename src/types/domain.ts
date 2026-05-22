@@ -123,6 +123,15 @@ export interface Notification {
 
 export type UserRole = 'Superadmin' | 'Administrador' | 'Cirujano' | 'Técnico' | 'Editor' | 'Lector';
 
+// Una organización (tenant). La data de cada org está aislada por RLS.
+export interface Organization {
+  id: string;
+  name: string;
+  slug?: string | null;
+  is_active: boolean;
+  created_at?: string;
+}
+
 export interface UserProfile {
   id: string;
   full_name: string;
@@ -131,10 +140,15 @@ export interface UserProfile {
   is_active: boolean;
   must_change_password: boolean;
   created_at?: string;
+  // Multi-tenancy: org a la que pertenece el usuario. NULL para un
+  // administrador de plataforma que no está ligado a ninguna organización.
+  org_id?: string | null;
+  is_platform_admin?: boolean;
 }
 
 export interface OrganizationSettings {
-  id: number;
+  // Identificada por org_id (una fila de settings por organización).
+  org_id?: string;
   company_name?: string;
   logo_url?: string;
   phone?: string;

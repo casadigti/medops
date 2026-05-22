@@ -16,6 +16,7 @@ import { MisSolicitudes } from './pages/MisSolicitudes';
 import { InventarioQuirurgico } from './pages/InventarioQuirurgico';
 import { ReporteReposicion } from './pages/ReporteReposicion';
 import { ReporteLotes } from './pages/ReporteLotes';
+import { Organizaciones } from './pages/Organizaciones';
 import { ForcePasswordChange } from './components/auth/ForcePasswordChange';
 import type { Session } from '@supabase/supabase-js';
 import type { UserProfile } from './types/domain';
@@ -159,6 +160,7 @@ function App() {
                     <Route path="/directorio" element={!isSurgeon ? <Directorio /> : <Navigate to="/mis-solicitudes" replace />} />
                     <Route path="/reportes" element={!isSurgeon ? <Reportes /> : <Navigate to="/mis-solicitudes" replace />} />
                     <Route path="/configuracion" element={<Configuracion userProfile={userProfile} />} />
+                    <Route path="/organizaciones" element={userProfile?.is_platform_admin ? <Organizaciones /> : <Navigate to="/" replace />} />
                     <Route path="/inventario" element={!isSurgeon ? <InventarioQuirurgico /> : <Navigate to="/mis-solicitudes" replace />} />
                     <Route path="/reporte-reposicion" element={!isSurgeon ? <ReporteReposicion /> : <Navigate to="/mis-solicitudes" replace />} />
                     <Route path="/reporte-lotes" element={!isSurgeon ? <ReporteLotes /> : <Navigate to="/mis-solicitudes" replace />} />
