@@ -47,4 +47,13 @@ export const organizationService = {
     if (error) throw error;
     await auditService.log('ORG_UPDATE', 'organizations', id, { is_active });
   },
+
+  async deleteOrg(id: string, name: string): Promise<void> {
+    const { data, error } = await supabase.functions.invoke('manage-orgs', {
+      body: { action: 'delete-org', orgId: id },
+    });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    await auditService.log('ORG_DELETE', 'organizations', id, { name });
+  },
 };

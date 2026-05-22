@@ -54,7 +54,8 @@ serve(async (req) => {
       throw new Error('Forbidden: Solo un administrador de plataforma puede gestionar organizaciones')
     }
 
-    const { action, orgData } = await req.json()
+    const body = await req.json()
+    const { action, orgData } = body
 
     // 3. CREAR ORGANIZACIÓN + primer Administrador
     if (action === 'create-org') {
@@ -107,6 +108,48 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({ org, admin: { id: newUserId, email: admin_email }, tempPassword }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    // 4. ELIMINAR ORGANIZACIÓN + toda su data (cascada manual en orden FK)
+    if (action === 'delete-org') {
+      const orgId: string = body.orgId
+      if (!orgId) throw new Error('orgId es obligatorio para delete-org')
+
+      // Borrar en orden de dependencias FK para evitar constraint errors.
+      await supabaseAdmin.from('surgery_consumption').delete().eq('org_id', orgId)
+      await supabaseAdmin.from('surgery_trays').delete().eq('org_id', orgId)
+      await supabaseAdmin.from('notifications').delete().eq('org_id', orgId)
+      await supabaseAdmin.from('audit_logs').delete().eq('org_id', orgId)
+      await supabaseAdmin.from('surgeries').delete().eq('org_id', orgId)
+      await supabaseAdmin.from('maintenance_logs').delete().eq('org_id', orgId)
+      await supabaseAdmin.from('trays').delete().eq('org_id', orgId)
+      await supabaseAdmin.from('implant_lots').delete().eq('org_id', orgId)
+      await supabaseAdmin.from('implants').delete().eq('org_id', orgId)
+      await supabaseAdmin.from('ars').delete().eq('org_id', orgId)
+      await supabaseAdmin.from('surgeons').delete().eq('org_id', orgId)
+      await supabaseAdmin.from('hospitals').delete().eq('org_id', orgId)
+      await supabaseAdmin.from('organization_settings').delete().eq('org_id', orgId)
+
+      // Eliminar cuentas auth.users de todos los miembros de la org.
+      const { data: members } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .eq('org_id', orgId)
+      if (members && members.length > 0) {
+        for (const member of members) {
+          try {
+            await supabaseAdmin.auth.admin.deleteUser(member.id)
+          } catch (_) { /* perfil sin cuenta auth — continuar */ }
+        }
+      }
+
+      await supabaseAdmin.from('profiles').delete().eq('org_id', orgId)
+      await supabaseAdmin.from('organizations').delete().eq('id', orgId)
+
+      return new Response(
+        JSON.stringify({ success: true, orgId }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }

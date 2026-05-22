@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Building2, Plus, X, Copy, CheckCircle2, Power, Wrench } from 'lucide-react';
+import { Building2, Plus, X, Copy, CheckCircle2, Power, Wrench, Trash2, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../utils/cn';
 import { useToast } from '../components/ui/Toast';
@@ -26,6 +26,9 @@ export const Organizaciones: React.FC = () => {
   const [form, setForm] = useState<NewOrgForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [createdInfo, setCreatedInfo] = useState<{ email: string; tempPassword: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Organization | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const loadOrgs = async () => {
     setLoading(true);
@@ -77,6 +80,24 @@ export const Organizaciones: React.FC = () => {
     } catch (err) {
       console.error('Error actualizando organización:', err);
       toast.error('No se pudo actualizar la organización.');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget || deleteConfirm !== deleteTarget.name) return;
+    setDeleting(true);
+    try {
+      await organizationService.deleteOrg(deleteTarget.id, deleteTarget.name);
+      toast.success(`Organización "${deleteTarget.name}" eliminada permanentemente.`);
+      setDeleteTarget(null);
+      setDeleteConfirm('');
+      await loadOrgs();
+    } catch (err) {
+      console.error('Error eliminando organización:', err);
+      const msg = err instanceof Error ? err.message : 'Error al eliminar la organización.';
+      toast.error(msg);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -169,10 +190,7 @@ export const Organizaciones: React.FC = () => {
                 {org.is_active ? 'Activa' : 'Inactiva'}
               </span>
               <button
-                onClick={() => {
-                  startImpersonation(org);
-                  navigate('/');
-                }}
+                onClick={() => { startImpersonation(org); navigate('/'); }}
                 title="Entrar en modo mantenimiento"
                 className="p-2 rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors"
               >
@@ -184,17 +202,25 @@ export const Organizaciones: React.FC = () => {
                 className={cn(
                   'p-2 rounded-lg transition-colors',
                   org.is_active
-                    ? 'text-slate-400 hover:text-red-500 hover:bg-red-50'
+                    ? 'text-slate-400 hover:text-amber-500 hover:bg-amber-50'
                     : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'
                 )}
               >
                 <Power size={18} />
+              </button>
+              <button
+                onClick={() => { setDeleteTarget(org); setDeleteConfirm(''); }}
+                title="Eliminar organización permanentemente"
+                className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <Trash2 size={18} />
               </button>
             </div>
           ))}
         </div>
       )}
 
+      {/* Modal: Nueva Organización */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6">
@@ -263,6 +289,70 @@ export const Organizaciones: React.FC = () => {
                 )}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Confirmar eliminación */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-start gap-3 mb-5">
+              <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
+                <AlertTriangle size={20} className="text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-slate-900">Eliminar organización</h2>
+                <p className="text-sm text-slate-500 mt-0.5">Esta acción es permanente e irreversible.</p>
+              </div>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-5 text-sm text-red-700 space-y-1">
+              <p className="font-bold">Se eliminará permanentemente:</p>
+              <ul className="list-disc list-inside space-y-0.5 text-red-600">
+                <li>Todos los usuarios y cuentas de acceso</li>
+                <li>Cirugías, bandejas, inventario y lotes</li>
+                <li>Hospitales, cirujanos y directorio</li>
+                <li>Configuración, reportes y logs de auditoría</li>
+              </ul>
+            </div>
+
+            <p className="text-sm text-slate-600 mb-2">
+              Escribe <strong className="text-slate-900">{deleteTarget.name}</strong> para confirmar:
+            </p>
+            <input
+              type="text"
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+              className="input mb-4"
+              placeholder={deleteTarget.name}
+              autoFocus
+            />
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setDeleteTarget(null); setDeleteConfirm(''); }}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteConfirm !== deleteTarget.name || deleting}
+                className={cn(
+                  'flex-1 py-2.5 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all',
+                  deleteConfirm === deleteTarget.name && !deleting
+                    ? 'bg-red-600 hover:bg-red-700'
+                    : 'bg-red-200 cursor-not-allowed'
+                )}
+              >
+                {deleting ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <><Trash2 size={15} /> Eliminar definitivamente</>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
