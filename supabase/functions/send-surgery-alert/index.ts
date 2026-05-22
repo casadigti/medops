@@ -32,12 +32,16 @@ serve(async (req) => {
     // 1. Conectar a Supabase como Administrador (Service Role)
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-    // 2. Buscar todos los usuarios que sean 'Superadmin' o 'Administrador'
+    // 2. Buscar los admins 'Superadmin'/'Administrador' DE LA MISMA ORGANIZACIÓN
+    //    que la cirugía. Sin el filtro org_id se filtraría data entre tenants.
+    if (!surgery?.org_id) throw new Error('surgery.org_id es obligatorio')
+
     const { data: admins, error: dbError } = await supabase
       .from('profiles')
       .select('email')
       .in('role', ['Superadmin', 'Administrador'])
       .eq('is_active', true)
+      .eq('org_id', surgery.org_id)
 
     if (dbError) throw dbError
 

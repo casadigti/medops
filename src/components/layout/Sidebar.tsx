@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Stethoscope, Package, Users, BarChart3, Settings,
-  LogOut, Wrench, CalendarDays, Shield, Box, ShoppingCart, History,
+  LogOut, Wrench, CalendarDays, Shield, Box, ShoppingCart, History, Building2,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { supabase } from '../../lib/supabase';
@@ -15,6 +15,8 @@ interface NavItem {
   roles: string[];
   showStockAlert?: boolean;
   isPreview?: boolean;
+  // Visible solo para un administrador de plataforma (multi-tenancy).
+  platformOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -30,6 +32,7 @@ const navItems: NavItem[] = [
   { icon: Users,           label: 'Directorio',        path: '/directorio',        roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor', 'Lector'] },
   { icon: BarChart3,       label: 'Reportes',          path: '/reportes',          roles: ['Superadmin', 'Administrador'] },
   { icon: Settings,        label: 'Configuración',     path: '/configuracion',     roles: ['Superadmin', 'Administrador'] },
+  { icon: Building2,       label: 'Organizaciones',    path: '/organizaciones',    roles: [], platformOnly: true },
   { icon: Shield,          label: 'Portal Cirujano',   path: '/mis-solicitudes',   roles: ['Superadmin', 'Administrador'], isPreview: true },
 ];
 
@@ -42,6 +45,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ className, role, profile, lowStockCount = 0 }) => {
   const filteredNavItems = navItems.filter(item => {
+    if (item.platformOnly) return !!profile?.is_platform_admin;
     if (!role) return item.roles.some(r => r !== 'Cirujano');
     return item.roles.includes(role);
   });
