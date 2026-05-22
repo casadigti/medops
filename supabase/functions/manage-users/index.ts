@@ -27,9 +27,46 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
     if (authError || !user) throw new Error('Unauthorized: Invalid token')
 
-    // 2. Validar Autorización (Roles)
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
-    
+
+    // 3. Leer body una sola vez
+    const body = await req.json()
+    const { action, userData, userId } = body
+
+    // Acción especial: el propio usuario cambia su contraseña temporal.
+    // No requiere rol admin — solo requiere JWT válido + contraseña actual correcta.
+    if (action === 'change-own-password') {
+      const { currentPassword, newPassword } = body
+
+      // Verificar contraseña actual
+      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(user.id)
+      if (!authUser?.user?.email) throw new Error('Usuario no encontrado')
+
+      const { error: reAuthError } = await supabaseClient.auth.signInWithPassword({
+        email: authUser.user.email,
+        password: currentPassword,
+      })
+      if (reAuthError) throw new Error('Contraseña temporal incorrecta')
+
+      // Cambiar contraseña via Admin API (bypasses Secure Password Change)
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+        password: newPassword,
+      })
+      if (updateError) throw updateError
+
+      // Marcar must_change_password = false
+      const { error: profileUpdateError } = await supabaseAdmin
+        .from('profiles')
+        .update({ must_change_password: false })
+        .eq('id', user.id)
+      if (profileUpdateError) throw profileUpdateError
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // 2. Validar Autorización (Roles) — solo para acciones de gestión
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('role')
@@ -40,9 +77,6 @@ serve(async (req) => {
     if (!['Superadmin', 'Administrador'].includes(profile.role)) {
       throw new Error('Forbidden: Insufficient permissions')
     }
-
-    // 3. Procesar Acción (ya validado)
-    const { action, userData, userId } = await req.json()
 
     // 1. CREAR USUARIO
     if (action === 'create') {
