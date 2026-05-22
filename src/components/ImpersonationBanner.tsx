@@ -10,7 +10,7 @@ export const ImpersonationBanner: React.FC = () => {
   if (!impersonatedOrg) return null;
 
   return (
-    <div className="bg-violet-600 text-white px-4 py-2.5 flex items-center justify-between text-sm sticky top-0 z-50 shadow-lg shadow-violet-600/20">
+    <div className="bg-violet-600 text-white px-4 py-2.5 flex items-center justify-between text-sm sticky top-16 z-30 shadow-lg shadow-violet-600/20">
       <div className="flex items-center gap-2">
         <ShieldAlert size={16} className="shrink-0" />
         <span className="font-semibold hidden sm:inline">Modo Mantenimiento —</span>
