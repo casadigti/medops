@@ -452,7 +452,10 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
       } else {
         const newSurgery = await surgeryService.create(finalData, trayIds);
 
-        const diffDays = (new Date(finalData.surgery_date).getTime() - Date.now()) / 86400000;
+        const _sd = finalData.surgery_date.split('T')[0].split('-');
+        const _surgMidnight = new Date(Number(_sd[0]), Number(_sd[1]) - 1, Number(_sd[2]));
+        const _todayMidnight = new Date(); _todayMidnight.setHours(0,0,0,0);
+        const diffDays = Math.round((_surgMidnight.getTime() - _todayMidnight.getTime()) / 86400000);
         if (diffDays <= 2 && finalData.status === 'Pendiente') {
           try {
             await surgeryService.sendAlert(newSurgery, 'casadigti@gmail.com');
@@ -513,7 +516,10 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
   };
 
   const getDaysLabel = (dateStr: string) => {
-    const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
+    const s = dateStr.split('T')[0].split('-');
+    const surgMidnight = new Date(Number(s[0]), Number(s[1]) - 1, Number(s[2]));
+    const todayMidnight = new Date(); todayMidnight.setHours(0,0,0,0);
+    const diff = Math.round((surgMidnight.getTime() - todayMidnight.getTime()) / 86400000);
     if (diff < 0) return { label: 'Pasada', color: 'text-slate-400' };
     if (diff === 0) return { label: 'Hoy', color: 'text-red-600 font-bold' };
     if (diff === 1) return { label: 'Mañana', color: 'text-amber-600 font-bold' };
