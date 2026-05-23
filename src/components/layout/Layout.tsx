@@ -84,13 +84,20 @@ export const Layout: React.FC<LayoutProps> = ({ children, userProfile }) => {
     return () => { if (subscription) supabase.removeChannel(subscription); };
   }, [userProfile?.id]);
 
-  React.useEffect(() => {
+  const refreshInventoryAlerts = React.useCallback(() => {
     Promise.all([implantService.getLowStockImplants(), implantService.getExpiringLots()])
       .then(([lowStock, expiring]) => {
         setLowStockCount((lowStock?.length || 0) + (expiring?.length || 0));
       })
       .catch(err => console.error('Layout: Error fetching inventory alerts:', err));
   }, []);
+
+  React.useEffect(() => {
+    refreshInventoryAlerts();
+    // Re-fetch badge when impersonation starts/stops
+    window.addEventListener('medops:impersonation', refreshInventoryAlerts);
+    return () => window.removeEventListener('medops:impersonation', refreshInventoryAlerts);
+  }, [refreshInventoryAlerts]);
 
   React.useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 60000);
