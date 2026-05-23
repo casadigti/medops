@@ -13,8 +13,15 @@ export const MOCK_USER = {
   user_metadata: { full_name: 'Admin Test' },
 };
 
+// JWT parseable (HS256 header + payload con sub/role/aud/exp). Firma falsa pero
+// Supabase JS solo decodifica el payload — no verifica la firma en cliente.
+export const MOCK_ACCESS_TOKEN =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9' +
+  '.eyJzdWIiOiJtb2NrLXVzZXItaWQtZTJlIiwiZW1haWwiOiJhZG1pbkB0ZXN0LmNvbSIsInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYXVkIjoiYXV0aGVudGljYXRlZCIsImlhdCI6MTAwMDAwMDAwMCwiZXhwIjo5OTk5OTk5OTk5fQ' +
+  '.fake-sig-e2e';
+
 export const MOCK_SESSION = {
-  access_token: 'mock-access-token-e2e',
+  access_token: MOCK_ACCESS_TOKEN,
   token_type: 'bearer',
   expires_in: 3600,
   expires_at: 9999999999,
@@ -22,13 +29,26 @@ export const MOCK_SESSION = {
   user: MOCK_USER,
 };
 
+export const MOCK_ORG_ID = 'mock-org-id-e2e';
+
 export const MOCK_PROFILE = {
   id: MOCK_USER.id,
   email: MOCK_USER.email,
   full_name: 'Admin Test',
   role: 'Administrador',
+  org_id: MOCK_ORG_ID,
   is_active: true,
+  is_platform_admin: false,
   must_change_password: false,
+  created_at: '2024-01-01T00:00:00Z',
+};
+
+export const MOCK_ORG = {
+  id: MOCK_ORG_ID,
+  name: 'Organización Test',
+  slug: 'org-test',
+  is_active: true,
+  max_users: 20,
   created_at: '2024-01-01T00:00:00Z',
 };
 

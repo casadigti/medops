@@ -15,18 +15,18 @@ test.describe('Login flow', () => {
   test('redirige a dashboard tras login exitoso', async ({ page }) => {
     await mockUnauthenticated(page);
 
-    // Mock auth token endpoint (called on form submit)
-    await page.route(`${SUPABASE_URL}/auth/v1/token*`, route => {
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_SESSION) });
-    });
-    await page.route(`${SUPABASE_URL}/auth/v1/user`, route => {
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_USER) });
+    // Nota: Playwright usa LIFO — registrar catch-alls primero, específicos últimos.
+    await page.route(`${SUPABASE_URL}/rest/v1/**`, route => {
+      route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
     });
     await page.route(`${SUPABASE_URL}/rest/v1/profiles*`, route => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([MOCK_PROFILE]) });
     });
-    await page.route(`${SUPABASE_URL}/rest/v1/**`, route => {
-      route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    await page.route(`${SUPABASE_URL}/auth/v1/user`, route => {
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_USER) });
+    });
+    await page.route(`${SUPABASE_URL}/auth/v1/token*`, route => {
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_SESSION) });
     });
 
     await page.goto('/login');
