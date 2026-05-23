@@ -1,7 +1,7 @@
 import { Page } from '@playwright/test';
 import {
   SUPABASE_URL, PROJECT_REF,
-  MOCK_SESSION, MOCK_USER, MOCK_PROFILE,
+  MOCK_SESSION, MOCK_USER, MOCK_PROFILE, MOCK_ORG,
 } from './mockData';
 
 /**
@@ -11,10 +11,13 @@ import {
  * Call this before page.goto().
  */
 export async function mockAuthenticatedSession(page: Page) {
-  // Inject session into localStorage before app scripts run
-  await page.addInitScript(({ ref, session }) => {
+  // Inject session into localStorage before app scripts run.
+  // Also write the separate -user key that Supabase auth-js v2.39+ uses when
+  // userStorage is configured (harmless when it isn't).
+  await page.addInitScript(({ ref, session, user }) => {
     localStorage.setItem(`sb-${ref}-auth-token`, JSON.stringify(session));
-  }, { ref: PROJECT_REF, session: MOCK_SESSION });
+    localStorage.setItem(`sb-${ref}-auth-token-user`, JSON.stringify({ user }));
+  }, { ref: PROJECT_REF, session: MOCK_SESSION, user: MOCK_USER });
 
   // Single catch-all route for ALL Supabase calls
   await page.route(`${SUPABASE_URL}/**`, (route) => {
@@ -29,6 +32,18 @@ export async function mockAuthenticatedSession(page: Page) {
     }
     if (url.includes('/rest/v1/profiles')) {
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([MOCK_PROFILE]) });
+    }
+    if (url.includes('/rest/v1/organizations')) {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([MOCK_ORG]) });
+    }
+    if (url.includes('/rest/v1/organization_settings')) {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+        org_id: MOCK_ORG.id,
+        company_name: MOCK_ORG.name,
+      }) });
+    }
+    if (url.includes('/rest/v1/surgeons')) {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
     }
     if (url.includes('/rest/v1/') && method === 'GET') {
       return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
