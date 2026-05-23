@@ -25,6 +25,7 @@ function mockChain(resolvedValue) {
     eq: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     single: vi.fn().mockResolvedValue(resolvedValue),
+    maybeSingle: vi.fn().mockResolvedValue(resolvedValue),
   };
   chain.then = (resolve) => resolve(resolvedValue);
   return chain;
