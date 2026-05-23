@@ -24,7 +24,9 @@ export const configService = {
       .from('organization_settings')
       .select('*')
       .maybeSingle();
-    if (error) throw error;
+    // PGRST116 = "no rows found" — maybeSingle ya lo maneja devolviendo null,
+    // pero si llegara por otra vía lo tratamos igual: null, no throw.
+    if (error && (error as { code?: string }).code !== 'PGRST116') throw error;
     return data;
   },
 
