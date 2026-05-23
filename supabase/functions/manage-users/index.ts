@@ -69,7 +69,7 @@ serve(async (req) => {
     // 2. Validar Autorización (Roles) — solo para acciones de gestión
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('role')
+      .select('role, org_id')
       .eq('id', user.id)
       .single()
 
@@ -81,6 +81,26 @@ serve(async (req) => {
     // 1. CREAR USUARIO
     if (action === 'create') {
       const { email, password, full_name, role } = userData
+
+      // Verificar límite de usuarios por organización
+      if (profile.org_id) {
+        const { data: org } = await supabaseAdmin
+          .from('organizations')
+          .select('max_users, name')
+          .eq('id', profile.org_id)
+          .single()
+
+        if (org) {
+          const { count } = await supabaseAdmin
+            .from('profiles')
+            .select('*', { count: 'exact', head: true })
+            .eq('org_id', profile.org_id)
+          if (count !== null && count >= org.max_users) {
+            throw new Error(`Límite de usuarios alcanzado (máx. ${org.max_users} para esta organización)`)
+          }
+        }
+      }
+
       const { data, error } = await supabaseAdmin.auth.admin.createUser({
         email,
         password,

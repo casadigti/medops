@@ -21,10 +21,23 @@ export const organizationService = {
   async getAll(): Promise<Organization[]> {
     const { data, error } = await supabase
       .from('organizations')
-      .select('*')
+      .select('*, profiles(id)')
       .order('created_at', { ascending: false });
     if (error) throw error;
-    return data;
+    return (data as any[]).map((org) => ({
+      ...org,
+      profiles: undefined,
+      user_count: Array.isArray(org.profiles) ? org.profiles.length : 0,
+    }));
+  },
+
+  async setMaxUsers(id: string, max_users: number): Promise<void> {
+    const { error } = await supabase
+      .from('organizations')
+      .update({ max_users })
+      .eq('id', id);
+    if (error) throw error;
+    await auditService.log('ORG_UPDATE', 'organizations', id, { max_users });
   },
 
   async createOrg(input: CreateOrgInput): Promise<CreateOrgResult> {

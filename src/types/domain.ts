@@ -129,7 +129,9 @@ export interface Organization {
   name: string;
   slug?: string | null;
   is_active: boolean;
+  max_users: number;
   created_at?: string;
+  user_count?: number; // calculado en frontend
 }
 
 export interface UserProfile {
