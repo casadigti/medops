@@ -45,6 +45,14 @@ jobs:
         run: npx playwright install chromium --with-deps
       - name: Run E2E tests
         run: npm run test:e2e
+        env:
+          # Mock Supabase URL/key so the Vite dev server initializes the client
+          # and Playwright route mocks intercept the right origin.
+          # These are NOT production credentials — safe to version.
+          VITE_SUPABASE_URL: https://mocke2eproject.supabase.co
+          VITE_SUPABASE_ANON_KEY: mock-anon-key-e2e-testing-only
+          E2E_SUPABASE_URL: https://mocke2eproject.supabase.co
+          E2E_SUPABASE_PROJECT_REF: mocke2eproject
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
