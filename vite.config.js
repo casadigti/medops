@@ -17,7 +17,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'MedOps - Gestión Médica',
         short_name: 'MedOps',
@@ -25,6 +25,9 @@ export default defineConfig({
         theme_color: '#1e40af',
         background_color: '#ffffff',
         display: 'standalone',
+        start_url: '/',
+        orientation: 'portrait',
+        lang: 'es',
         icons: [
           {
             src: 'icon-192.png',
