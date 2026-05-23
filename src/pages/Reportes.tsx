@@ -6,10 +6,10 @@ import { hospitalService } from '../services/hospitalService';
 import { trayService } from '../services/trayService';
 import { PageLoader } from '../components/ui/Spinner';
 import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-import { BarChart3, Download, Calendar, Users, Building2, Package, FileSpreadsheet, Printer, Filter } from 'lucide-react';
+import { BarChart3, Download, Calendar, Users, Building2, Package, FileSpreadsheet, Printer, Filter, TrendingUp, TrendingDown, Clock, ArrowUp, ArrowDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '../utils/cn';
 import { getLocalDateString } from '../utils/dateUtils';
@@ -198,6 +198,59 @@ export const Reportes: React.FC = () => {
   const completed   = filtered.filter(s => s.status === 'Completada').length;
   const alertsGen   = filtered.filter(s => s.status === 'Pendiente').length;
 
+  // — Próximas 7 días (desde hoy)
+  const next7Cutoff = new Date(); next7Cutoff.setDate(now.getDate() + 7);
+  const upcoming7 = surgeries.filter(s => {
+    const d = new Date(s.surgery_date);
+    return d >= now && d <= next7Cutoff && s.status !== 'Completada' && s.status !== 'Cancelada';
+  }).length;
+
+  // — Tasa de cancelación
+  const cancelled = filtered.filter(s => s.status === 'Cancelada').length;
+  const cancellationRate = filtered.length ? Math.round((cancelled / filtered.length) * 100) : 0;
+
+  // — Promedio semanal de cirugías
+  const periodDaysCalc = period === 'week' ? 7 : period === 'month' ? 30 : 365;
+  const avgPerWeek = periodDaysCalc > 0
+    ? Math.round((filtered.length / periodDaysCalc) * 7 * 10) / 10
+    : 0;
+
+  // — Cirugías por día de semana
+  const dayNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const byDayOfWeek = dayNames.map((name, i) => ({
+    name, total: filtered.filter(s => new Date(s.surgery_date).getDay() === i).length,
+  }));
+
+  // — Tendencia mensual: completadas vs total (últimos 6 meses)
+  const monthlyTrend = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(); d.setMonth(now.getMonth() - (5 - i));
+    const label = d.toLocaleDateString('es-ES', { month: 'short' });
+    const ms = surgeries.filter(s => {
+      const sd = new Date(s.surgery_date);
+      return sd.getMonth() === d.getMonth() && sd.getFullYear() === d.getFullYear();
+    });
+    const monthCompleted = ms.filter(s => s.status === 'Completada').length;
+    const tasa = ms.length > 0 ? Math.round((monthCompleted / ms.length) * 100) : 0;
+    return { name: label, total: ms.length, completadas: monthCompleted, tasa };
+  });
+
+  // — Crecimiento vs período anterior (para vista financiera)
+  const prevStart = new Date(), prevEnd = new Date();
+  if (period === 'week')  { prevStart.setDate(now.getDate()-14); prevEnd.setDate(now.getDate()-7); }
+  else if (period === 'month') { prevStart.setDate(now.getDate()-60); prevEnd.setDate(now.getDate()-30); }
+  else { prevStart.setFullYear(now.getFullYear()-2); prevEnd.setFullYear(now.getFullYear()-1); }
+  const prevCons = consumption.filter(c => {
+    const d = new Date(c.used_at ?? c.surgeries?.surgery_date ?? '');
+    return d >= prevStart && d < prevEnd;
+  });
+  const prevRevenue = prevCons.reduce((acc, c) => acc + (c.quantity_used * (c.implant_lots?.implants?.selling_price || 0)), 0);
+  const revenueGrowth = prevRevenue > 0
+    ? Math.round(((totalRevenue - prevRevenue) / prevRevenue) * 100)
+    : null;
+
+  // — Ticket promedio por cirugía completada
+  const ticketAvg = completed > 0 ? Math.round(totalRevenue / completed) : 0;
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -263,21 +316,86 @@ export const Reportes: React.FC = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {viewMode === 'operational' ? (
+            <>
+              <StatCard icon={Calendar}  label="Total Cirugías"    value={filtered.length} />
+              <StatCard icon={Users}     label="Cirujanos Activos" value={new Set(filtered.filter(s=>s.surgeon_id).map(s=>s.surgeon_id)).size} color="text-purple-600" bg="bg-purple-50" />
+              <StatCard icon={Building2} label="Hospitales"        value={new Set(filtered.filter(s=>s.hospital_id).map(s=>s.hospital_id)).size} color="text-teal-600" bg="bg-teal-50" />
+              <StatCard icon={Package}   label="Completadas"       value={completed} color="text-green-600" bg="bg-green-50" />
+            </>
+          ) : (
+            <>
+              <StatCard icon={TrendingUp} label="Venta Bruta"      value={`RD$ ${totalRevenue.toLocaleString()}`} color="text-blue-600" bg="bg-blue-50" />
+              <StatCard icon={Download}   label="Costo Materiales" value={`RD$ ${totalCost.toLocaleString()}`} color="text-rose-600" bg="bg-rose-50" />
+              <StatCard icon={BarChart3}  label="Margen Bruto"     value={`RD$ ${totalProfit.toLocaleString()}`} color="text-emerald-600" bg="bg-emerald-50" />
+              <StatCard icon={Users}      label="% Rentabilidad"   value={totalRevenue ? `${Math.round((totalProfit/totalRevenue)*100)}%` : '0%'} color="text-amber-600" bg="bg-amber-50" />
+            </>
+          )}
+        </div>
+
+        {/* Segunda fila de KPIs */}
         {viewMode === 'operational' ? (
-          <>
-            <StatCard icon={Calendar} label="Total Cirugías" value={filtered.length} />
-            <StatCard icon={Users}    label="Cirujanos Activos" value={new Set(filtered.filter(s=>s.surgeon_id).map(s=>s.surgeon_id)).size} color="text-purple-600" bg="bg-purple-50" />
-            <StatCard icon={Building2} label="Hospitales" value={new Set(filtered.filter(s=>s.hospital_id).map(s=>s.hospital_id)).size} color="text-teal-600" bg="bg-teal-50" />
-            <StatCard icon={Package} label="Completadas" value={completed} color="text-green-600" bg="bg-green-50" />
-          </>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="card flex items-center gap-4">
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-indigo-50">
+                <Clock size={20} className="text-indigo-600" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Próximas 7 días</p>
+                <p className="text-2xl font-bold text-slate-900">{upcoming7}</p>
+                <p className="text-[11px] text-slate-400">cirugías pendientes</p>
+              </div>
+            </div>
+            <div className="card flex items-center gap-4">
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-sky-50">
+                <BarChart3 size={20} className="text-sky-600" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Promedio semanal</p>
+                <p className="text-2xl font-bold text-slate-900">{avgPerWeek}</p>
+                <p className="text-[11px] text-slate-400">cirugías / semana</p>
+              </div>
+            </div>
+            <div className="card flex items-center gap-4">
+              <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center shrink-0', cancellationRate > 10 ? 'bg-red-50' : 'bg-slate-50')}>
+                <TrendingDown size={20} className={cancellationRate > 10 ? 'text-red-500' : 'text-slate-400'} />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tasa cancelación</p>
+                <p className={cn('text-2xl font-bold', cancellationRate > 10 ? 'text-red-600' : 'text-slate-900')}>{cancellationRate}%</p>
+                <p className="text-[11px] text-slate-400">{cancelled} canceladas</p>
+              </div>
+            </div>
+          </div>
         ) : (
-          <>
-            <StatCard icon={Package} label="Venta Bruta" value={`RD$ ${totalRevenue.toLocaleString()}`} color="text-blue-600" bg="bg-blue-50" />
-            <StatCard icon={Download} label="Costo Materiales" value={`RD$ ${totalCost.toLocaleString()}`} color="text-rose-600" bg="bg-rose-50" />
-            <StatCard icon={BarChart3} label="Margen Bruto" value={`RD$ ${totalProfit.toLocaleString()}`} color="text-emerald-600" bg="bg-emerald-50" />
-            <StatCard icon={Users} label="% Rentabilidad" value={totalRevenue ? `${Math.round((totalProfit/totalRevenue)*100)}%` : '0%'} color="text-amber-600" bg="bg-amber-50" />
-          </>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="card flex items-center gap-4">
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-violet-50">
+                <Package size={20} className="text-violet-600" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Ticket Promedio</p>
+                <p className="text-2xl font-bold text-slate-900">RD$ {ticketAvg.toLocaleString()}</p>
+                <p className="text-[11px] text-slate-400">por cirugía completada</p>
+              </div>
+            </div>
+            <div className="card flex items-center gap-4">
+              <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center shrink-0', revenueGrowth === null ? 'bg-slate-50' : revenueGrowth >= 0 ? 'bg-emerald-50' : 'bg-red-50')}>
+                {revenueGrowth !== null && revenueGrowth >= 0
+                  ? <ArrowUp size={20} className="text-emerald-600" />
+                  : <ArrowDown size={20} className="text-red-500" />}
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Crecimiento vs anterior</p>
+                <p className={cn('text-2xl font-bold', revenueGrowth === null ? 'text-slate-400' : revenueGrowth >= 0 ? 'text-emerald-600' : 'text-red-600')}>
+                  {revenueGrowth === null ? '—' : `${revenueGrowth > 0 ? '+' : ''}${revenueGrowth}%`}
+                </p>
+                <p className="text-[11px] text-slate-400">en ventas vs período previo</p>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
@@ -311,6 +429,53 @@ export const Reportes: React.FC = () => {
                     </PieChart>
                   </ResponsiveContainer>
                 )}
+            </div>
+          </div>
+
+          {/* Tendencia mensual + día de semana */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="card">
+              <SectionTitle>Tasa de Completadas (últimos 6 meses)</SectionTitle>
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={monthlyTrend} margin={{ top:5, right:5, bottom:5, left:-20 }}>
+                  <defs>
+                    <linearGradient id="gradCompleted" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#10b981" stopOpacity={0.18} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gradTotal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.12} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="name" tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ borderRadius:12, border:'none', boxShadow:'0 4px 20px rgba(0,0,0,.1)', fontSize:12 }}
+                    formatter={(v: any, name?: any) => [v, name === 'tasa' ? 'Tasa %' : name === 'completadas' ? 'Completadas' : 'Total']} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize:12, paddingTop:8 }} />
+                  <Area type="monotone" dataKey="total"       name="Total"       stroke="#3b82f6" fill="url(#gradTotal)"     strokeWidth={2} dot={{ r:3 }} />
+                  <Area type="monotone" dataKey="completadas" name="Completadas" stroke="#10b981" fill="url(#gradCompleted)" strokeWidth={2} dot={{ r:3 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="card">
+              <SectionTitle>Cirugías por Día de Semana</SectionTitle>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={byDayOfWeek} margin={{ top:5, right:5, bottom:5, left:-20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ borderRadius:12, border:'none', boxShadow:'0 4px 20px rgba(0,0,0,.1)', fontSize:12 }} />
+                  <Bar dataKey="total" name="Cirugías" radius={[6,6,0,0]}>
+                    {byDayOfWeek.map((entry, i) => (
+                      <Cell key={i} fill={entry.total === Math.max(...byDayOfWeek.map(d=>d.total)) ? '#1e40af' : '#bfdbfe'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <p className="text-[10px] text-slate-400 text-center mt-1">El día más activo se resalta en azul oscuro</p>
             </div>
           </div>
 
