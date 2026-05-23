@@ -720,99 +720,186 @@ export const Reportes: React.FC = () => {
           </div>
 
           <div className="card border-t-4 border-t-primary">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-2">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">Proyección de Compras Inteligente</h3>
-                <p className="text-slate-500 text-sm">Basado en el consumo real del periodo seleccionado</p>
+                <p className="text-slate-500 text-sm">Rate basado en promedio móvil 90 días · Reorder point = 45 días de cobertura</p>
               </div>
               <div className="bg-blue-50 text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
                 Motor IA Alpha
               </div>
             </div>
+            <p className="text-[11px] text-slate-400 mb-6">
+              Solo muestra ítems que requieren acción (stock &lt; 60 días). Ordenado por urgencia.
+            </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              {filteredConsumption.length === 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {consumption.length === 0 ? (
                 <div className="col-span-full py-8 text-center text-slate-400 italic">
                   No hay consumos suficientes para proyectar compras.
                 </div>
               ) : (() => {
-                const periodDays = period === 'week' ? 7 : period === 'month' ? 30 : 365;
+                // Rate basado en 90 días fijos (más estable que el período del filtro)
+                const RATE_DAYS    = 90;
+                const LEAD_DAYS    = 30;  // días que tarda el proveedor
+                const BUFFER_DAYS  = 15;  // stock de seguridad adicional
+                const REORDER_DAYS = LEAD_DAYS + BUFFER_DAYS; // 45 días
+                const MAX_DAYS     = 60;  // máximo daysLeft para mostrar en panel
 
-                const aggregated = (Object.values(
-                  filteredConsumption.reduce((acc: Record<string, any>, c: SurgeryConsumption) => {
-                    const implantId = c.implant_lots?.implants?.id || c.implant_lots?.implant_id;
-                    const key = c.implant_lots?.implants?.sku || implantId || c.implant_lot_id;
-                    if (!key) return acc;
-                    if (!acc[key]) {
-                      acc[key] = {
-                        key,
-                        implantId,
-                        name: c.implant_lots?.implants?.name,
-                        sku: c.implant_lots?.implants?.sku,
-                        totalQty: 0,
-                      };
-                    }
-                    acc[key].totalQty += (c.quantity_used || 0);
-                    return acc;
-                  }, {})
-                ) as any[]).sort((a, b) => b.totalQty - a.totalQty).slice(0, 5);
+                const rate90Cutoff = new Date(); rate90Cutoff.setDate(now.getDate() - RATE_DAYS);
+                const last90 = consumption.filter(c => {
+                  const d = new Date(c.used_at ?? c.surgeries?.surgery_date ?? '');
+                  return d >= rate90Cutoff;
+                });
 
-                return aggregated.map((item, i) => {
-                  const implantData = allImplants.find(imp =>
-                    imp.sku === item.sku || imp.id === item.implantId
+                // Agregar por implante usando ventana de 90 días
+                const byImplant: Record<string, any> = {};
+                last90.forEach(c => {
+                  const implantId = c.implant_lots?.implants?.id || c.implant_lots?.implant_id;
+                  const key = c.implant_lots?.implants?.sku || implantId || c.implant_lot_id;
+                  if (!key) return;
+                  if (!byImplant[key]) {
+                    byImplant[key] = {
+                      key, implantId,
+                      name: c.implant_lots?.implants?.name,
+                      sku:  c.implant_lots?.implants?.sku,
+                      qty90: 0,
+                    };
+                  }
+                  byImplant[key].qty90 += (c.quantity_used || 0);
+                });
+
+                // Calcular métricas por ítem y filtrar
+                const items = (Object.values(byImplant) as any[])
+                  .map(item => {
+                    const implantData = allImplants.find(
+                      imp => imp.sku === item.sku || imp.id === item.implantId
+                    );
+                    const currentStock = (implantData?.implant_lots || [])
+                      .reduce((s: number, lot: any) => s + (lot.current_quantity || 0), 0);
+
+                    const dailyRate   = item.qty90 / RATE_DAYS;
+                    const daysLeft    = dailyRate > 0 ? Math.floor(currentStock / dailyRate) : null;
+                    const reorderPoint = Math.ceil(dailyRate * REORDER_DAYS);
+
+                    // Cuánto comprar: llenar hasta 90 días de cobertura
+                    const targetStock  = Math.ceil(dailyRate * (LEAD_DAYS + BUFFER_DAYS + 30));
+                    const suggestedQty = Math.max(0, targetStock - currentStock);
+
+                    // Rotación basada en velocidad
+                    const weeklyRate = dailyRate * 7;
+                    const rotation = weeklyRate >= 2 ? 'alta'
+                      : weeklyRate >= 0.5 ? 'media'
+                      : 'baja';
+
+                    const urgency = daysLeft === null ? null
+                      : daysLeft <  7 ? 'critical'
+                      : daysLeft < 30 ? 'warning'
+                      : daysLeft < MAX_DAYS ? 'low'
+                      : null;
+
+                    return {
+                      ...item, currentStock, dailyRate, daysLeft,
+                      reorderPoint, suggestedQty, rotation, urgency,
+                      unitCost: implantData ? (implantData as any).unit_cost ?? 0 : 0,
+                    };
+                  })
+                  // Solo ítems que requieren acción
+                  .filter(item => item.urgency !== null && item.suggestedQty > 0)
+                  // Ordenar: critical primero, luego warning, luego low
+                  .sort((a, b) => {
+                    const order = { critical: 0, warning: 1, low: 2 };
+                    return (order[a.urgency as keyof typeof order] ?? 3)
+                         - (order[b.urgency as keyof typeof order] ?? 3);
+                  })
+                  .slice(0, 8);
+
+                if (items.length === 0) {
+                  return (
+                    <div className="col-span-full py-10 text-center">
+                      <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                        <Package size={24} className="text-emerald-500" />
+                      </div>
+                      <p className="font-bold text-slate-700">Stock suficiente</p>
+                      <p className="text-sm text-slate-400 mt-1">Todos los implantes tienen cobertura &gt; 60 días.</p>
+                    </div>
                   );
-                  const currentStock = (implantData?.implant_lots || [])
-                    .reduce((s, lot) => s + (lot.current_quantity || 0), 0);
-                  const dailyRate = item.totalQty / periodDays;
-                  const daysLeft = dailyRate > 0 ? Math.floor(currentStock / dailyRate) : null;
+                }
 
-                  const urgency = daysLeft === null ? 'ok'
-                    : daysLeft < 7  ? 'critical'
-                    : daysLeft < 30 ? 'warning'
-                    : 'ok';
+                return items.map((item, i) => {
+                  const urgencyConfig = {
+                    critical: { border: 'border-red-300',   badge: 'bg-red-100 text-red-700',    dot: 'bg-red-500 animate-pulse',   label: 'CRÍTICO',  dotColor: 'bg-red-500' },
+                    warning:  { border: 'border-amber-200', badge: 'bg-amber-100 text-amber-700', dot: 'bg-amber-400',               label: 'ALERTA',   dotColor: 'bg-amber-500' },
+                    low:      { border: 'border-blue-100',  badge: 'bg-blue-50 text-blue-600',    dot: 'bg-blue-400',                label: 'PLANIFICAR', dotColor: 'bg-blue-400' },
+                  }[item.urgency as 'critical' | 'warning' | 'low'];
 
-                  const stockLabel = (() => {
-                    if (daysLeft === null) return '—';
-                    if (daysLeft < 7)  return `${daysLeft} días ⚠️`;
-                    if (daysLeft < 30) return `${daysLeft} días`;
-                    const months = Math.round(daysLeft / 30);
-                    return `~${months} ${months === 1 ? 'mes' : 'meses'}`;
-                  })();
+                  const rotationConfig = {
+                    alta:  { label: 'Alta rotación',  cls: 'bg-emerald-100 text-emerald-700' },
+                    media: { label: 'Rot. media',     cls: 'bg-sky-100 text-sky-700' },
+                    baja:  { label: 'Baja rotación',  cls: 'bg-slate-100 text-slate-500' },
+                  }[item.rotation as 'alta' | 'media' | 'baja'];
 
-                  const urgencyStyles = {
-                    critical: { badge: 'bg-red-100 text-red-700',    dot: 'bg-red-500',    label: stockLabel },
-                    warning:  { badge: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500',  label: stockLabel },
-                    ok:       { badge: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500', label: stockLabel },
-                  }[urgency];
+                  const stockLabel = item.daysLeft === null ? '—'
+                    : item.daysLeft < 7  ? `${item.daysLeft} días`
+                    : item.daysLeft < 30 ? `${item.daysLeft} días`
+                    : `~${Math.round(item.daysLeft / 30)} meses`;
+
+                  const estimatedCost = item.suggestedQty * item.unitCost;
 
                   return (
-                    <div key={item.key || i} className={`p-4 rounded-2xl bg-slate-50 border transition-all group ${urgency === 'critical' ? 'border-red-200 hover:border-red-400' : 'border-slate-100 hover:border-primary/30'}`}>
+                    <div key={item.key || i}
+                      className={`p-4 rounded-2xl bg-slate-50 border-2 transition-all group ${urgencyConfig.border}`}>
+                      {/* Header */}
                       <div className="flex items-start justify-between mb-2">
-                        <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center border border-slate-100 group-hover:scale-110 transition-transform">
-                          <Package size={16} className="text-primary" />
+                        <div className="flex items-center gap-1.5">
+                          <span className={`w-2 h-2 rounded-full ${urgencyConfig.dotColor} ${item.urgency === 'critical' ? 'animate-pulse' : ''}`} />
+                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${urgencyConfig.badge}`}>
+                            {urgencyConfig.label}
+                          </span>
                         </div>
-                        <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md text-[10px] font-bold">
-                          ALTA ROTACIÓN
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${rotationConfig.cls}`}>
+                          {rotationConfig.label}
                         </span>
                       </div>
-                      <p className="text-xs font-bold text-slate-900 mb-0.5 truncate" title={item.name}>
+
+                      {/* Nombre y SKU */}
+                      <p className="text-xs font-bold text-slate-900 mb-0.5 truncate leading-tight" title={item.name}>
                         {item.name}
                       </p>
-                      <p className="text-[10px] text-slate-500 mb-3 font-mono">SKU: {item.sku}</p>
+                      <p className="text-[10px] text-slate-400 font-mono mb-3">{item.sku}</p>
 
-                      <div className={`flex items-center gap-1.5 mb-3 px-2 py-1 rounded-lg ${urgencyStyles.badge}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${urgencyStyles.dot} ${urgency === 'critical' ? 'animate-pulse' : ''}`} />
-                        <span className="text-[10px] font-bold">
-                          {daysLeft !== null ? `Stock: ${urgencyStyles.label} restantes` : 'Stock no calculado'}
+                      {/* Stock actual */}
+                      <div className="flex justify-between text-[10px] mb-1">
+                        <span className="text-slate-500 font-semibold">Stock actual</span>
+                        <span className="font-bold text-slate-800">{item.currentStock} u.</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] mb-1">
+                        <span className="text-slate-500 font-semibold">Cobertura</span>
+                        <span className={`font-bold ${item.daysLeft !== null && item.daysLeft < 7 ? 'text-red-600' : item.daysLeft !== null && item.daysLeft < 30 ? 'text-amber-600' : 'text-slate-700'}`}>
+                          {stockLabel}
                         </span>
                       </div>
+                      <div className="flex justify-between text-[10px] mb-3">
+                        <span className="text-slate-500 font-semibold">Consumo/día</span>
+                        <span className="font-bold text-slate-700">{item.dailyRate.toFixed(2)} u.</span>
+                      </div>
 
-                      <div className="flex items-end justify-between">
-                        <div>
-                          <p className="text-[10px] text-slate-400 uppercase font-black">Sugerencia</p>
-                          <p className="text-xl font-black text-primary">+{item.totalQty}</p>
+                      {/* Separador */}
+                      <div className="border-t border-slate-200 pt-3 mt-1">
+                        <p className="text-[9px] text-slate-400 uppercase font-black mb-1">
+                          Sugerido (45 días cobertura)
+                        </p>
+                        <div className="flex items-end justify-between">
+                          <p className="text-2xl font-black text-primary">+{item.suggestedQty}</p>
+                          <div className="text-right">
+                            <p className="text-[9px] text-slate-400">Unidades</p>
+                            {estimatedCost > 0 && (
+                              <p className="text-[10px] font-bold text-slate-600">
+                                ~RD$ {estimatedCost.toLocaleString()}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-[10px] text-slate-400 font-bold mb-1">Unidades</p>
                       </div>
                     </div>
                   );
