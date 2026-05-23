@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Building2, Plus, X, Copy, CheckCircle2, Power, Wrench, Trash2, AlertTriangle } from 'lucide-react';
+import { Building2, Plus, X, Copy, CheckCircle2, Power, Wrench, Trash2, AlertTriangle, Users, Edit2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../utils/cn';
 import { useToast } from '../components/ui/Toast';
@@ -29,6 +29,8 @@ export const Organizaciones: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<Organization | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [editLimitTarget, setEditLimitTarget] = useState<Organization | null>(null);
+  const [newLimit, setNewLimit] = useState('');
 
   const loadOrgs = async () => {
     setLoading(true);
@@ -98,6 +100,23 @@ export const Organizaciones: React.FC = () => {
       toast.error(msg);
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleSetLimit = async () => {
+    if (!editLimitTarget) return;
+    const val = parseInt(newLimit, 10);
+    if (isNaN(val) || val < 1 || val > 500) {
+      toast.warning('Límite debe estar entre 1 y 500.');
+      return;
+    }
+    try {
+      await organizationService.setMaxUsers(editLimitTarget.id, val);
+      toast.success('Límite actualizado.');
+      setEditLimitTarget(null);
+      await loadOrgs();
+    } catch (err) {
+      toast.error('No se pudo actualizar el límite.');
     }
   };
 
@@ -180,6 +199,15 @@ export const Organizaciones: React.FC = () => {
                   {org.slug ? `${org.slug} · ` : ''}
                   Creada {org.created_at ? new Date(org.created_at).toLocaleDateString('es-ES') : '—'}
                 </p>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <Users size={11} className="text-slate-400" />
+                  <span className={cn(
+                    'text-[11px] font-semibold',
+                    (org.user_count ?? 0) >= org.max_users ? 'text-red-500' : 'text-slate-400'
+                  )}>
+                    {org.user_count ?? 0}/{org.max_users} usuarios
+                  </span>
+                </div>
               </div>
               <span
                 className={cn(
@@ -189,6 +217,13 @@ export const Organizaciones: React.FC = () => {
               >
                 {org.is_active ? 'Activa' : 'Inactiva'}
               </span>
+              <button
+                onClick={() => { setEditLimitTarget(org); setNewLimit(String(org.max_users)); }}
+                title="Editar límite de usuarios"
+                className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+              >
+                <Edit2 size={16} />
+              </button>
               <button
                 onClick={() => { startImpersonation(org); navigate('/'); }}
                 title="Entrar en modo mantenimiento"
@@ -289,6 +324,49 @@ export const Organizaciones: React.FC = () => {
                 )}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Editar límite de usuarios */}
+      {editLimitTarget && (
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-black text-slate-900">Límite de usuarios</h2>
+              <button onClick={() => setEditLimitTarget(null)} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-slate-500 mb-4">
+              Organización: <strong className="text-slate-800">{editLimitTarget.name}</strong>
+              <br />Usuarios actuales: <strong>{editLimitTarget.user_count ?? 0}</strong>
+            </p>
+            <Field label="Máximo de usuarios permitidos">
+              <input
+                type="number"
+                min={1}
+                max={500}
+                value={newLimit}
+                onChange={(e) => setNewLimit(e.target.value)}
+                className="input"
+                autoFocus
+              />
+            </Field>
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => setEditLimitTarget(null)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSetLimit}
+                className="flex-1 py-2.5 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/20 hover:bg-blue-700 transition-colors"
+              >
+                Guardar
+              </button>
+            </div>
           </div>
         </div>
       )}
