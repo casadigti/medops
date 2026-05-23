@@ -104,26 +104,35 @@ export const Dashboard: React.FC = () => {
   }, []);
 
   const now = new Date();
+  // today = medianoche local (sin hora) para comparaciones de fecha pura
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - now.getDay());
 
-  const thisMonth = surgeries.filter(s => new Date(s.surgery_date) >= startOfMonth);
-  const thisWeek  = surgeries.filter(s => new Date(s.surgery_date) >= startOfWeek);
+  // Normaliza surgery_date a medianoche local ignorando cualquier componente de hora/zona
+  const surgDateOnly = (dateStr: string) => {
+    const s = dateStr.split('T')[0].split('-');
+    return new Date(Number(s[0]), Number(s[1]) - 1, Number(s[2]));
+  };
+  const surgDiff = (dateStr: string) =>
+    Math.round((surgDateOnly(dateStr).getTime() - today.getTime()) / 86400000);
+
+  const thisMonth = surgeries.filter(s => surgDateOnly(s.surgery_date) >= startOfMonth);
+  const thisWeek  = surgeries.filter(s => surgDateOnly(s.surgery_date) >= startOfWeek);
   const pending   = surgeries.filter(s => s.status === 'Pendiente');
   const inTransit = surgeries.filter(s => ['En tránsito','Entregada'].includes(s.status));
 
   const alerts = (surgeries
     .filter(s => s.status === 'Pendiente')
     .map(s => {
-      const diff = Math.ceil((new Date(s.surgery_date).getTime() - now.getTime()) / 86400000);
+      const diff = surgDiff(s.surgery_date);
       if (diff <= 1) return { ...s, alertType: 'critical', msg: 'Bandeja sin preparar — cirugía inmediata' };
       if (diff <= 2) return { ...s, alertType: 'urgent', msg: 'Preparar bandeja en las próximas 24h' };
       return null;
     }).filter(Boolean)) as Array<Surgery & { alertType: string; msg: string }>;
 
   const next10 = surgeries.filter(s => {
-    const d = new Date(s.surgery_date);
-    const diff = (d.getTime() - now.getTime()) / 86400000;
+    const diff = surgDiff(s.surgery_date);
     return diff >= 0 && diff <= 30;
   })
   .sort((a,b) => new Date(a.surgery_date).getTime() - new Date(b.surgery_date).getTime())
@@ -140,7 +149,7 @@ export const Dashboard: React.FC = () => {
     return {
       name,
       cirugías: surgeries.filter(s => {
-        const d = new Date(s.surgery_date);
+        const d = surgDateOnly(s.surgery_date);
         return d >= dayStart && d <= dayEnd;
       }).length
     };
@@ -215,7 +224,7 @@ export const Dashboard: React.FC = () => {
                       <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider text-white', a.alertType==='critical' ? 'bg-red-500' : 'bg-amber-500')}>
                         {a.alertType==='critical' ? 'Crítico' : 'Urgente'}
                       </span>
-                      <span className="text-xs text-slate-500">{new Date(a.surgery_date).toLocaleDateString('es-ES')}</span>
+                      <span className="text-xs text-slate-500">{surgDateOnly(a.surgery_date).toLocaleDateString('es-ES')}</span>
                     </div>
                     <p className="font-bold text-slate-900">{a.patient_name}</p>
                     <p className="text-xs text-slate-600 mt-0.5">{a.msg}</p>
@@ -316,7 +325,7 @@ export const Dashboard: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {next10.map(s => {
-                    const diff = Math.ceil((new Date(s.surgery_date).getTime() - now.getTime()) / 86400000);
+                    const diff = surgDiff(s.surgery_date);
                     return (
                       <tr
                         key={s.id}
@@ -328,7 +337,7 @@ export const Dashboard: React.FC = () => {
                         <td className="px-5 py-3.5 text-sm text-slate-700 whitespace-nowrap">{s.surgeon?.full_name || '—'}</td>
                         <td className="px-5 py-3.5 text-sm text-slate-700 whitespace-nowrap">{s.hospital?.name || '—'}</td>
                         <td className="px-5 py-3.5 whitespace-nowrap">
-                          <p className="text-sm font-medium">{new Date(s.surgery_date).toLocaleDateString('es-ES')}</p>
+                          <p className="text-sm font-medium">{surgDateOnly(s.surgery_date).toLocaleDateString('es-ES')}</p>
                           <p className={cn('text-xs font-semibold', diff===0?'text-red-600':diff===1?'text-amber-600':'text-slate-400')}>
                             {diff===0?'Hoy':diff===1?'Mañana':`En ${diff} días`}
                           </p>
