@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { SurgeryConsumption } from '../types/domain';
-import { ShoppingCart, Calendar, Download, Search, Printer, FileText, RefreshCw } from 'lucide-react';
+import { ShoppingCart, Download, Search, FileText, RefreshCw, FileSpreadsheet } from 'lucide-react';
 import { implantService } from '../services/implantService';
 import { printService } from '../services/printService';
 import { useToast } from '../components/ui/Toast';
@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import { cn } from '../utils/cn';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { exportToExcelMultiSheet } from '../utils/exportExcel';
 
 export const ReporteReposicion: React.FC = () => {
   const toast = useToast();
@@ -120,6 +121,34 @@ export const ReporteReposicion: React.FC = () => {
 
   const handlePrint = () => window.print();
 
+  const handleExportExcel = () => {
+    const materialRows = (Object.values(materialSummary) as any[]).map(item => ({
+      'Producto': item.name,
+      'SKU': item.sku,
+      'Categoría': item.category,
+      'Stock Actual': item.current_stock,
+      'Cantidad Usada': item.total_used,
+      'Costo Unitario (RD$)': item.unit_cost,
+      'Subtotal (RD$)': item.total_used * item.unit_cost,
+    }));
+
+    const surgeryRows = (Object.values(surgeriesSummary) as any[]).map(s => ({
+      'Paciente': s.patient,
+      'Hospital': s.hospital,
+      'Fecha': s.date ? format(new Date(s.date), 'dd/MM/yyyy') : '—',
+      'Ítems Consumidos': s.items_count,
+      'Gasto Total (RD$)': s.total_cost,
+    }));
+
+    exportToExcelMultiSheet(
+      [
+        { name: 'Por Material', rows: materialRows },
+        { name: 'Por Cirugía', rows: surgeryRows },
+      ],
+      `reporte-reposicion-${dateRange.start}_${dateRange.end}`,
+    );
+  };
+
   const handleDownloadPDF = () => {
     if (view === 'material') {
       printService.generateReplenishmentReport(data, dateRange, materialSummary);
@@ -174,6 +203,12 @@ export const ReporteReposicion: React.FC = () => {
           <p className="text-slate-500">Analítica financiera y logística de materiales consumidos</p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={handleExportExcel}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-sm shadow-green-200 flex items-center gap-2"
+          >
+            <FileSpreadsheet size={18} /> Exportar Excel
+          </button>
           <button
             onClick={handleDownloadPDF}
             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all shadow-sm shadow-emerald-200 flex items-center gap-2"
