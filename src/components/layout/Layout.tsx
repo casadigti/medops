@@ -3,7 +3,7 @@ import { Sidebar } from './Sidebar';
 import { ImpersonationBanner } from '../ImpersonationBanner';
 import { SessionTimeoutModal } from '../SessionTimeoutModal';
 import { useSessionTimeout } from '../../hooks/useSessionTimeout';
-import { Bell, Search, LayoutDashboard, CalendarDays, Stethoscope, Package, Users, BarChart3, Settings, Wrench } from 'lucide-react';
+import { Bell, Search, LayoutDashboard, CalendarDays, Stethoscope, Package, Users, BarChart3, Settings, Wrench, Box, ShoppingCart, History } from 'lucide-react';
 import { surgeryService } from '../../services/surgeryService';
 import { implantService } from '../../services/implantService';
 import { cn } from '../../utils/cn';
@@ -29,6 +29,9 @@ const MobileNav: React.FC<{ role?: string }> = ({ role }) => {
     { icon: Package,         path: '/bandejas',      label: 'Sets',      roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
     { icon: Wrench,          path: '/mantenimiento', label: 'Mant.',     roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
     { icon: Users,           path: '/directorio',    label: 'Dir.',      roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
+    { icon: Box,          path: '/inventario',        label: 'Inventario', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
+    { icon: ShoppingCart, path: '/reporte-reposicion', label: 'Gasto',      roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
+    { icon: History,      path: '/reporte-lotes',      label: 'Lotes',      roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
     { icon: BarChart3,       path: '/reportes',      label: 'Reportes',  roles: ['Superadmin', 'Administrador'] },
     { icon: Settings,        path: '/configuracion', label: 'Ajustes',   roles: ['Superadmin', 'Administrador'] },
   ];
@@ -38,14 +41,14 @@ const MobileNav: React.FC<{ role?: string }> = ({ role }) => {
   );
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 py-2 flex justify-around items-center z-50 pb-safe">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-2 py-2 flex items-center z-50 pb-safe overflow-x-auto gap-1">
       {filtered.map((item) => {
         const active = pathname === item.path;
         return (
           <Link
             key={`${item.path}-${item.label}`}
             to={item.path}
-            className={cn('flex flex-col items-center gap-1 p-2 rounded-xl transition-all', active ? 'text-primary bg-primary/5' : 'text-slate-400')}
+            className={cn('flex flex-col items-center gap-1 p-1.5 min-w-[56px] rounded-xl transition-all', active ? 'text-primary bg-primary/5' : 'text-slate-400')}
           >
             <item.icon size={20} strokeWidth={active ? 2.5 : 2} />
             <span className="text-[10px] font-bold uppercase tracking-tighter">{item.label}</span>
@@ -176,7 +179,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, userProfile }) => {
         </header>
 
         <ImpersonationBanner />
-        <div className="p-4 lg:p-8 flex-1 animate-in fade-in slide-in-from-bottom-4 duration-700 overflow-x-hidden">
+        <div className="p-4 lg:p-8 flex-1 animate-in fade-in slide-in-from-bottom-4 duration-700">
           {children}
         </div>
 

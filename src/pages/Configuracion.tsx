@@ -540,7 +540,7 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
                   </button>
                 </form>
 
-                <div className="border border-slate-100 rounded-xl overflow-hidden">
+                <div className="border border-slate-100 rounded-xl overflow-hidden overflow-x-auto">
                   <table className="w-full text-left">
                     <thead className="bg-slate-50">
                       <tr>
