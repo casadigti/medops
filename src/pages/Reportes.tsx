@@ -252,14 +252,14 @@ export const Reportes: React.FC = () => {
   const ticketAvg = completed > 0 ? Math.round(totalRevenue / completed) : 0;
 
   // — Ranking de Responsables de Entrega
-  const byResponsible = Object.entries(
-    filtered.reduce((acc, s) => {
+  const byResponsible: Array<{ name: string; total: number }> = Object.entries(
+    filtered.reduce((acc: Record<string, number>, s) => {
       const name = s.delivery_responsible?.trim() || 'Sin asignar';
       acc[name] = (acc[name] || 0) + 1;
       return acc;
-    }, {} as Record<string, number>)
+    }, {})
   )
-    .map(([name, total]) => ({ name, total }))
+    .map(([name, total]) => ({ name, total: total as number }))
     .sort((a, b) => b.total - a.total)
     .slice(0, 8);
 
