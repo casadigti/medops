@@ -251,6 +251,18 @@ export const Reportes: React.FC = () => {
   // — Ticket promedio por cirugía completada
   const ticketAvg = completed > 0 ? Math.round(totalRevenue / completed) : 0;
 
+  // — Ranking de Responsables de Entrega
+  const byResponsible: Array<{ name: string; total: number }> = Object.entries(
+    filtered.reduce((acc: Record<string, number>, s) => {
+      const name = s.delivery_responsible?.trim() || 'Sin asignar';
+      acc[name] = (acc[name] || 0) + 1;
+      return acc;
+    }, {})
+  )
+    .map(([name, total]) => ({ name, total: total as number }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 8);
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -478,6 +490,33 @@ export const Reportes: React.FC = () => {
               <p className="text-[10px] text-slate-400 text-center mt-1">El día más activo se resalta en azul oscuro</p>
             </div>
           </div>
+
+          {/* Ranking responsables de entrega */}
+          {byResponsible.length > 0 && (
+            <div className="card">
+              <SectionTitle>Ranking de Responsables de Entrega</SectionTitle>
+              <div className="space-y-3">
+                {byResponsible.map((r, i) => {
+                  const max = byResponsible[0].total;
+                  const pct = Math.round((r.total / max) * 100);
+                  return (
+                    <div key={r.name} className="flex items-center gap-3">
+                      <span className="w-5 text-[11px] font-bold text-slate-400 text-right shrink-0">{i + 1}</span>
+                      <span className="w-36 text-sm font-semibold text-slate-700 truncate shrink-0">{r.name}</span>
+                      <div className="flex-1 bg-slate-100 rounded-full h-2.5">
+                        <div
+                          className="h-2.5 rounded-full transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }}
+                        />
+                      </div>
+                      <span className="w-8 text-sm font-bold text-slate-900 text-right shrink-0">{r.total}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-slate-400 mt-3">Basado en {filtered.length} cirugías del período seleccionado</p>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="card">

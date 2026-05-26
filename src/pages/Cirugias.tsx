@@ -220,6 +220,14 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, 
     ...(initial || {}),
     ars_id: initial?.ars_id || ''
   }));
+  const [selectedProcTypes, setSelectedProcTypes] = useState<string[]>(() =>
+    initial?.procedure_type
+      ? initial.procedure_type.split(',').map(s => s.trim()).filter(Boolean)
+      : []
+  );
+  const toggleProcType = (p: string) => setSelectedProcTypes(prev =>
+    prev.includes(p) ? prev.filter(t => t !== p) : [...prev, p]
+  );
   const [selectedTrayIds, setSelectedTrayIds] = useState<string[]>([]);
   const [availableTrays, setAvailableTrays] = useState<TrayWithAvailability[]>([]);
   const [trayLoading, setTrayLoading] = useState(false);
@@ -243,7 +251,11 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, 
     prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
   );
 
-  const submit = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); onSave(form, selectedTrayIds); };
+  const submit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (selectedProcTypes.length === 0) return;
+    onSave({ ...form, procedure_type: selectedProcTypes.join(', ') }, selectedTrayIds);
+  };
 
   return (
     <form onSubmit={submit} className="space-y-5">
@@ -297,11 +309,31 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, 
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-slate-700 mb-1">Tipo de Procedimiento *</label>
-        <select required className="input" value={form.procedure_type} onChange={e => set('procedure_type', e.target.value)}>
-          <option value="">Seleccionar procedimiento...</option>
-          {PROCEDURE_TYPES.map(p => <option key={p}>{p}</option>)}
-        </select>
+        <label className="block text-sm font-semibold text-slate-700 mb-1">
+          Tipo de Procedimiento *
+          {selectedProcTypes.length > 0 && (
+            <span className="ml-2 text-xs font-normal text-blue-600">({selectedProcTypes.length} seleccionado{selectedProcTypes.length > 1 ? 's' : ''})</span>
+          )}
+        </label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border border-slate-200 rounded-xl p-3 max-h-52 overflow-y-auto">
+          {PROCEDURE_TYPES.map(p => (
+            <label key={p} className={cn(
+              'flex items-center gap-2.5 p-2.5 rounded-lg cursor-pointer border transition-all',
+              selectedProcTypes.includes(p) ? 'border-primary/30 bg-blue-50' : 'border-slate-100 hover:bg-slate-50'
+            )}>
+              <input
+                type="checkbox"
+                className="accent-blue-700 shrink-0"
+                checked={selectedProcTypes.includes(p)}
+                onChange={() => toggleProcType(p)}
+              />
+              <span className="text-sm text-slate-700">{p}</span>
+            </label>
+          ))}
+        </div>
+        {selectedProcTypes.length === 0 && (
+          <p className="text-xs text-red-500 mt-1">Selecciona al menos un tipo de procedimiento</p>
+        )}
       </div>
 
       <div>
@@ -586,8 +618,14 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
                             {arsList.find(a => a.id === s.ars_id)?.name || 'Sin ARS'}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5 text-sm text-slate-600 max-w-[200px]">
-                          <p className="truncate" title={s.procedure_type}>{s.procedure_type}</p>
+                        <td className="px-4 py-3.5 text-sm text-slate-600 max-w-[220px]">
+                          <div className="flex flex-wrap gap-1">
+                            {(s.procedure_type || '').split(',').map(p => p.trim()).filter(Boolean).map(p => (
+                              <span key={p} className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium leading-tight" title={p}>
+                                {p.length > 28 ? p.slice(0, 26) + '…' : p}
+                              </span>
+                            ))}
+                          </div>
                         </td>
                         <td className="px-4 py-3.5 text-sm text-slate-700 whitespace-nowrap">
                           {s.surgeon?.full_name || <span className="text-slate-300 italic">—</span>}
