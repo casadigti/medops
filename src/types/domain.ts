@@ -74,7 +74,7 @@ export interface TrayWithAvailability extends Tray {
   unavailable_reason: string | null;
 }
 
-export type SurgeryStatus = 'Pendiente' | 'Programada' | 'En Proceso' | 'En preparación' | 'Completada' | 'Cancelada';
+export type SurgeryStatus = 'Pendiente' | 'Programada' | 'En Proceso' | 'En preparación' | 'Lista' | 'En tránsito' | 'Entregada' | 'Completada' | 'Suspendida' | 'Cancelada' | 'Facturada';
 
 export interface Surgery {
   id: string;
