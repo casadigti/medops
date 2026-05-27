@@ -97,6 +97,7 @@ export interface Surgery {
   delivery_responsible?: string;
   notes?: string;
   ars_id?: string;
+  nss?: string;
   surgeon?: Pick<Surgeon, 'id' | 'full_name' | 'specialty'>;
   hospital?: Pick<Hospital, 'id' | 'name'>;
   ars?: Pick<ARS, 'id' | 'name'>;
