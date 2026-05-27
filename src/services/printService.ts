@@ -72,20 +72,29 @@ export const printService = {
     doc.setFont('helvetica', 'bold');
     doc.text('BANDEJAS Y EQUIPOS ENTREGADOS', margin, infoY + 35);
 
-    const trays = ((surgery.surgery_trays || []) as Array<{ tray?: { code?: string; name?: string; procedure_type?: string } }>).map(st => [
+    const trayRows = ((surgery.surgery_trays || []) as Array<{ tray?: { code?: string; name?: string; procedure_type?: string; is_support_tray?: boolean } }>).map(st => [
       st.tray?.code || '-',
       st.tray?.name || 'Set no especificado',
       st.tray?.procedure_type || '-',
-      'OK',
+      st.tray?.is_support_tray ? 'APOYO – A DEVOLVER' : 'OK',
     ]);
 
     autoTable(doc, {
       startY: infoY + 38,
-      head: [['Código', 'Descripción del Set', 'Especialidad', 'Estado']],
-      body: trays.length ? trays : [['-', 'No hay bandejas asignadas', '-', '-']],
+      head: [['Código', 'Descripción del Set', 'Especialidad', 'Estado / Tipo']],
+      body: trayRows.length ? trayRows : [['-', 'No hay bandejas asignadas', '-', '-']],
       theme: 'striped',
       headStyles: { fillColor: [30, 64, 175], fontSize: 9 },
       bodyStyles: { fontSize: 9 },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 3) {
+          const val = trayRows[data.row.index]?.[3];
+          if (val === 'APOYO – A DEVOLVER') {
+            (data.cell.styles as unknown as Record<string, unknown>).textColor = [180, 83, 9];
+            (data.cell.styles as unknown as Record<string, unknown>).fontStyle = 'bold';
+          }
+        }
+      },
       margin: { left: margin, right: margin },
     });
 

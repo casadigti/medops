@@ -20,6 +20,7 @@ export interface Hospital {
   coordinator_contact?: string;
   logistics_notes?: string;
   operating_rooms?: string[];
+  requires_support_tray?: boolean;
   created_at?: string;
 }
 
@@ -65,6 +66,7 @@ export interface Tray {
   sterilization_count?: number;
   location?: string;
   content?: string;
+  is_support_tray?: boolean;
   surgery_trays?: Array<{ count: number }>;
   created_at?: string;
 }

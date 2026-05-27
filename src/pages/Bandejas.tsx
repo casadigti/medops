@@ -15,7 +15,7 @@ const TrayForm = ({ initial, onSave, onCancel, loading }: { initial: Partial<Tra
   const [form, setForm] = useState(initial || {
     name: '', code: '', procedure_type: '', content: '',
     status: 'Disponible', location: '', sterilization_count: 0,
-    last_sterilization: '', next_maintenance: ''
+    last_sterilization: '', next_maintenance: '', is_support_tray: false
   });
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
   const submit = (e: React.FormEvent) => { e.preventDefault(); onSave(form); };
@@ -61,6 +61,18 @@ const TrayForm = ({ initial, onSave, onCancel, loading }: { initial: Partial<Tra
           <input type="date" className="input" value={getLocalDateString(form.next_maintenance ?? undefined)} onChange={e => set('next_maintenance', e.target.value)} />
         </div>
       </div>
+      <label className="flex items-start gap-3 p-3 rounded-xl border border-amber-200 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors">
+        <input
+          type="checkbox"
+          className="accent-amber-600 mt-0.5 shrink-0"
+          checked={!!(form as any).is_support_tray}
+          onChange={e => set('is_support_tray', e.target.checked)}
+        />
+        <div>
+          <p className="text-sm font-semibold text-amber-800">Es bandeja de apoyo</p>
+          <p className="text-xs text-amber-600 mt-0.5">Esta bandeja se presta al hospital sin cargo al paciente. Aparece en la hoja de entrega con etiqueta "Apoyo – A devolver".</p>
+        </div>
+      </label>
       <div className="flex gap-3 pt-2">
         <button type="button" onClick={onCancel} className="btn btn-secondary flex-1">Cancelar</button>
         <button type="submit" disabled={loading} className="btn btn-primary flex-1">

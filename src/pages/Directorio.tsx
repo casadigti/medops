@@ -227,7 +227,7 @@ const SurgeonForm = ({ initial, onSave, onCancel, loading }: { initial?: Partial
 
 // ── Hospital Form ───────────────────────────────────────────────
 const HospitalForm = ({ initial, onSave, onCancel, loading }: { initial?: Partial<Hospital> | null; onSave: (data: any) => void; onCancel: () => void; loading: boolean }) => {
-  const [form, setForm] = useState(initial || { name:'', address:'', coordinator_contact:'', logistics_notes:'', operating_rooms:[] });
+  const [form, setForm] = useState(initial || { name:'', address:'', coordinator_contact:'', logistics_notes:'', operating_rooms:[], requires_support_tray: false });
   const [roomInput, setRoomInput] = useState('');
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
   const addRoom = () => {
@@ -267,6 +267,18 @@ const HospitalForm = ({ initial, onSave, onCancel, loading }: { initial?: Partia
         <label className="block text-sm font-semibold text-slate-700 mb-1">Notas Logísticas</label>
         <textarea rows={2} className="input resize-none" value={form.logistics_notes} onChange={e => set('logistics_notes', e.target.value)} placeholder="Horario de recepción, requisitos especiales..." />
       </div>
+      <label className="flex items-start gap-3 p-3 rounded-xl border border-amber-200 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors">
+        <input
+          type="checkbox"
+          className="accent-amber-600 mt-0.5 shrink-0"
+          checked={!!(form as any).requires_support_tray}
+          onChange={e => set('requires_support_tray', e.target.checked)}
+        />
+        <div>
+          <p className="text-sm font-semibold text-amber-800">Requiere bandeja de apoyo</p>
+          <p className="text-xs text-amber-600 mt-0.5">Al asignar este hospital a una cirugía, el sistema recordará seleccionar una Bandeja de Apoyo (prestada, sin costo al paciente).</p>
+        </div>
+      </label>
       <div className="flex gap-3 pt-2">
         <button type="button" onClick={onCancel} className="btn btn-secondary flex-1">Cancelar</button>
         <button type="submit" disabled={loading} className="btn btn-primary flex-1">

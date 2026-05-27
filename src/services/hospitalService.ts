@@ -7,6 +7,7 @@ import type { Hospital } from '../types/domain';
 const ALLOWED_FIELDS: Array<keyof Hospital> = [
   'name', 'city', 'address', 'phone',
   'coordinator_contact', 'logistics_notes', 'operating_rooms',
+  'requires_support_tray',
 ];
 
 function pickAllowed(hospital: Partial<Hospital>): Partial<Hospital> {

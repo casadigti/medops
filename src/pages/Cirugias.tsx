@@ -251,9 +251,14 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, 
     prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
   );
 
+  const selectedHospital = hospitals.find(h => h.id === form.hospital_id);
+  const needsSupportTray = !!selectedHospital?.requires_support_tray;
+  const hasSupportTraySelected = selectedTrayIds.some(id => availableTrays.find(t => t.id === id)?.is_support_tray);
+
   const submit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (selectedProcTypes.length === 0) return;
+    if (needsSupportTray && !hasSupportTraySelected) return;
     onSave({ ...form, procedure_type: selectedProcTypes.join(', ') }, selectedTrayIds);
   };
 
@@ -341,6 +346,24 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, 
           Bandejas / Sets Requeridos
           {!form.surgery_date && <span className="text-slate-400 font-normal text-xs ml-2">(selecciona una fecha primero)</span>}
         </label>
+        {needsSupportTray && (
+          <div className={cn(
+            'flex items-start gap-2.5 p-3 rounded-xl border mb-3 text-sm',
+            hasSupportTraySelected
+              ? 'bg-green-50 border-green-200 text-green-800'
+              : 'bg-amber-50 border-amber-200 text-amber-800'
+          )}>
+            <span className="text-lg leading-none shrink-0">{hasSupportTraySelected ? '✅' : '⚠️'}</span>
+            <div>
+              <p className="font-semibold">{hasSupportTraySelected ? 'Bandeja de apoyo seleccionada' : 'Este hospital requiere bandeja de apoyo'}</p>
+              <p className="text-xs mt-0.5 opacity-80">
+                {hasSupportTraySelected
+                  ? 'La bandeja de apoyo aparecerá en la hoja de entrega como "Apoyo – A devolver".'
+                  : 'Selecciona una Bandeja de Apoyo (marcada con 🔶). No genera costo al paciente.'}
+              </p>
+            </div>
+          </div>
+        )}
         {trayLoading
           ? <p className="text-sm text-slate-400 italic">Verificando disponibilidad...</p>
           : availableTrays.length === 0 && !form.surgery_date
@@ -351,23 +374,32 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, 
                   <label key={t.id} className={cn(
                     'flex items-center gap-2.5 p-2.5 rounded-lg cursor-pointer border transition-all',
                     t.busy && !selectedTrayIds.includes(t.id) ? 'opacity-40 cursor-not-allowed border-slate-100 bg-slate-50' :
-                    selectedTrayIds.includes(t.id) ? 'border-primary/30 bg-blue-50' : 'border-slate-100 hover:bg-slate-50'
+                    selectedTrayIds.includes(t.id) && t.is_support_tray ? 'border-amber-300 bg-amber-50' :
+                    selectedTrayIds.includes(t.id) ? 'border-primary/30 bg-blue-50' :
+                    t.is_support_tray ? 'border-amber-200 bg-amber-50/40 hover:bg-amber-50' :
+                    'border-slate-100 hover:bg-slate-50'
                   )}>
-                    <input type="checkbox" className="accent-blue-700"
+                    <input type="checkbox" className={t.is_support_tray ? 'accent-amber-600' : 'accent-blue-700'}
                       checked={selectedTrayIds.includes(t.id)}
                       disabled={t.busy && !selectedTrayIds.includes(t.id)}
                       onChange={() => toggleTray(t.id)}
                     />
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">{t.name}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
+                        {t.is_support_tray && <span title="Bandeja de apoyo">🔶</span>}
+                        {t.name}
+                      </p>
                       <p className="text-xs text-slate-400">
-                        {t.code} {t.unavailable_reason ? `— ${t.unavailable_reason}` : ''}
+                        {t.code}{t.is_support_tray ? ' · Apoyo (sin costo)' : ''}{t.unavailable_reason ? ` — ${t.unavailable_reason}` : ''}
                       </p>
                     </div>
                   </label>
                 ))}
               </div>
             )}
+        {needsSupportTray && !hasSupportTraySelected && (
+          <p className="text-xs text-amber-600 mt-1">⚠️ Debes seleccionar al menos una bandeja de apoyo para este hospital.</p>
+        )}
       </div>
 
       <div>
