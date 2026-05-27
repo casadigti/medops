@@ -17,7 +17,7 @@ const SURGERY_SELECT = `
 
 const ALLOWED_FIELDS: Array<keyof Surgery> = [
   'patient_name', 'surgery_date', 'surgeon_id', 'hospital_id',
-  'operating_room', 'procedure_type', 'status', 'delivery_responsible', 'notes', 'ars_id',
+  'operating_room', 'procedure_type', 'status', 'delivery_responsible', 'notes', 'ars_id', 'nss',
 ];
 
 async function restGet(

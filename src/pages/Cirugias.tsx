@@ -287,6 +287,10 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, procedureTypes, on
             {arsList.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
         </div>
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-1">No. NSS</label>
+          <input className="input" value={(form as any).nss || ''} onChange={e => set('nss', e.target.value)} placeholder="No. carnet aseguradora" />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
