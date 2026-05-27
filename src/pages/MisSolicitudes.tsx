@@ -3,11 +3,11 @@ import { surgeryService } from '../services/surgeryService';
 import { Modal } from '../components/ui/Modal';
 import { StatusBadge } from '../components/ui/Badge';
 import { PageLoader, EmptyState } from '../components/ui/Spinner';
-import { PROCEDURE_TYPES } from '../data/catalogo';
+import { procedureTypeService } from '../services/procedureTypeService';
 import { Plus, Calendar, Building2, Package, Clock, ShieldCheck } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ui/Toast';
-import type { UserProfile, Surgery, Surgeon, Hospital } from '../types/domain';
+import type { UserProfile, Surgery, Surgeon, Hospital, ProcedureType } from '../types/domain';
 
 interface MisSolicitudesProps {
   userProfile?: Partial<UserProfile> | null;
@@ -19,6 +19,7 @@ export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
   const [surgeries, setSurgeries] = useState<Surgery[]>([]);
   const [surgeonProfile, setSurgeonProfile] = useState<Surgeon | null>(null);
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [procedureTypes, setProcedureTypes] = useState<ProcedureType[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -74,6 +75,10 @@ export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
       const hospitalsArr = await hospitalsRes.json();
       if (!mounted) return;
       setHospitals(Array.isArray(hospitalsArr) ? hospitalsArr : []);
+
+      const procs = await procedureTypeService.getAll();
+      if (!mounted) return;
+      setProcedureTypes(procs || []);
 
     } catch (error) {
       console.error('MisSolicitudes: Error fetching portal data:', error);
@@ -262,7 +267,7 @@ export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
                   onChange={e => setForm({...form, procedure_type: e.target.value})}
                 >
                   <option value="">Seleccionar...</option>
-                  {PROCEDURE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  {procedureTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
                 </select>
               </div>
             </div>
