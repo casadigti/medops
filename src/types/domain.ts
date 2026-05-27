@@ -35,7 +35,7 @@ export interface ImplantLot {
   id: string;
   implant_id: string;
   lot_number: string;
-  expiration_date: string;
+  expiration_date: string | null;
   current_quantity: number;
   location?: string;
   created_at?: string;
