@@ -139,9 +139,8 @@ const LotForm = ({ onSave, onCancel, implantId, loading }: { onSave: (data: any)
           />
         </div>
         <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-1">Fecha de Vencimiento *</label>
+          <label className="block text-sm font-semibold text-slate-700 mb-1">Fecha de Vencimiento</label>
           <input
-            required
             type="date"
             className="input"
             value={form.expiration_date}
@@ -350,7 +349,8 @@ export const InventarioQuirurgico: React.FC = () => {
   const handleAddLot = async (formData: any) => {
     setActionLoading(true);
     try {
-      await implantService.addLot(formData);
+      const cleanLot = { ...formData, expiration_date: formData.expiration_date || null };
+      await implantService.addLot(cleanLot);
       toast.success('Lote registrado correctamente');
       setIsLotModalOpen(false);
       fetchImplants();
@@ -386,8 +386,9 @@ export const InventarioQuirurgico: React.FC = () => {
     }
   };
 
-  const isExpired = (date: string) => new Date(date) < new Date();
-  const isExpiringSoon = (date: string) => {
+  const isExpired = (date: string | null) => !!date && new Date(date) < new Date();
+  const isExpiringSoon = (date: string | null) => {
+    if (!date) return false;
     const exp = new Date(date);
     const today = new Date();
     const diff = (exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
@@ -568,14 +569,16 @@ export const InventarioQuirurgico: React.FC = () => {
                                   isExpired(lot.expiration_date) ? "text-rose-600 font-bold" :
                                   isExpiringSoon(lot.expiration_date) ? "text-amber-600 font-bold" : "text-slate-600"
                                 )}>
-                                  {new Date(lot.expiration_date).toLocaleDateString('es-ES')}
+                                  {lot.expiration_date ? new Date(lot.expiration_date).toLocaleDateString('es-ES') : 'Sin vencimiento'}
                                 </span>
                               </div>
                             </td>
                             <td className="py-3 px-2 font-bold text-slate-900">{lot.current_quantity}</td>
                             <td className="py-3 px-2 text-slate-500">{lot.location}</td>
                             <td className="py-3 px-2 text-right">
-                              {isExpired(lot.expiration_date) ? (
+                              {!lot.expiration_date ? (
+                                <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold uppercase">Sin venc.</span>
+                              ) : isExpired(lot.expiration_date) ? (
                                 <span className="px-2 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold uppercase">Vencido</span>
                               ) : isExpiringSoon(lot.expiration_date) ? (
                                 <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold uppercase">Vence Pronto</span>
