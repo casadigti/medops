@@ -107,6 +107,7 @@ export const ReporteReposicion: React.FC = () => {
         patient,
         date: curr.surgeries?.surgery_date,
         hospital,
+        nss: (curr.surgeries as any)?.nss || '',
         total_cost: 0,
         items_count: 0
       };
@@ -381,7 +382,8 @@ export const ReporteReposicion: React.FC = () => {
                   <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                     <td className="py-4 px-6">
                       <p className="font-bold text-slate-900 leading-tight">{s.patient}</p>
-                      <p className="text-[10px] text-slate-500 mt-1">{s.hospital}</p>
+                      {s.nss && <p className="text-[10px] text-primary font-semibold mt-0.5">NSS: {s.nss}</p>}
+                      <p className="text-[10px] text-slate-500 mt-0.5">{s.hospital}</p>
                     </td>
                     <td className="py-4 px-6 text-sm text-slate-600">
                       {format(new Date(s.date), 'dd/MM/yyyy')}

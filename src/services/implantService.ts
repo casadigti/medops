@@ -145,7 +145,7 @@ export const implantService = {
       .select(`
         *,
         implant_lots (id, lot_number, implants (id, name, sku, category, unit_cost, selling_price)),
-        surgeries!inner (id, patient_name, surgery_date, status, surgeon_id, hospital_id,
+        surgeries!inner (id, patient_name, surgery_date, status, surgeon_id, hospital_id, nss,
           surgeon: surgeons (full_name), hospital: hospitals (name))
       `)
       .eq('surgeries.status', 'Completada')
