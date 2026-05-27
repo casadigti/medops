@@ -31,6 +31,13 @@ export interface ARS {
   created_at?: string;
 }
 
+export interface ProcedureType {
+  id: string;
+  name: string;
+  is_active: boolean;
+  created_at?: string;
+}
+
 export interface ImplantLot {
   id: string;
   implant_id: string;

@@ -5,9 +5,10 @@ import { configService } from '../services/configService';
 import { Modal } from '../components/ui/Modal';
 import { supabase } from '../lib/supabase';
 import { arsService } from '../services/arsService';
+import { procedureTypeService } from '../services/procedureTypeService';
 import { auditService } from '../services/auditService';
 import { useToast } from '../components/ui/Toast';
-import type { UserProfile, ARS, AuditLog } from '../types/domain';
+import type { UserProfile, ARS, AuditLog, ProcedureType } from '../types/domain';
 
 interface ConfigUser {
   id: string;
@@ -135,6 +136,11 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
   const [editingArsId, setEditingArsId] = React.useState<string | null>(null);
   const [editingArsName, setEditingArsName] = React.useState('');
   const [isArsLoading, setIsArsLoading] = React.useState(false);
+  const [procTypes, setProcTypes] = React.useState<ProcedureType[]>([]);
+  const [newProcName, setNewProcName] = React.useState('');
+  const [editingProcId, setEditingProcId] = React.useState<string | null>(null);
+  const [editingProcName, setEditingProcName] = React.useState('');
+  const [isProcLoading, setIsProcLoading] = React.useState(false);
   const [logs, setLogs] = React.useState<AuditLog[]>([]);
   const [logsCount, setLogsCount] = React.useState(0);
   const [isLogsLoading, setIsLogsLoading] = React.useState(false);
@@ -172,6 +178,15 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
     }
   };
 
+  const fetchProcTypes = async () => {
+    try {
+      const data = await procedureTypeService.getAll();
+      setProcTypes(data || []);
+    } catch (error) {
+      console.error('Error fetching procedure types:', error);
+    }
+  };
+
   const fetchLogs = React.useCallback(async (page = 0) => {
     if (profile?.role !== 'Superadmin') return;
     try {
@@ -203,7 +218,7 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
           setPrimaryColor(settings.primary_color || '#1e40af');
           setLogoPreview(settings.logo_url || null);
         }
-        await Promise.all([fetchUsers(), fetchArs(), fetchLogs()]);
+        await Promise.all([fetchUsers(), fetchArs(), fetchProcTypes(), fetchLogs()]);
       } catch (error) {
         console.error('Error cargando configuración:', error);
       } finally {
@@ -308,6 +323,45 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
     }
   };
 
+  const handleAddProc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProcName.trim()) return;
+    setIsProcLoading(true);
+    try {
+      await procedureTypeService.create(newProcName.trim());
+      setNewProcName('');
+      await fetchProcTypes();
+      toast.success('Tipo de procedimiento agregado.');
+    } catch (error) {
+      toast.error('Error al agregar: ' + (error as Error).message);
+    } finally {
+      setIsProcLoading(false);
+    }
+  };
+
+  const handleDeleteProc = async (id: string) => {
+    if (!confirm('¿Eliminar este tipo de procedimiento?')) return;
+    try {
+      await procedureTypeService.delete(id);
+      await fetchProcTypes();
+      toast.success('Tipo de procedimiento eliminado.');
+    } catch (error) {
+      toast.error('Error al eliminar: ' + (error as Error).message);
+    }
+  };
+
+  const handleUpdateProc = async (id: string) => {
+    if (!editingProcName.trim()) return;
+    try {
+      await procedureTypeService.update(id, { name: editingProcName.trim() });
+      setEditingProcId(null);
+      await fetchProcTypes();
+      toast.success('Tipo de procedimiento actualizado.');
+    } catch (error) {
+      toast.error('Error al actualizar: ' + (error as Error).message);
+    }
+  };
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -343,6 +397,7 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
     { id: 'identity', label: 'Identidad Corporativa', icon: Building2, roles: ['Superadmin', 'Administrador'] },
     { id: 'users', label: 'Usuarios y Roles', icon: Shield, roles: ['Superadmin', 'Administrador'] },
     { id: 'ars', label: 'Catálogo ARS', icon: Palette, roles: ['Superadmin', 'Administrador'] },
+    { id: 'procedures', label: 'Tipos de Procedimiento', icon: Settings, roles: ['Superadmin', 'Administrador'] },
     { id: 'logs', label: 'Logs del Sistema', icon: Bell, roles: ['Superadmin'] },
     { id: 'security', label: 'Mi Seguridad', icon: Shield, roles: ['Superadmin', 'Administrador', 'Cirujano', 'Editor', 'Técnico', 'Lector'] },
     { id: 'system', label: 'Sistema y Alertas', icon: Settings, roles: ['Superadmin', 'Administrador'] },
@@ -591,6 +646,85 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
                       {arsList.length === 0 && (
                         <tr>
                           <td colSpan={2} className="px-4 py-8 text-center text-slate-400 italic">No hay aseguradoras registradas.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </ConfigCard>
+            </div>
+          )}
+
+          {activeTab === 'procedures' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+              <ConfigCard>
+                <SectionHeader title="Tipos de Procedimiento" description="Administra los procedimientos quirúrgicos que aparecen al crear una cirugía." />
+
+                <form onSubmit={handleAddProc} className="flex gap-2 mb-6">
+                  <input
+                    type="text"
+                    placeholder="Nombre del procedimiento (ej: Artroplastia total de rodilla)"
+                    className="input flex-1"
+                    value={newProcName}
+                    onChange={e => setNewProcName(e.target.value)}
+                    required
+                  />
+                  <button type="submit" disabled={isProcLoading} className="btn btn-primary">
+                    <Plus size={18} /> Agregar
+                  </button>
+                </form>
+
+                <div className="border border-slate-100 rounded-xl overflow-hidden overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Procedimiento</th>
+                        <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {procTypes.map(pt => (
+                        <tr key={pt.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-3 text-sm font-bold text-slate-700">
+                            {editingProcId === pt.id ? (
+                              <input
+                                className="input h-8 text-sm"
+                                value={editingProcName}
+                                onChange={e => setEditingProcName(e.target.value)}
+                                autoFocus
+                              />
+                            ) : (
+                              pt.name
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex justify-end gap-2">
+                              {editingProcId === pt.id ? (
+                                <>
+                                  <button onClick={() => handleUpdateProc(pt.id)} className="text-green-600 hover:bg-green-50 p-1 rounded-md transition-all">
+                                    <Check size={16} />
+                                  </button>
+                                  <button onClick={() => setEditingProcId(null)} className="text-slate-400 hover:bg-slate-100 p-1 rounded-md transition-all">
+                                    <X size={16} />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button onClick={() => { setEditingProcId(pt.id); setEditingProcName(pt.name); }} className="text-slate-300 hover:text-primary transition-all">
+                                    <Edit2 size={16} />
+                                  </button>
+                                  <button onClick={() => handleDeleteProc(pt.id)} className="text-slate-300 hover:text-danger transition-all">
+                                    <Trash2 size={16} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {procTypes.length === 0 && (
+                        <tr>
+                          <td colSpan={2} className="px-4 py-8 text-center text-slate-400 italic">No hay tipos de procedimiento registrados.</td>
                         </tr>
                       )}
                     </tbody>

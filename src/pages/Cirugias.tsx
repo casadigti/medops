@@ -5,11 +5,12 @@ import { surgeonService } from '../services/surgeonService';
 import { hospitalService } from '../services/hospitalService';
 import { trayService } from '../services/trayService';
 import { arsService } from '../services/arsService';
+import { procedureTypeService } from '../services/procedureTypeService';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { StatusBadge } from '../components/ui/Badge';
 import { PageLoader, EmptyState } from '../components/ui/Spinner';
-import { SURGERY_STATUSES, PROCEDURE_TYPES, STATUS_COLORS } from '../data/catalogo';
+import { SURGERY_STATUSES, STATUS_COLORS } from '../data/catalogo';
 import { Stethoscope, Plus, Pencil, Trash2, Search, ChevronDown, Calendar, User, Building2, Package, Printer, AlertTriangle } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { printService } from '../services/printService';
@@ -17,7 +18,7 @@ import { implantService } from '../services/implantService';
 import { useToast } from '../components/ui/Toast';
 import { ShoppingCart, CheckCircle2, FileText } from 'lucide-react';
 import { generateActaQuirurgica } from '../utils/pdfGenerator';
-import type { UserProfile, Surgery, Surgeon, Hospital, ARS, Implant, SurgeryConsumption, TrayWithAvailability, SurgeryStatus } from '../types/domain';
+import type { UserProfile, Surgery, Surgeon, Hospital, ARS, Implant, SurgeryConsumption, TrayWithAvailability, SurgeryStatus, ProcedureType } from '../types/domain';
 
 // ─── Consumption Form ─────────────────────────────────────────────────────────
 const ConsumptionForm = ({ surgery, onSave, onCancel, loading }: { surgery: Surgery; onSave: (data: any) => void; onCancel: () => void; loading: boolean }) => {
@@ -212,7 +213,7 @@ const ConsumptionForm = ({ surgery, onSave, onCancel, loading }: { surgery: Surg
 };
 
 // ─── Surgery Form ────────────────────────────────────────────────────────────
-const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, loading }: { initial?: Partial<Surgery> | null; surgeons: Surgeon[]; hospitals: Hospital[]; arsList: ARS[]; onSave: (data: any, trayIds: string[]) => void; onCancel: () => void; loading: boolean }) => {
+const SurgeryForm = ({ initial, surgeons, hospitals, arsList, procedureTypes, onSave, onCancel, loading }: { initial?: Partial<Surgery> | null; surgeons: Surgeon[]; hospitals: Hospital[]; arsList: ARS[]; procedureTypes: ProcedureType[]; onSave: (data: any, trayIds: string[]) => void; onCancel: () => void; loading: boolean }) => {
   const [form, setForm] = useState(() => ({
     patient_name: '', surgery_date: '', surgeon_id: '', hospital_id: '',
     operating_room: '', procedure_type: '', status: 'Pendiente',
@@ -321,18 +322,21 @@ const SurgeryForm = ({ initial, surgeons, hospitals, arsList, onSave, onCancel, 
           )}
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border border-slate-200 rounded-xl p-3 max-h-52 overflow-y-auto">
-          {PROCEDURE_TYPES.map(p => (
-            <label key={p} className={cn(
+          {procedureTypes.length === 0 && (
+            <p className="col-span-2 text-sm text-slate-400 italic py-2">No hay tipos de procedimiento configurados. Agrégalos en Configuración → Tipos de Procedimiento.</p>
+          )}
+          {procedureTypes.map(p => (
+            <label key={p.id} className={cn(
               'flex items-center gap-2.5 p-2.5 rounded-lg cursor-pointer border transition-all',
-              selectedProcTypes.includes(p) ? 'border-primary/30 bg-blue-50' : 'border-slate-100 hover:bg-slate-50'
+              selectedProcTypes.includes(p.name) ? 'border-primary/30 bg-blue-50' : 'border-slate-100 hover:bg-slate-50'
             )}>
               <input
                 type="checkbox"
                 className="accent-blue-700 shrink-0"
-                checked={selectedProcTypes.includes(p)}
-                onChange={() => toggleProcType(p)}
+                checked={selectedProcTypes.includes(p.name)}
+                onChange={() => toggleProcType(p.name)}
               />
-              <span className="text-sm text-slate-700">{p}</span>
+              <span className="text-sm text-slate-700">{p.name}</span>
             </label>
           ))}
         </div>
@@ -452,6 +456,7 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
   const [surgeons, setSurgeons]   = useState<Surgeon[]>([]);
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [arsList, setArsList]     = useState<ARS[]>([]);
+  const [procedureTypes, setProcedureTypes] = useState<ProcedureType[]>([]);
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
   const [search, setSearch]       = useState(searchParams.get('q') || '');
@@ -469,16 +474,18 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
     setLoading(true);
     setFetchError(null);
     try {
-      const [surg, sur, hosp, ars] = await Promise.all([
+      const [surg, sur, hosp, ars, procs] = await Promise.all([
         surgeryService.getAll(isSurgeon ? mySurgeonId : null),
         surgeonService.getAll(),
         hospitalService.getAll(),
-        arsService.getAll()
+        arsService.getAll(),
+        procedureTypeService.getAll(),
       ]);
       setSurgeries(surg || []);
       setSurgeons(sur || []);
       setHospitals(hosp || []);
       setArsList(ars || []);
+      setProcedureTypes(procs || []);
     } catch (err) {
       console.error('Cirugias: Error cargando datos:', err);
       setFetchError('No se pudieron cargar los datos. Intenta recargar.');
@@ -730,7 +737,7 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
          )}
 
        <Modal isOpen={!!modal} onClose={() => setModal(null)} title={modal?.data ? 'Editar Cirugía' : 'Nueva Cirugía'} size="lg">
-         <SurgeryForm initial={modal?.data} surgeons={surgeons} hospitals={hospitals} arsList={arsList} onSave={handleSave} onCancel={() => setModal(null)} loading={saving} />
+         <SurgeryForm initial={modal?.data} surgeons={surgeons} hospitals={hospitals} arsList={arsList} procedureTypes={procedureTypes} onSave={handleSave} onCancel={() => setModal(null)} loading={saving} />
        </Modal>
        <Modal isOpen={!!consumptionModal} onClose={() => setConsumptionModal(null)} title={`Reportar Gasto: ${consumptionModal?.patient_name}`} size="md">
          {consumptionModal && <ConsumptionForm surgery={consumptionModal} onSave={handleConsumptionReport} onCancel={() => setConsumptionModal(null)} loading={saving} />}
