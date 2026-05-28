@@ -45,11 +45,12 @@ test.describe('Cirugías', () => {
     await patientInput.fill('María García');
 
     // Fill datetime-local using native setter so React synthetic event fires
-    await page.locator('input[type="datetime-local"], input[type="date"]').first().evaluate(
+    // NOTE: use type="datetime-local" specifically — the page also has type="date"
+    // inputs for the date-range filter and we must not match those.
+    await page.locator('input[type="datetime-local"]').first().evaluate(
       (el: HTMLInputElement) => {
-        const value = el.type === 'datetime-local' ? '2026-06-01T09:00' : '2026-06-01';
         const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-        if (setter) setter.call(el, value);
+        if (setter) setter.call(el, '2026-06-01T09:00');
         el.dispatchEvent(new Event('input', { bubbles: true }));
         el.dispatchEvent(new Event('change', { bubbles: true }));
       }
