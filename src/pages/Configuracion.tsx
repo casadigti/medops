@@ -1,11 +1,12 @@
 import React, { useEffect } from 'react';
-import { Settings, User, Building2, Palette, Shield, Mail, Save, Image as ImageIcon, Bell, Edit2, Check, X, Upload, Lock, Trash2, Plus } from 'lucide-react';
+import { Settings, User, Building2, Palette, Shield, Mail, Save, Image as ImageIcon, Bell, Edit2, Check, X, Upload, Lock, Trash2, Plus, HardDrive, Download, AlertTriangle } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { configService } from '../services/configService';
 import { Modal } from '../components/ui/Modal';
 import { supabase } from '../lib/supabase';
 import { arsService } from '../services/arsService';
 import { procedureTypeService } from '../services/procedureTypeService';
+import { backupService } from '../services/backupService';
 import { auditService } from '../services/auditService';
 import { useToast } from '../components/ui/Toast';
 import type { UserProfile, ARS, AuditLog, ProcedureType } from '../types/domain';
@@ -150,6 +151,13 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
   const [logActionFilter, setLogActionFilter] = React.useState('');
   const LOG_PAGE_SIZE = 25;
 
+  // Backup / restore state
+  const [isExporting, setIsExporting] = React.useState(false);
+  const [isImporting, setIsImporting] = React.useState(false);
+  const [importResult, setImportResult] = React.useState<{ imported: number; errors: string[] } | null>(null);
+  const [backupCounts, setBackupCounts] = React.useState<Partial<Record<string, number>>>({});
+  const backupFileRef = React.useRef<HTMLInputElement>(null);
+
   const fetchUsers = async () => {
     try {
       const dbUsers = await configService.getUsers();
@@ -231,6 +239,8 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
       setActiveTab('security');
     }
   }, [profile]);
+
+  useEffect(() => { handleOpenBackupTab(); }, [activeTab]);
 
   const handleCreateUser = async (data: any) => {
     setIsCreatingUser(true);
@@ -362,6 +372,47 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
     }
   };
 
+  const handleExportBackup = async () => {
+    setIsExporting(true);
+    try {
+      await backupService.exportBackup();
+      toast.success('Backup descargado correctamente.');
+    } catch (err) {
+      toast.error('Error al exportar: ' + (err as Error).message);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleImportBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsImporting(true);
+    setImportResult(null);
+    try {
+      const result = await backupService.importBackup(file);
+      setImportResult(result);
+      if (result.errors.length === 0) {
+        toast.success(`Backup importado: ${result.imported} registros restaurados.`);
+      } else {
+        toast.warning(`Importado con ${result.errors.length} advertencia(s). Revisa el detalle.`);
+      }
+    } catch (err) {
+      toast.error('Error al importar: ' + (err as Error).message);
+    } finally {
+      setIsImporting(false);
+      if (backupFileRef.current) backupFileRef.current.value = '';
+    }
+  };
+
+  const handleOpenBackupTab = async () => {
+    if (activeTab !== 'backup') return;
+    try {
+      const counts = await backupService.getCounts();
+      setBackupCounts(counts);
+    } catch { /* silent */ }
+  };
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -399,6 +450,7 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
     { id: 'ars', label: 'Catálogo ARS', icon: Palette, roles: ['Superadmin', 'Administrador'] },
     { id: 'procedures', label: 'Tipos de Procedimiento', icon: Settings, roles: ['Superadmin', 'Administrador'] },
     { id: 'logs', label: 'Logs del Sistema', icon: Bell, roles: ['Superadmin'] },
+    { id: 'backup', label: 'Respaldo de Datos', icon: HardDrive, roles: ['Superadmin', 'Administrador'] },
     { id: 'security', label: 'Mi Seguridad', icon: Shield, roles: ['Superadmin', 'Administrador', 'Cirujano', 'Editor', 'Técnico', 'Lector'] },
     { id: 'system', label: 'Sistema y Alertas', icon: Settings, roles: ['Superadmin', 'Administrador'] },
   ];
@@ -730,6 +782,99 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
                     </tbody>
                   </table>
                 </div>
+              </ConfigCard>
+            </div>
+          )}
+
+          {activeTab === 'backup' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+              {/* Export */}
+              <ConfigCard>
+                <SectionHeader
+                  title="Exportar Backup"
+                  description="Descarga un archivo JSON con todos los datos de tu organización: cirugías, hospitales, cirujanos, inventario y más."
+                />
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-5">
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Contenido del backup</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {[
+                      ['Cirugías', 'surgeries'],
+                      ['Cirujanos', 'surgeons'],
+                      ['Hospitales', 'hospitals'],
+                      ['Bandejas', 'trays'],
+                      ['Implantes', 'implants'],
+                      ['Lotes', 'implant_lots'],
+                      ['ARS', 'ars'],
+                      ['Procedimientos', 'procedure_types'],
+                      ['Consumos', 'surgery_consumption'],
+                    ].map(([label, key]) => (
+                      <div key={key} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-slate-100">
+                        <span className="text-xs font-semibold text-slate-600">{label}</span>
+                        <span className="text-xs font-black text-primary ml-2">
+                          {backupCounts[key] !== undefined ? backupCounts[key] : '—'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  onClick={handleExportBackup}
+                  disabled={isExporting}
+                  className="btn btn-primary flex items-center gap-2"
+                >
+                  <Download size={18} />
+                  {isExporting ? 'Exportando...' : 'Descargar Backup (.json)'}
+                </button>
+              </ConfigCard>
+
+              {/* Import */}
+              <ConfigCard>
+                <SectionHeader
+                  title="Importar Backup"
+                  description="Restaura datos desde un archivo de backup previamente exportado. Los registros existentes con el mismo ID serán actualizados."
+                />
+                <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl mb-5">
+                  <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                  <div className="text-sm text-amber-800">
+                    <p className="font-bold">Advertencia</p>
+                    <p className="text-xs mt-0.5">Esta operación sobreescribe registros existentes que coincidan por ID. Solo importa archivos generados por esta misma plataforma.</p>
+                  </div>
+                </div>
+
+                <input
+                  ref={backupFileRef}
+                  type="file"
+                  accept=".json,application/json"
+                  className="hidden"
+                  onChange={handleImportBackup}
+                />
+                <button
+                  onClick={() => backupFileRef.current?.click()}
+                  disabled={isImporting}
+                  className="btn btn-secondary flex items-center gap-2"
+                >
+                  <Upload size={18} />
+                  {isImporting ? 'Importando...' : 'Seleccionar archivo de backup'}
+                </button>
+
+                {importResult && (
+                  <div className={cn(
+                    'mt-5 p-4 rounded-xl border text-sm',
+                    importResult.errors.length === 0
+                      ? 'bg-green-50 border-green-200 text-green-800'
+                      : 'bg-amber-50 border-amber-200 text-amber-800'
+                  )}>
+                    <p className="font-bold mb-1">
+                      {importResult.errors.length === 0 ? '✅ Importación completada' : '⚠️ Importación con advertencias'}
+                    </p>
+                    <p className="text-xs">{importResult.imported} registros procesados.</p>
+                    {importResult.errors.length > 0 && (
+                      <ul className="mt-2 space-y-1 text-xs font-mono">
+                        {importResult.errors.map((e, i) => <li key={i} className="text-red-700">• {e}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </ConfigCard>
             </div>
           )}
