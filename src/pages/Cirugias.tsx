@@ -465,6 +465,8 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
   const [saving, setSaving]       = useState(false);
   const [search, setSearch]       = useState(searchParams.get('q') || '');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo]     = useState('');
   const [modal, setModal]         = useState<{ data: Surgery | null } | null>(null);
   const [consumptionModal, setConsumptionModal] = useState<Surgery | null>(null);
   const [confirm, setConfirm]     = useState<{ id: string; name: string } | null>(null);
@@ -513,7 +515,11 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
       (s.surgeon?.full_name || '').toLowerCase().includes(q) ||
       (s.hospital?.name || '').toLowerCase().includes(q) ||
       (s.procedure_type || '').toLowerCase().includes(q);
-    return matchSearch && (!filterStatus || s.status === filterStatus);
+    const matchStatus = !filterStatus || s.status === filterStatus;
+    const dateStr = s.surgery_date.slice(0, 10);
+    const matchDateFrom = !filterDateFrom || dateStr >= filterDateFrom;
+    const matchDateTo   = !filterDateTo   || dateStr <= filterDateTo;
+    return matchSearch && matchStatus && matchDateFrom && matchDateTo;
   });
 
   const handleSave = async (data: any, trayIds: string[]) => {
@@ -622,12 +628,38 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
         </button>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row items-center gap-3">
+        <div className="relative sm:max-w-[260px] w-full flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <input className="input input-search text-sm" placeholder="Buscar por paciente, cirujano, hospital o procedimiento..." value={search} onChange={e => setSearch(e.target.value)} />
+          <input className="input input-search text-sm w-full" placeholder="Buscar paciente, cirujano..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <select className="input sm:max-w-[200px] text-sm" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+        <div className="flex items-center gap-2 shrink-0">
+          <Calendar size={15} className="text-slate-400 shrink-0" />
+          <input
+            type="date"
+            className="input text-sm w-[140px]"
+            value={filterDateFrom}
+            onChange={e => setFilterDateFrom(e.target.value)}
+            title="Desde"
+          />
+          <span className="text-slate-400 text-sm font-medium">—</span>
+          <input
+            type="date"
+            className="input text-sm w-[140px]"
+            value={filterDateTo}
+            onChange={e => setFilterDateTo(e.target.value)}
+            title="Hasta"
+          />
+          {(filterDateFrom || filterDateTo) && (
+            <button
+              className="btn btn-secondary text-xs px-2.5 py-1.5 whitespace-nowrap"
+              onClick={() => { setFilterDateFrom(''); setFilterDateTo(''); }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+        <select className="input sm:max-w-[180px] w-full text-sm shrink-0" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
           <option value="">Todos los estados</option>
           {SURGERY_STATUSES.map(s => <option key={s}>{s}</option>)}
         </select>
