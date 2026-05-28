@@ -87,6 +87,7 @@ export type SurgeryStatus = 'Pendiente' | 'Programada' | 'En Proceso' | 'En prep
 
 export interface Surgery {
   id: string;
+  org_id?: string;
   patient_name: string;
   surgery_date: string;
   surgeon_id: string;

@@ -154,13 +154,17 @@ export const surgeryService = {
     await auditService.log('SURGERY_DELETE', 'surgeries', id, { note: 'Cirugía eliminada' });
   },
 
-  async sendAlert(surgery: Surgery, recipientEmail: string): Promise<unknown> {
+  async sendAlert(surgery: Surgery): Promise<unknown> {
     // SECURITY F-16: send only the fields the send-surgery-alert Edge
     // Function actually consumes, instead of the full Surgery object
     // (data minimisation / least privilege).
+    // org_id is REQUIRED: the Edge Function uses it to resolve the admins of
+    // the surgery's own organisation (multi-tenant isolation) and throws
+    // "surgery.org_id es obligatorio" if it is missing.
     const hospital = (surgery as { hospital?: { name?: string } }).hospital;
     const surgeon = (surgery as { surgeon?: { full_name?: string } }).surgeon;
     const payload = {
+      org_id: surgery.org_id,
       patient_name: surgery.patient_name,
       surgery_date: surgery.surgery_date,
       procedure_type: surgery.procedure_type,
@@ -169,7 +173,7 @@ export const surgeryService = {
     };
 
     const { data, error } = await supabase.functions.invoke('send-surgery-alert', {
-      body: { surgery: payload, recipientEmail },
+      body: { surgery: payload },
     });
     if (error) throw error;
     return data;

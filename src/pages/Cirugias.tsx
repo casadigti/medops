@@ -539,7 +539,7 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
         const diffDays = Math.round((_surgMidnight.getTime() - _todayMidnight.getTime()) / 86400000);
         if (diffDays <= 2 && finalData.status === 'Pendiente') {
           try {
-            await surgeryService.sendAlert(newSurgery, 'casadigti@gmail.com');
+            await surgeryService.sendAlert(newSurgery);
           } catch (alertError) {
             console.error('Error al enviar la alerta de correo:', alertError);
           }
