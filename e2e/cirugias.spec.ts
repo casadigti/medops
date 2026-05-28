@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { MOCK_SURGERIES, MOCK_HOSPITALS, MOCK_SURGEONS, MOCK_ARS } from './fixtures/mockData';
+import { MOCK_SURGERIES, MOCK_HOSPITALS, MOCK_SURGEONS, MOCK_ARS, MOCK_PROCEDURE_TYPES } from './fixtures/mockData';
 import { mockAuthenticatedSession, mockRestTable } from './fixtures/auth';
 
 test.describe('Cirugías', () => {
@@ -9,6 +9,7 @@ test.describe('Cirugías', () => {
     await mockRestTable(page, 'hospitals', MOCK_HOSPITALS);
     await mockRestTable(page, 'surgeons', MOCK_SURGEONS);
     await mockRestTable(page, 'ars', MOCK_ARS);
+    await mockRestTable(page, 'procedure_types', MOCK_PROCEDURE_TYPES);
   });
 
   test('carga y muestra lista de cirugías', async ({ page }) => {
@@ -57,8 +58,8 @@ test.describe('Cirugías', () => {
     // Select ARS (first non-empty option)
     await page.locator('select').filter({ hasText: 'Seleccionar ARS' }).selectOption({ index: 1 });
 
-    // Select procedure type (first non-empty option)
-    await page.locator('select').filter({ hasText: 'Seleccionar procedimiento' }).selectOption({ index: 1 });
+    // Select procedure type — now a checkbox grid, click the first checkbox
+    await page.locator('input[type="checkbox"]').first().check();
 
     // Submit
     await page.getByRole('button', { name: /crear cirugía|guardar|confirmar/i }).click();

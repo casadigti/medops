@@ -92,3 +92,8 @@ export const MOCK_SURGEONS = [
 export const MOCK_ARS = [
   { id: 'ars-1', name: 'ARS Salud Segura' },
 ];
+
+export const MOCK_PROCEDURE_TYPES = [
+  { id: 'proc-1', name: 'Artroplastia de Cadera', is_active: true },
+  { id: 'proc-2', name: 'Artroplastia de Rodilla', is_active: true },
+];
