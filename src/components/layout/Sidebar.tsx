@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Stethoscope, Package, Users, BarChart3, Settings,
-  LogOut, Wrench, CalendarDays, Shield, Box, ShoppingCart, History, Building2,
+  LogOut, Wrench, CalendarDays, Shield, Box, ShoppingCart, History, Building2, Warehouse,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { supabase } from '../../lib/supabase';
@@ -28,6 +28,7 @@ const navItems: NavItem[] = [
   { icon: Box,             label: 'Inventario',         path: '/inventario',        roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'], showStockAlert: true },
   { icon: ShoppingCart,    label: 'Reporte de Gasto',  path: '/reporte-reposicion',roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
   { icon: History,         label: 'Reporte Lotes',     path: '/reporte-lotes',     roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
+  { icon: Warehouse,       label: 'Mapa de Almacén',   path: '/almacen',            roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor', 'Lector'] },
   { icon: Wrench,          label: 'Mantenimiento',     path: '/mantenimiento',     roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
   { icon: Users,           label: 'Directorio',        path: '/directorio',        roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor', 'Lector'] },
   { icon: BarChart3,       label: 'Reportes',          path: '/reportes',          roles: ['Superadmin', 'Administrador'] },

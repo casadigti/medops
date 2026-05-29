@@ -3,7 +3,7 @@ import { Sidebar } from './Sidebar';
 import { ImpersonationBanner } from '../ImpersonationBanner';
 import { SessionTimeoutModal } from '../SessionTimeoutModal';
 import { useSessionTimeout } from '../../hooks/useSessionTimeout';
-import { Bell, Search, LayoutDashboard, CalendarDays, Stethoscope, Package, Users, BarChart3, Settings, Wrench, Box, ShoppingCart, History } from 'lucide-react';
+import { Bell, Search, LayoutDashboard, CalendarDays, Stethoscope, Package, Users, BarChart3, Settings, Wrench, Box, ShoppingCart, History, Warehouse } from 'lucide-react';
 import { surgeryService } from '../../services/surgeryService';
 import { implantService } from '../../services/implantService';
 import { cn } from '../../utils/cn';
@@ -32,6 +32,7 @@ const MobileNav: React.FC<{ role?: string }> = ({ role }) => {
     { icon: Box,          path: '/inventario',        label: 'Inventario', roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
     { icon: ShoppingCart, path: '/reporte-reposicion', label: 'Gasto',      roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
     { icon: History,      path: '/reporte-lotes',      label: 'Lotes',      roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
+    { icon: Warehouse,    path: '/almacen',             label: 'Almacén',    roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor', 'Lector'] },
     { icon: BarChart3,       path: '/reportes',      label: 'Reportes',  roles: ['Superadmin', 'Administrador'] },
     { icon: Settings,        path: '/configuracion', label: 'Ajustes',   roles: ['Superadmin', 'Administrador'] },
   ];

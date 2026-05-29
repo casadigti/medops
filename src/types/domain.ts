@@ -190,3 +190,37 @@ export interface MaintenanceLog {
   performed_by?: string;
   created_at: string;
 }
+
+// ─── Storage Map ───────────────────────────────────────────────────────────────
+
+export type SlotItemType = 'implant_lot' | 'tray';
+
+export interface StorageShelf {
+  id: string;
+  org_id: string;
+  name: string;
+  orientation: 'horizontal' | 'vertical';
+  rows: number;
+  cols: number;
+  color: string;
+  description?: string;
+  created_at?: string;
+  slots?: StorageSlot[];
+}
+
+export interface StorageSlot {
+  id: string;
+  shelf_id: string;
+  row_index: number;
+  col_index: number;
+  item_type: SlotItemType | null;
+  item_id: string | null;
+  notes?: string;
+  item_label?: string;
+  item_detail?: string;
+}
+
+export interface AvailableItems {
+  implantLots: Array<{ id: string; label: string; detail: string }>;
+  trays:       Array<{ id: string; label: string; detail: string }>;
+}
