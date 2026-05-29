@@ -16,33 +16,41 @@ const PRESET_COLORS = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#
 interface SlotCellProps {
   slot: StorageSlot;
   onClick: () => void;
+  highlighted?: boolean;
 }
 
-const SlotCell: React.FC<SlotCellProps> = ({ slot, onClick }) => {
+const SlotCell: React.FC<SlotCellProps> = ({ slot, onClick, highlighted }) => {
   const isEmpty = !slot.item_id;
   const firstName = slot.item_label?.split('·')[0].trim();
 
   return (
-    <button
-      onClick={onClick}
-      title={slot.item_label ?? cellLabel(slot.row_index, slot.col_index)}
-      className={cn(
-        'aspect-square rounded-lg flex flex-col items-center justify-center p-1 transition-all',
-        'border-2 hover:scale-105 hover:z-10 relative text-[10px] font-bold',
-        isEmpty
-          ? 'border-dashed border-slate-300 bg-slate-50 text-slate-400 hover:border-primary hover:text-primary'
-          : slot.item_type === 'implant_lot'
-          ? 'border-blue-300 bg-blue-50 text-blue-700 hover:border-blue-500'
-          : 'border-green-300 bg-green-50 text-green-700 hover:border-green-500'
+    <div className="relative">
+      {highlighted && (
+        <span className="absolute inset-0 rounded-lg ring-4 ring-yellow-400 animate-ping opacity-75 pointer-events-none" />
       )}
-    >
-      <span>{cellLabel(slot.row_index, slot.col_index)}</span>
-      {!isEmpty && firstName && (
-        <span className="truncate w-full text-center leading-tight mt-0.5 text-[9px] opacity-80 px-0.5">
-          {firstName}
-        </span>
-      )}
-    </button>
+      <button
+        onClick={onClick}
+        title={slot.item_label ?? cellLabel(slot.row_index, slot.col_index)}
+        className={cn(
+          'aspect-square w-full rounded-lg flex flex-col items-center justify-center p-1 transition-all',
+          'border-2 hover:scale-105 hover:z-10 relative text-[10px] font-bold',
+          highlighted
+            ? 'border-yellow-400 bg-yellow-100 text-yellow-800 scale-110 z-20 shadow-md shadow-yellow-200'
+            : isEmpty
+            ? 'border-dashed border-slate-300 bg-slate-50 text-slate-400 hover:border-primary hover:text-primary'
+            : slot.item_type === 'implant_lot'
+            ? 'border-blue-300 bg-blue-50 text-blue-700 hover:border-blue-500'
+            : 'border-green-300 bg-green-50 text-green-700 hover:border-green-500'
+        )}
+      >
+        <span>{cellLabel(slot.row_index, slot.col_index)}</span>
+        {!isEmpty && firstName && (
+          <span className="truncate w-full text-center leading-tight mt-0.5 text-[9px] opacity-80 px-0.5">
+            {firstName}
+          </span>
+        )}
+      </button>
+    </div>
   );
 };
 
@@ -51,9 +59,10 @@ const SlotCell: React.FC<SlotCellProps> = ({ slot, onClick }) => {
 interface ShelfGridProps {
   shelf: StorageShelf;
   onSlotClick: (slot: StorageSlot) => void;
+  highlightedIds: Set<string>;
 }
 
-const ShelfGrid: React.FC<ShelfGridProps> = ({ shelf, onSlotClick }) => {
+const ShelfGrid: React.FC<ShelfGridProps> = ({ shelf, onSlotClick, highlightedIds }) => {
   const matrix: (StorageSlot | undefined)[][] = Array.from({ length: shelf.rows }, (_, r) =>
     Array.from({ length: shelf.cols }, (_, c) =>
       shelf.slots?.find(s => s.row_index === r && s.col_index === c)
@@ -67,7 +76,12 @@ const ShelfGrid: React.FC<ShelfGridProps> = ({ shelf, onSlotClick }) => {
     >
       {matrix.flat().map((slot, i) =>
         slot ? (
-          <SlotCell key={slot.id} slot={slot} onClick={() => onSlotClick(slot)} />
+          <SlotCell
+            key={slot.id}
+            slot={slot}
+            onClick={() => onSlotClick(slot)}
+            highlighted={highlightedIds.has(slot.id)}
+          />
         ) : (
           <div key={i} className="aspect-square bg-slate-100 rounded-lg opacity-40" />
         )
@@ -84,9 +98,10 @@ interface ShelfCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onSlotClick: (slot: StorageSlot) => void;
+  highlightedIds: Set<string>;
 }
 
-const ShelfCard: React.FC<ShelfCardProps> = ({ shelf, isAdmin, onEdit, onDelete, onSlotClick }) => {
+const ShelfCard: React.FC<ShelfCardProps> = ({ shelf, isAdmin, onEdit, onDelete, onSlotClick, highlightedIds }) => {
   const occupied = shelf.slots?.filter(s => s.item_id).length ?? 0;
   const total = shelf.rows * shelf.cols;
 
@@ -126,7 +141,7 @@ const ShelfCard: React.FC<ShelfCardProps> = ({ shelf, isAdmin, onEdit, onDelete,
             </div>
           )}
         </div>
-        <ShelfGrid shelf={shelf} onSlotClick={onSlotClick} />
+        <ShelfGrid shelf={shelf} onSlotClick={onSlotClick} highlightedIds={highlightedIds} />
       </div>
     </div>
   );
@@ -481,6 +496,22 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
   const isAdmin =
     userProfile?.role === 'Administrador' || userProfile?.role === 'Superadmin';
 
+  const [mapSearch, setMapSearch] = useState('');
+
+  const highlightedIds = React.useMemo((): Set<string> => {
+    const q = mapSearch.trim().toLowerCase();
+    if (q.length < 2) return new Set();
+    const ids = new Set<string>();
+    for (const shelf of shelves) {
+      for (const slot of (shelf.slots ?? [])) {
+        if (slot.item_id && slot.item_label?.toLowerCase().includes(q)) {
+          ids.add(slot.id);
+        }
+      }
+    }
+    return ids;
+  }, [mapSearch, shelves]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -527,6 +558,35 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
           </button>
         )}
       </div>
+
+      {/* Buscador de celdas */}
+      <div className="relative max-w-md">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        <input
+          className="input !pl-10 pr-10"
+          placeholder="Buscar producto en el mapa… ej: tornillo 3.5"
+          value={mapSearch}
+          onChange={e => setMapSearch(e.target.value)}
+        />
+        {mapSearch && (
+          <button
+            onClick={() => setMapSearch('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+      {mapSearch.trim().length >= 2 && (
+        <p className={cn(
+          'text-sm font-semibold',
+          highlightedIds.size > 0 ? 'text-yellow-700' : 'text-slate-400'
+        )}>
+          {highlightedIds.size > 0
+            ? `${highlightedIds.size} ${highlightedIds.size === 1 ? 'celda encontrada' : 'celdas encontradas'}`
+            : 'Sin resultados en el mapa'}
+        </p>
+      )}
 
       {/* Leyenda */}
       <div className="flex items-center gap-5 text-xs text-slate-500">
@@ -578,6 +638,7 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
               onEdit={() => setShelfModal({ open: true, shelf })}
               onDelete={() => setDeleteTarget(shelf.id)}
               onSlotClick={slot => setSlotModal({ open: true, slot })}
+              highlightedIds={highlightedIds}
             />
           ))}
         </div>
