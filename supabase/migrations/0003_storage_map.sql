@@ -8,7 +8,7 @@
 
 CREATE TABLE public.storage_shelves (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id      uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+  org_id      uuid NOT NULL DEFAULT get_my_org_id() REFERENCES public.organizations(id) ON DELETE CASCADE,
   name        text NOT NULL,
   orientation text NOT NULL DEFAULT 'horizontal'
               CHECK (orientation IN ('horizontal','vertical')),
