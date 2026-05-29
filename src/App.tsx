@@ -143,7 +143,13 @@ function App() {
         <Routes>
           <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
           <Route path="/*" element={
-            session ? (
+            session && !userProfile ? (
+              // Session set but profile still loading (post-login race)
+              <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-4">
+                <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+                <p className="font-semibold text-slate-400 text-sm">Cargando...</p>
+              </div>
+            ) : session ? (
               <>
                 {userProfile?.must_change_password && (
                   <ForcePasswordChange
