@@ -504,7 +504,10 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
     const ids = new Set<string>();
     for (const shelf of shelves) {
       for (const slot of (shelf.slots ?? [])) {
-        if (slot.item_id && slot.item_label?.toLowerCase().includes(q)) {
+        if (slot.item_id && (
+          slot.item_label?.toLowerCase().includes(q) ||
+          slot.item_detail?.toLowerCase().includes(q)
+        )) {
           ids.add(slot.id);
         }
       }

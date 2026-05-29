@@ -40,7 +40,7 @@ export const storageService = {
         const imp = Array.isArray(l.implants) ? l.implants[0] : l.implants;
         lotMap[l.id] = {
           label: `${imp?.name ?? '—'} · Lote ${l.lot_number}`,
-          detail: `Cant: ${l.current_quantity}`,
+          detail: `Cant: ${l.current_quantity} · ${imp?.sku ?? ''}`,
         };
       }
     }
