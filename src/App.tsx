@@ -19,6 +19,7 @@ import { ReporteReposicion } from './pages/ReporteReposicion';
 import { ReporteLotes } from './pages/ReporteLotes';
 import { Organizaciones } from './pages/Organizaciones';
 import { ForcePasswordChange } from './components/auth/ForcePasswordChange';
+import { InventoryChat } from './components/chat/InventoryChat';
 import type { Session } from '@supabase/supabase-js';
 import type { UserProfile } from './types/domain';
 
@@ -170,6 +171,7 @@ function App() {
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </Layout>
+                <InventoryChat userProfile={userProfile} />
               </>
             ) : (
               <Navigate to="/login" />

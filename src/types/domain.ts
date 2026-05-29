@@ -157,6 +157,7 @@ export interface UserProfile {
   // administrador de plataforma que no está ligado a ninguna organización.
   org_id?: string | null;
   is_platform_admin?: boolean;
+  telegram_chat_id?: number | null;
 }
 
 export interface OrganizationSettings {

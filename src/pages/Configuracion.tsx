@@ -151,6 +151,10 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
   const [logActionFilter, setLogActionFilter] = React.useState('');
   const LOG_PAGE_SIZE = 25;
 
+  // Telegram link state
+  const [telegramChatId, setTelegramChatId] = React.useState<string>('');
+  const [telegramSaving, setTelegramSaving] = React.useState(false);
+
   // Backup / restore state
   const [isExporting, setIsExporting] = React.useState(false);
   const [isImporting, setIsImporting] = React.useState(false);
@@ -237,6 +241,13 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
 
     if (profile?.role === 'Cirujano') {
       setActiveTab('security');
+    }
+    // Load telegram_chat_id from profile
+    if (profile?.id) {
+      supabase.from('profiles').select('telegram_chat_id').eq('id', profile.id).single()
+        .then(({ data }) => {
+          if (data?.telegram_chat_id) setTelegramChatId(String(data.telegram_chat_id));
+        });
     }
   }, [profile]);
 
@@ -411,6 +422,25 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
       const counts = await backupService.getCounts();
       setBackupCounts(counts);
     } catch { /* silent */ }
+  };
+
+  const handleSaveTelegramChatId = async () => {
+    if (!profile?.id) return;
+    setTelegramSaving(true);
+    try {
+      const val = telegramChatId.trim() ? Number(telegramChatId.trim()) : null;
+      if (telegramChatId.trim() && isNaN(val as number)) {
+        toast.error('El Chat ID debe ser un número. Escribe /start al bot para obtenerlo.');
+        return;
+      }
+      const { error } = await supabase.from('profiles').update({ telegram_chat_id: val }).eq('id', profile.id);
+      if (error) throw error;
+      toast.success(val ? 'Telegram vinculado correctamente.' : 'Telegram desvinculado.');
+    } catch (err) {
+      toast.error('Error al guardar: ' + (err as Error).message);
+    } finally {
+      setTelegramSaving(false);
+    }
   };
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -615,6 +645,48 @@ export const Configuracion: React.FC<ConfiguracionProps> = ({ userProfile: profi
                   </div>
                   <button type="submit" disabled={passLoading} className="btn btn-primary w-full mt-4">{passLoading ? 'Actualizando...' : 'Actualizar Credenciales'}</button>
                 </form>
+              </ConfigCard>
+
+              <ConfigCard>
+                <SectionHeader title="Vincular Telegram" description="Conecta tu cuenta con el bot de Telegram para buscar inventario desde la app de mensajería." />
+                <div className="max-w-md space-y-3">
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-800">
+                    <p className="font-bold mb-1">¿Cómo obtener tu Chat ID?</p>
+                    <ol className="list-decimal list-inside space-y-1 text-xs">
+                      <li>Busca el bot en Telegram (el admin te dará el nombre)</li>
+                      <li>Escribe <code className="bg-blue-100 px-1 rounded">/start</code></li>
+                      <li>El bot te responde con tu Chat ID — cópialo aquí</li>
+                    </ol>
+                  </div>
+                  <div>
+                    <label className="text-xs font-black text-slate-400 uppercase tracking-wider mb-1 block">Chat ID de Telegram</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="input flex-1"
+                        placeholder="Ej: 123456789"
+                        value={telegramChatId}
+                        onChange={e => setTelegramChatId(e.target.value)}
+                      />
+                      <button
+                        onClick={handleSaveTelegramChatId}
+                        disabled={telegramSaving}
+                        className="btn btn-primary px-4"
+                      >
+                        {telegramSaving ? 'Guardando...' : 'Guardar'}
+                      </button>
+                    </div>
+                    {telegramChatId && (
+                      <button
+                        onClick={() => { setTelegramChatId(''); handleSaveTelegramChatId(); }}
+                        className="text-xs text-slate-400 hover:text-danger mt-1 underline"
+                      >
+                        Desvincular Telegram
+                      </button>
+                    )}
+                  </div>
+                </div>
               </ConfigCard>
             </div>
           )}
