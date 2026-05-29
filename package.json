@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "deploy:functions": "supabase functions deploy inventory-search --no-verify-jwt && supabase functions deploy manage-orgs && supabase functions deploy manage-users && supabase functions deploy send-surgery-alert"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.20",
