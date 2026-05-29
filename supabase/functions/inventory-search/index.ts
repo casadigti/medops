@@ -97,6 +97,7 @@ serve(async (req) => {
       if (!text || text.length < 2) return new Response('ok')
 
       const searchTerm = cleanQuery(text)
+      console.log(`[TG] chat=${chatId} query="${text}" clean="${searchTerm}" token_ok=${!!TG_TOKEN}`)
 
       // Usa RPC con SECURITY DEFINER — no requiere service role key
       const anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
@@ -105,8 +106,10 @@ serve(async (req) => {
         p_query: searchTerm,
       })
 
+      console.log(`[TG] rpc_err=${JSON.stringify(error)} data_type_err=${(data as any)?.error}`)
+
       if (error || !data) {
-        console.error('RPC error:', error)
+        console.error('[TG] RPC failed:', error)
         await tgSend(chatId, 'Error al buscar. Intenta de nuevo.')
         return new Response('ok')
       }
