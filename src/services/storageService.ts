@@ -142,6 +142,25 @@ export const storageService = {
     if (error) throw error;
   },
 
+  async getSlotLocations(itemIds: string[]): Promise<Record<string, string>> {
+    if (itemIds.length === 0) return {};
+    const { data, error } = await supabase
+      .from('storage_slots')
+      .select('item_id, row_index, col_index, storage_shelves!shelf_id(name)')
+      .not('item_id', 'is', null)
+      .in('item_id', itemIds);
+    if (error) throw error;
+    const map: Record<string, string> = {};
+    for (const slot of (data ?? [])) {
+      const shelves = slot.storage_shelves as unknown as { name: string } | null;
+      const shelfName = Array.isArray(shelves) ? (shelves[0] as { name: string })?.name : shelves?.name;
+      if (slot.item_id && shelfName) {
+        map[slot.item_id] = `${shelfName} · Celda ${cellLabel(slot.row_index, slot.col_index)}`;
+      }
+    }
+    return map;
+  },
+
   async getAvailableItems(): Promise<AvailableItems> {
     const orgOverride = getImpersonatedOrgId();
 

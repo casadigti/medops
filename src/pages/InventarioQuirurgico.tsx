@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Package, Plus, Search, AlertTriangle, Calendar, Box, Trash2, Edit2, ChevronDown, ChevronUp, History, FileText, Upload, Download } from 'lucide-react';
+import { Package, Plus, Search, AlertTriangle, Calendar, Box, Trash2, Edit2, ChevronDown, ChevronUp, History, FileText, Upload, Download, MapPin } from 'lucide-react';
 import { read, utils, writeFile } from 'xlsx';
 import { implantService } from '../services/implantService';
+import { storageService } from '../services/storageService';
 import { useToast } from '../components/ui/Toast';
 import { Modal } from '../components/ui/Modal';
 import { cn } from '../utils/cn';
@@ -310,12 +311,19 @@ export const InventarioQuirurgico: React.FC = () => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedImplant, setSelectedImplant] = useState<Implant | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [slotLocationMap, setSlotLocationMap] = useState<Record<string, string>>({});
 
   const fetchImplants = async () => {
     try {
       setLoading(true);
       const data = await implantService.getAll();
       setImplants(data);
+      // Resolve physical storage locations for all lots
+      const lotIds = data.flatMap(i => (i.implant_lots ?? []).map(l => l.id).filter(Boolean)) as string[];
+      if (lotIds.length > 0) {
+        const map = await storageService.getSlotLocations(lotIds);
+        setSlotLocationMap(map);
+      }
     } catch (error) {
       toast.error('Error al cargar inventario: ' + (error as Error).message);
     } finally {
@@ -574,7 +582,16 @@ export const InventarioQuirurgico: React.FC = () => {
                               </div>
                             </td>
                             <td className="py-3 px-2 font-bold text-slate-900">{lot.current_quantity}</td>
-                            <td className="py-3 px-2 text-slate-500">{lot.location}</td>
+                            <td className="py-3 px-2 text-slate-500">
+                              {slotLocationMap[lot.id!] ? (
+                                <span className="flex items-center gap-1 text-primary font-medium">
+                                  <MapPin size={12} className="shrink-0" />
+                                  {slotLocationMap[lot.id!]}
+                                </span>
+                              ) : (
+                                lot.location || '—'
+                              )}
+                            </td>
                             <td className="py-3 px-2 text-right">
                               {!lot.expiration_date ? (
                                 <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold uppercase">Sin venc.</span>
