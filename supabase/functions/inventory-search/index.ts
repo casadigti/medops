@@ -22,10 +22,16 @@ function cleanQuery(raw: string): string {
     'cuales','cuáles','algún','algun','alguna','busco','encuentro','encuentras',
     'dónde','tenemos','tengo','ponme','trae','traeme','traéme','esta','están',
     'guardado','guardados','ubicado','ubicados','stock','inventario',
+    // quantity questions
+    'cuánta','cuánto','cuántos','cuántas','cuanta','cuanto','cuantos','cuantas',
+    'queda','quedan','disponible','disponibles','tenemos','cuantos','hay',
   ])
   const q = raw.toLowerCase().replace(/[¿?¡!,;]/g, ' ').trim()
   const words = q.split(/\s+/).filter(w => w.length > 0 && !stopwords.has(w))
-  const clean = words.join(' ').trim()
+  // Simple plural → singular: remove trailing 's' for words >= 5 chars ending in 's'
+  // e.g. "tornillos" → "tornillo", "placas" → "placa", "pins" → "pin" (4 chars, skip)
+  const normalized = words.map(w => (w.length >= 5 && w.endsWith('s') ? w.slice(0, -1) : w))
+  const clean = normalized.join(' ').trim()
   return clean.length >= 2 ? clean : raw.trim()
 }
 
