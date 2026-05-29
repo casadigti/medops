@@ -5,6 +5,7 @@ const e = (k: string): string => (Deno as any)["env"]["get"](k) ?? ""
 const SUPABASE_URL      = e("SUPABASE_URL")
 const SUPABASE_ANON_KEY = e("SUPABASE_ANON_KEY")
 const TG_TOKEN          = e("TELEGRAM_BOT_TOKEN")
+const GROQ_API_KEY      = e("GROQ_API_KEY")
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -21,10 +22,16 @@ function cleanQuery(raw: string): string {
     'cuales','cuáles','algún','algun','alguna','busco','encuentro','encuentras',
     'dónde','tenemos','tengo','ponme','trae','traeme','traéme','esta','están',
     'guardado','guardados','ubicado','ubicados','stock','inventario',
+    // quantity questions
+    'cuánta','cuánto','cuántos','cuántas','cuanta','cuanto','cuantos','cuantas',
+    'queda','quedan','disponible','disponibles','tenemos','cuantos','hay',
   ])
   const q = raw.toLowerCase().replace(/[¿?¡!,;]/g, ' ').trim()
-  const words = q.split(/\s+/).filter(w => w.length > 0 && !stopwords.has(w))
-  const clean = words.join(' ').trim()
+  const words = q.split(/\s+/).filter(w => w.length > 1 && !stopwords.has(w))
+  // Simple plural → singular: remove trailing 's' for words >= 5 chars ending in 's'
+  // e.g. "tornillos" → "tornillo", "placas" → "placa", "pins" → "pin" (4 chars, skip)
+  const normalized = words.map(w => (w.length >= 5 && w.endsWith('s') ? w.slice(0, -1) : w))
+  const clean = normalized.join(' ').trim()
   return clean.length >= 2 ? clean : raw.trim()
 }
 
@@ -69,6 +76,48 @@ async function tgSend(chatId: number | string, text: string) {
   })
 }
 
+// ─── Voice transcription via Groq Whisper ─────────────────────────────────
+
+async function transcribeVoice(fileId: string): Promise<string | null> {
+  if (!GROQ_API_KEY || !TG_TOKEN) return null
+  try {
+    // 1. Get file path from Telegram
+    const fileRes = await fetch(`https://api.telegram.org/bot${TG_TOKEN}/getFile?file_id=${fileId}`)
+    const fileData = await fileRes.json()
+    const filePath: string = fileData?.result?.file_path
+    if (!filePath) { console.error('[TG] getFile failed:', JSON.stringify(fileData)); return null }
+
+    // 2. Download audio bytes
+    const audioRes = await fetch(`https://api.telegram.org/file/bot${TG_TOKEN}/${filePath}`)
+    const audioBlob = await audioRes.blob()
+
+    // 3. Send to Groq Whisper (compatible with OpenAI audio API)
+    const form = new FormData()
+    form.append('file', audioBlob, 'voice.ogg')
+    form.append('model', 'whisper-large-v3')
+    form.append('language', 'es')
+    form.append('response_format', 'text')
+
+    const whisperRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` },
+      body: form,
+    })
+
+    if (!whisperRes.ok) {
+      console.error('[TG] Groq error:', await whisperRes.text())
+      return null
+    }
+
+    const transcription = (await whisperRes.text()).trim()
+    console.log(`[TG] transcribed: "${transcription}"`)
+    return transcription || null
+  } catch (err) {
+    console.error('[TG] transcribeVoice error:', err)
+    return null
+  }
+}
+
 // ─── Main handler ──────────────────────────────────────────────────────────
 
 serve(async (req) => {
@@ -85,19 +134,32 @@ serve(async (req) => {
       if (!msg) return new Response('ok')
 
       const chatId: number = msg.chat?.id
-      const text: string = (msg.text || '').trim()
+      const rawText: string = (msg.text || '').trim()
+      const voiceFileId: string | null = msg.voice?.file_id || msg.audio?.file_id || null
 
-      if (text === '/start') {
+      if (rawText === '/start') {
         await tgSend(chatId,
-          `Hola! Soy el asistente de inventario de MedOps.\n\nTu Chat ID es: ${chatId}\n\nVe a Configuracion > Mi Seguridad > Chat ID de Telegram y pega este numero.\n\nLuego preguntame:\n- tornillo 4.5mm\n- set ortopedico\n- TOR-45`
+          `Hola! Soy el asistente de inventario de MedOps.\n\nTu Chat ID es: ${chatId}\n\nVe a Configuracion > Mi Seguridad > Chat ID de Telegram y pega este numero.\n\nPuedes escribir o enviar nota de voz:\n- tornillo 4.5mm\n- set ortopedico\n- TOR-45`
         )
         return new Response('ok')
       }
 
-      if (!text || text.length < 2) return new Response('ok')
+      // Resolve search text: typed OR transcribed voice
+      let searchText = rawText
+      if (!searchText && voiceFileId) {
+        await tgSend(chatId, 'Transcribiendo audio...')
+        const transcription = await transcribeVoice(voiceFileId)
+        if (!transcription) {
+          await tgSend(chatId, 'No pude transcribir el audio. Intenta escribir tu busqueda.')
+          return new Response('ok')
+        }
+        searchText = transcription
+      }
 
-      const searchTerm = cleanQuery(text)
-      console.log(`[TG] chat=${chatId} query="${text}" clean="${searchTerm}" token_ok=${!!TG_TOKEN}`)
+      if (!searchText || searchText.length < 2) return new Response('ok')
+
+      const searchTerm = cleanQuery(searchText)
+      console.log(`[TG] chat=${chatId} query="${searchText}" clean="${searchTerm}" voice=${!!voiceFileId}`)
 
       // Usa RPC con SECURITY DEFINER — no requiere service role key
       const anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
@@ -120,7 +182,7 @@ serve(async (req) => {
       }
 
       const d = data as { implants: ImpRow[]; trays: TrayRow[] }
-      await tgSend(chatId, fmt(text, d.implants || [], d.trays || []))
+      await tgSend(chatId, fmt(searchText, d.implants || [], d.trays || []))
       return new Response('ok')
     }
 
