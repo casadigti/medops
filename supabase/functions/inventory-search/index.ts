@@ -27,7 +27,7 @@ function cleanQuery(raw: string): string {
     'queda','quedan','disponible','disponibles','tenemos','cuantos','hay',
   ])
   const q = raw.toLowerCase().replace(/[¿?¡!,;]/g, ' ').trim()
-  const words = q.split(/\s+/).filter(w => w.length > 0 && !stopwords.has(w))
+  const words = q.split(/\s+/).filter(w => w.length > 1 && !stopwords.has(w))
   // Simple plural → singular: remove trailing 's' for words >= 5 chars ending in 's'
   // e.g. "tornillos" → "tornillo", "placas" → "placa", "pins" → "pin" (4 chars, skip)
   const normalized = words.map(w => (w.length >= 5 && w.endsWith('s') ? w.slice(0, -1) : w))
