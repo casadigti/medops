@@ -11,6 +11,23 @@ const cors = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// ─── Query cleaner: strips Spanish filler before keyword search ───────────
+
+function cleanQuery(raw: string): string {
+  const stopwords = new Set([
+    'donde','esta','está','dónde','buscar','busca','hay','tienes','tiene',
+    'quiero','necesito','ver','dame','dime','me','un','una','el','la','los',
+    'las','de','del','lo','por','favor','porfavor','que','cual','cuál',
+    'cuales','cuáles','algún','algun','alguna','busco','encuentro','encuentras',
+    'dónde','tenemos','tengo','ponme','trae','traeme','traéme','esta','están',
+    'guardado','guardados','ubicado','ubicados','stock','inventario',
+  ])
+  const q = raw.toLowerCase().replace(/[¿?¡!,;]/g, ' ').trim()
+  const words = q.split(/\s+/).filter(w => w.length > 0 && !stopwords.has(w))
+  const clean = words.join(' ').trim()
+  return clean.length >= 2 ? clean : raw.trim()
+}
+
 // ─── Format results as plain text ─────────────────────────────────────────
 
 interface ImpRow { name: string; sku: string; location?: string | null; current_quantity?: number; expiration_date?: string | null }
@@ -79,11 +96,13 @@ serve(async (req) => {
 
       if (!text || text.length < 2) return new Response('ok')
 
+      const searchTerm = cleanQuery(text)
+
       // Usa RPC con SECURITY DEFINER — no requiere service role key
       const anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
       const { data, error } = await anon.rpc('search_inventory_for_telegram', {
         p_chat_id: chatId,
-        p_query: text,
+        p_query: searchTerm,
       })
 
       if (error || !data) {
@@ -123,7 +142,7 @@ serve(async (req) => {
       global: { headers: { Authorization: auth } },
     })
 
-    const q = query.trim()
+    const q = cleanQuery(query.trim())
 
     const [{ data: imps }, { data: trays }] = await Promise.all([
       userClient
