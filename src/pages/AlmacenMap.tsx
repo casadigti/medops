@@ -426,7 +426,7 @@ const SlotAssignModal: React.FC<SlotAssignModalProps> = ({ isOpen, onClose, slot
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
-              className="input pl-9"
+              className="input !pl-10"
               placeholder="Buscar..."
               value={search}
               onChange={e => setSearch(e.target.value)}
