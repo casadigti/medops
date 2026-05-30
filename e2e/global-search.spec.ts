@@ -53,7 +53,7 @@ test.describe('Búsqueda global', () => {
   test('navega a /cirugias al hacer clic en resultado de cirugía', async ({ page }) => {
     await mockAuthenticatedSession(page);
     await mockTable(page, 'surgeries', MOCK_SURGERIES_SEARCH);
-    await mockRestTable(page, 'implants', []);
+    await mockTable(page, 'implants', []);
     await mockTable(page, 'trays', []);
     await page.goto('/');
 
@@ -66,7 +66,7 @@ test.describe('Búsqueda global', () => {
   test('Escape cierra dropdown y limpia input', async ({ page }) => {
     await mockAuthenticatedSession(page);
     await mockTable(page, 'surgeries', MOCK_SURGERIES_SEARCH);
-    await mockRestTable(page, 'implants', []);
+    await mockTable(page, 'implants', []);
     await mockTable(page, 'trays', []);
     await page.goto('/');
 
