@@ -115,7 +115,7 @@ export const GlobalSearch: React.FC = () => {
       </div>
 
       {open && (
-        <div className="absolute top-full mt-2 left-0 right-0 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50 max-h-96 overflow-y-auto">
+        <div data-testid="global-search-dropdown" className="absolute top-full mt-2 left-0 right-0 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50 max-h-96 overflow-y-auto">
           {loading && <div className="px-4 py-3 text-sm text-slate-400">Buscando…</div>}
           {!loading && grouped.map(({ type, items }) => {
             const Icon = ICONS[type];
