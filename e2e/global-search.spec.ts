@@ -47,7 +47,9 @@ test.describe('Búsqueda global', () => {
     const input = page.getByPlaceholder(/buscar paciente/i);
     await expect(input).toBeVisible({ timeout: 10000 });
     await input.fill('nancy');
-    await expect(page.getByText('Nancy Ogando')).toBeVisible({ timeout: 5000 });
+    const dropdown = page.getByTestId('global-search-dropdown');
+    await expect(dropdown).toBeVisible({ timeout: 5000 });
+    await expect(dropdown.getByText('Nancy Ogando')).toBeVisible();
   });
 
   test('navega a /cirugias al hacer clic en resultado de cirugía', async ({ page }) => {
@@ -58,8 +60,9 @@ test.describe('Búsqueda global', () => {
     await page.goto('/');
 
     await page.getByPlaceholder(/buscar paciente/i).fill('nancy');
-    await expect(page.getByText('Nancy Ogando')).toBeVisible({ timeout: 5000 });
-    await page.getByText('Nancy Ogando').click();
+    const dropdown = page.getByTestId('global-search-dropdown');
+    await expect(dropdown).toBeVisible({ timeout: 5000 });
+    await dropdown.getByText('Nancy Ogando').click();
     await expect(page).toHaveURL('/cirugias', { timeout: 5000 });
   });
 
@@ -72,9 +75,10 @@ test.describe('Búsqueda global', () => {
 
     const input = page.getByPlaceholder(/buscar paciente/i);
     await input.fill('nancy');
-    await expect(page.getByText('Nancy Ogando')).toBeVisible({ timeout: 5000 });
+    const dropdown = page.getByTestId('global-search-dropdown');
+    await expect(dropdown).toBeVisible({ timeout: 5000 });
     await input.press('Escape');
-    await expect(page.getByText('Nancy Ogando')).not.toBeVisible();
+    await expect(dropdown).not.toBeVisible();
     await expect(input).toHaveValue('');
   });
 });
