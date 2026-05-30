@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test';
-import { mockAuthenticatedSession, mockRestTable } from './fixtures/auth';
+import { test, expect, type Page } from '@playwright/test';
+import { mockAuthenticatedSession } from './fixtures/auth';
 
 const MOCK_IMPLANTS = [
   { id: 'imp-1', name: 'Tornillo 3.5mm', sku: 'TOR-3.5-CAN', category: 'Tornillo' },
@@ -7,6 +7,16 @@ const MOCK_IMPLANTS = [
 const MOCK_SURGERIES_SEARCH = [
   { id: 'surg-1', patient_name: 'Nancy Ogando', status: 'Pendiente', surgery_date: '2026-06-01' },
 ];
+
+// Regex-based mock — works regardless of SUPABASE_URL base in env
+async function mockTable(page: Page, table: string, data: unknown) {
+  await page.route(new RegExp(`/rest/v1/${table}`), route => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
+    }
+    return route.fulfill({ status: 201, contentType: 'application/json', body: '{}' });
+  });
+}
 
 test.describe('Búsqueda global', () => {
   test('visible en Dashboard', async ({ page }) => {
@@ -29,9 +39,9 @@ test.describe('Búsqueda global', () => {
 
   test('muestra dropdown con resultados al escribir', async ({ page }) => {
     await mockAuthenticatedSession(page);
-    await mockRestTable(page, 'implants', MOCK_IMPLANTS);
-    await mockRestTable(page, 'surgeries', MOCK_SURGERIES_SEARCH);
-    await mockRestTable(page, 'trays', []);
+    await mockTable(page, 'implants', MOCK_IMPLANTS);
+    await mockTable(page, 'surgeries', MOCK_SURGERIES_SEARCH);
+    await mockTable(page, 'trays', []);
     await page.goto('/');
 
     const input = page.getByPlaceholder(/buscar paciente/i);
@@ -42,9 +52,9 @@ test.describe('Búsqueda global', () => {
 
   test('navega a /cirugias al hacer clic en resultado de cirugía', async ({ page }) => {
     await mockAuthenticatedSession(page);
-    await mockRestTable(page, 'surgeries', MOCK_SURGERIES_SEARCH);
+    await mockTable(page, 'surgeries', MOCK_SURGERIES_SEARCH);
     await mockRestTable(page, 'implants', []);
-    await mockRestTable(page, 'trays', []);
+    await mockTable(page, 'trays', []);
     await page.goto('/');
 
     await page.getByPlaceholder(/buscar paciente/i).fill('nancy');
@@ -55,9 +65,9 @@ test.describe('Búsqueda global', () => {
 
   test('Escape cierra dropdown y limpia input', async ({ page }) => {
     await mockAuthenticatedSession(page);
-    await mockRestTable(page, 'surgeries', MOCK_SURGERIES_SEARCH);
+    await mockTable(page, 'surgeries', MOCK_SURGERIES_SEARCH);
     await mockRestTable(page, 'implants', []);
-    await mockRestTable(page, 'trays', []);
+    await mockTable(page, 'trays', []);
     await page.goto('/');
 
     const input = page.getByPlaceholder(/buscar paciente/i);

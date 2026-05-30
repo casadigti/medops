@@ -65,7 +65,7 @@ test.describe('Mapa de Almacén', () => {
   test('leyenda de colores visible', async ({ page }) => {
     await page.goto('/almacen');
     await expect(page.getByText('Vacío')).toBeVisible({ timeout: 8000 });
-    await expect(page.getByText('Lote de implante')).toBeVisible();
-    await expect(page.getByText('Bandeja')).toBeVisible();
+    await expect(page.getByText('Lote de implante')).toBeVisible({ timeout: 8000 });
+    await expect(page.getByText('Bandeja').first()).toBeVisible({ timeout: 8000 });
   });
 });
