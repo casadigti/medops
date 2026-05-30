@@ -3,7 +3,8 @@ import { Sidebar } from './Sidebar';
 import { ImpersonationBanner } from '../ImpersonationBanner';
 import { SessionTimeoutModal } from '../SessionTimeoutModal';
 import { useSessionTimeout } from '../../hooks/useSessionTimeout';
-import { Bell, Search, LayoutDashboard, CalendarDays, Stethoscope, Package, Users, BarChart3, Settings, Wrench, Box, ShoppingCart, History, Warehouse } from 'lucide-react';
+import { Bell, LayoutDashboard, CalendarDays, Stethoscope, Package, Users, BarChart3, Settings, Wrench, Box, ShoppingCart, History, Warehouse } from 'lucide-react';
+import { GlobalSearch } from './GlobalSearch';
 import { surgeryService } from '../../services/surgeryService';
 import { implantService } from '../../services/implantService';
 import { cn } from '../../utils/cn';
@@ -67,7 +68,10 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children, userProfile }) => {
   const navigate = useNavigate();
-  const [globalSearch, setGlobalSearch] = React.useState('');
+  const location = useLocation();
+  // Pages with their own search — hide global search bar
+  const PAGES_WITH_LOCAL_SEARCH = ['/inventario', '/bandejas', '/directorio', '/cirugias', '/mantenimiento', '/almacen'];
+  const showGlobalSearch = !PAGES_WITH_LOCAL_SEARCH.includes(location.pathname);
   const [time, setTime] = React.useState(new Date());
   const [unreadCount, setUnreadCount] = React.useState(0);
   const [showNotifs, setShowNotifs] = React.useState(false);
@@ -108,12 +112,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, userProfile }) => {
     return () => clearInterval(timer);
   }, []);
 
-  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && globalSearch.trim()) {
-      navigate(`/cirugias?q=${encodeURIComponent(globalSearch.trim())}`);
-      setGlobalSearch('');
-    }
-  };
+
 
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans selection:bg-primary/10 selection:text-primary">
@@ -122,17 +121,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, userProfile }) => {
       <main className="flex-1 lg:ml-64 min-h-screen flex flex-col pb-16 lg:pb-0">
         <header className="h-16 bg-white border-b border-slate-200 px-4 lg:px-8 flex items-center justify-between sticky top-0 z-40">
           <div className="flex-1 max-w-md">
-            <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={18} />
-              <input
-                type="text"
-                placeholder="Buscar..."
-                value={globalSearch}
-                onChange={(e) => setGlobalSearch(e.target.value)}
-                onKeyDown={handleSearch}
-                className="w-full pl-10 pr-4 py-2 bg-slate-100 border-transparent rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
-              />
-            </div>
+            {showGlobalSearch ? <GlobalSearch /> : <div />}
           </div>
 
           <div className="flex items-center gap-2 lg:gap-4 ml-2">
