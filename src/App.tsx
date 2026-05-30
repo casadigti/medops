@@ -18,6 +18,7 @@ import { InventarioQuirurgico } from './pages/InventarioQuirurgico';
 import { ReporteReposicion } from './pages/ReporteReposicion';
 import { ReporteLotes } from './pages/ReporteLotes';
 import { Organizaciones } from './pages/Organizaciones';
+import { AlmacenMap } from './pages/AlmacenMap';
 import { ForcePasswordChange } from './components/auth/ForcePasswordChange';
 import { InventoryChat } from './components/chat/InventoryChat';
 import type { Session } from '@supabase/supabase-js';
@@ -142,7 +143,13 @@ function App() {
         <Routes>
           <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
           <Route path="/*" element={
-            session ? (
+            session && !userProfile ? (
+              // Session set but profile still loading (post-login race)
+              <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-4">
+                <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+                <p className="font-semibold text-slate-400 text-sm">Cargando...</p>
+              </div>
+            ) : session ? (
               <>
                 {userProfile?.must_change_password && (
                   <ForcePasswordChange
@@ -168,6 +175,7 @@ function App() {
                     <Route path="/reporte-reposicion" element={!isSurgeon ? <ReporteReposicion /> : <Navigate to="/mis-solicitudes" replace />} />
                     <Route path="/reporte-lotes" element={!isSurgeon ? <ReporteLotes /> : <Navigate to="/mis-solicitudes" replace />} />
                     <Route path="/mis-solicitudes" element={<MisSolicitudes userProfile={userProfile} />} />
+                    <Route path="/almacen" element={!isSurgeon ? <AlmacenMap userProfile={userProfile} /> : <Navigate to="/mis-solicitudes" replace />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </Layout>

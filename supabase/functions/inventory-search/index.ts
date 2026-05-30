@@ -212,23 +212,54 @@ serve(async (req) => {
     const [{ data: imps }, { data: trays }] = await Promise.all([
       userClient
         .from('implants')
-        .select('name, sku, implant_lots(location, current_quantity, expiration_date)')
+        .select('name, sku, implant_lots(id, location, current_quantity, expiration_date)')
         .or(`name.ilike.%${q}%,sku.ilike.%${q}%`)
         .order('name'),
       userClient
         .from('trays')
-        .select('name, code, location, status')
+        .select('id, name, code, location, status')
         .or(`name.ilike.%${q}%,code.ilike.%${q}%`)
         .order('name'),
     ])
 
     // Flatten implant_lots into individual rows for the formatter
-    type ImpWithLots = { name: string; sku: string; implant_lots: ImpRow[] }
-    const flatImps: ImpRow[] = ((imps || []) as ImpWithLots[]).flatMap(i =>
+    type ImpWithLots = { name: string; sku: string; implant_lots: (ImpRow & { id: string })[] }
+    const flatImps: (ImpRow & { id?: string })[] = ((imps || []) as ImpWithLots[]).flatMap(i =>
       (i.implant_lots || []).map(l => ({ name: i.name, sku: i.sku, ...l }))
     )
 
-    const text = fmt(query, flatImps, (trays || []) as TrayRow[])
+    // Resolve physical storage locations from storage_slots
+    const lotIds  = flatImps.map(i => i.id).filter(Boolean) as string[]
+    const trayIds = ((trays || []) as (TrayRow & { id: string })[]).map(t => t.id).filter(Boolean)
+    const allIds  = [...lotIds, ...trayIds]
+
+    const locationMap: Record<string, string> = {}
+    if (allIds.length > 0) {
+      const { data: slots } = await userClient
+        .from('storage_slots')
+        .select('item_id, row_index, col_index, storage_shelves!shelf_id(name)')
+        .not('item_id', 'is', null)
+        .in('item_id', allIds)
+      for (const slot of (slots || [])) {
+        const shelfName = (slot.storage_shelves as { name: string } | null)?.name
+        if (slot.item_id && shelfName) {
+          const cell = String.fromCharCode(65 + slot.row_index) + (slot.col_index + 1)
+          locationMap[slot.item_id] = `${shelfName} · Celda ${cell}`
+        }
+      }
+    }
+
+    // Override location with physical slot if assigned, else keep text fallback
+    const resolvedImps: ImpRow[] = flatImps.map(i => ({
+      ...i,
+      location: (i.id && locationMap[i.id]) ? locationMap[i.id] : i.location,
+    }))
+    const resolvedTrays: TrayRow[] = ((trays || []) as (TrayRow & { id: string })[]).map(t => ({
+      ...t,
+      location: locationMap[t.id] ?? t.location,
+    }))
+
+    const text = fmt(query, resolvedImps, resolvedTrays)
 
     return new Response(
       JSON.stringify({ text, implants: imps || [], trays: trays || [] }),
