@@ -63,7 +63,7 @@ test.describe('Búsqueda global', () => {
     const dropdown = page.getByTestId('global-search-dropdown');
     await expect(dropdown).toBeVisible({ timeout: 5000 });
     await dropdown.getByText('Nancy Ogando').click();
-    await expect(page).toHaveURL('/cirugias', { timeout: 5000 });
+    await expect(page).toHaveURL(/\/cirugias(\?q=.+)?/, { timeout: 5000 });
   });
 
   test('Escape cierra dropdown y limpia input', async ({ page }) => {

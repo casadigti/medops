@@ -110,7 +110,7 @@ function App() {
           setUserProfile(profile);
         }
         setLoading(false);
-      } else if (event === 'SIGNED_OUT') {
+      } else if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !sessionObj)) {
         settled = true;
         setSession(null);
         setUserProfile(null);

@@ -218,9 +218,10 @@ export interface StorageSlot {
   notes?: string;
   item_label?: string;
   item_detail?: string;
+  is_support_tray?: boolean;
 }
 
 export interface AvailableItems {
   implantLots: Array<{ id: string; label: string; detail: string }>;
-  trays:       Array<{ id: string; label: string; detail: string }>;
+  trays:       Array<{ id: string; label: string; detail: string; is_support_tray?: boolean }>;
 }
