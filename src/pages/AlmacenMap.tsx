@@ -466,7 +466,7 @@ const SlotAssignModal: React.FC<SlotAssignModalProps> = ({ isOpen, onClose, slot
               >
                 <p className="font-semibold text-slate-800 text-sm flex items-center gap-2">
                   {item.label}
-                  {'is_support_tray' in item && item.is_support_tray && (
+                  {!!(item as { is_support_tray?: boolean }).is_support_tray && (
                     <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">Apoyo</span>
                   )}
                 </p>
