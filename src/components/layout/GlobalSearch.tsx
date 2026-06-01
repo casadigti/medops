@@ -79,7 +79,7 @@ export const GlobalSearch: React.FC = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const go = (r: Result) => { navigate(r.path); setQuery(''); setOpen(false); setFocused(-1); };
+  const go = (r: Result) => { navigate(`${r.path}?q=${encodeURIComponent(r.label)}`); setQuery(''); setOpen(false); setFocused(-1); };
 
   const handleKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') { setOpen(false); setQuery(''); inputRef.current?.blur(); return; }

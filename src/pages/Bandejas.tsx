@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { trayService } from '../services/trayService';
 import { getLocalDateString } from '../utils/dateUtils';
 import { Modal } from '../components/ui/Modal';
@@ -85,10 +86,11 @@ const TrayForm = ({ initial, onSave, onCancel, loading }: { initial: Partial<Tra
 
 export const Bandejas: React.FC = () => {
   const toast = useToast();
+  const [searchParams] = useSearchParams();
   const [trays, setTrays] = useState<Tray[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('q') || '');
   const [filterStatus, setFilterStatus] = useState('');
   const [modal, setModal] = useState<{ data: Tray | null } | null>(null);
   const [confirm, setConfirm] = useState<{ id: string; name: string } | null>(null);

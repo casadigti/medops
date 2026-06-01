@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Package, Plus, Search, AlertTriangle, Calendar, Box, Trash2, Edit2, ChevronDown, ChevronUp, History, FileText, Upload, Download, MapPin } from 'lucide-react';
 import { read, utils, writeFile } from 'xlsx';
 import { implantService } from '../services/implantService';
@@ -301,9 +302,10 @@ const ImportModal = ({ onImport, onCancel, loading }: { onImport: (data: any[]) 
 
 export const InventarioQuirurgico: React.FC = () => {
   const toast = useToast();
+  const [searchParams] = useSearchParams();
   const [implants, setImplants] = useState<Implant[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('q') || '');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [isImplantModalOpen, setIsImplantModalOpen] = useState(false);
