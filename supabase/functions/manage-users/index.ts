@@ -113,7 +113,7 @@ serve(async (req) => {
 
     // 2. ACTUALIZAR USUARIO
     if (action === 'update') {
-      const { email, password, full_name, role, is_active } = userData
+      const { email, password, full_name, role } = userData
       const updates: any = {
         email,
         user_metadata: { full_name, role }
@@ -121,8 +121,11 @@ serve(async (req) => {
       if (password) updates.password = password
 
       const { data, error } = await supabaseAdmin.auth.admin.updateUserById(userId, updates)
-      if (error) throw error
-      return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      // Si el usuario no existe en auth.users (perfil manual), ignorar ese error
+      // y dejar que el profile update del cliente lo maneje
+      if (error && !error.message.toLowerCase().includes('not found')) throw error
+
+      return new Response(JSON.stringify(data ?? { success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
     // 3. ELIMINAR USUARIO
