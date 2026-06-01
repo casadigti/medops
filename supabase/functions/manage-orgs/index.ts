@@ -45,7 +45,7 @@ serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('is_platform_admin')
+      .select('is_platform_admin, org_id')
       .eq('id', user.id)
       .single()
 
@@ -105,6 +105,32 @@ serve(async (req) => {
       await supabaseAdmin
         .from('organization_settings')
         .upsert({ org_id: org.id, company_name: name }, { onConflict: 'org_id' })
+
+      // 3e. Pre-cargar catálogos copiando de la organización del platform admin
+      //     que crea (la organización principal): ARS + tipos de procedimiento.
+      const sourceOrgId = profile.org_id
+      if (sourceOrgId) {
+        // ARS
+        const { data: srcArs } = await supabaseAdmin
+          .from('ars')
+          .select('name, is_active')
+          .eq('org_id', sourceOrgId)
+        if (srcArs && srcArs.length > 0) {
+          await supabaseAdmin.from('ars').insert(
+            srcArs.map((a) => ({ name: a.name, is_active: a.is_active ?? true, org_id: org.id })),
+          )
+        }
+        // Tipos de procedimiento
+        const { data: srcProc } = await supabaseAdmin
+          .from('procedure_types')
+          .select('name, is_active')
+          .eq('org_id', sourceOrgId)
+        if (srcProc && srcProc.length > 0) {
+          await supabaseAdmin.from('procedure_types').insert(
+            srcProc.map((p) => ({ name: p.name, is_active: p.is_active ?? true, org_id: org.id })),
+          )
+        }
+      }
 
       return new Response(
         JSON.stringify({ org, admin: { id: newUserId, email: admin_email }, tempPassword }),
