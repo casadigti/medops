@@ -40,6 +40,8 @@ const SlotCell: React.FC<SlotCellProps> = ({ slot, onClick, highlighted }) => {
             ? 'border-dashed border-slate-300 bg-slate-50 text-slate-400 hover:border-primary hover:text-primary'
             : slot.item_type === 'implant_lot'
             ? 'border-blue-300 bg-blue-50 text-blue-700 hover:border-blue-500'
+            : slot.is_support_tray
+            ? 'border-purple-300 bg-purple-50 text-purple-700 hover:border-purple-500'
             : 'border-green-300 bg-green-50 text-green-700 hover:border-green-500'
         )}
       >
@@ -462,7 +464,12 @@ const SlotAssignModal: React.FC<SlotAssignModalProps> = ({ isOpen, onClose, slot
                 disabled={saving}
                 className="w-full text-left p-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all disabled:opacity-50"
               >
-                <p className="font-semibold text-slate-800 text-sm">{item.label}</p>
+                <p className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                  {item.label}
+                  {'is_support_tray' in item && item.is_support_tray && (
+                    <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">Apoyo</span>
+                  )}
+                </p>
                 <p className="text-xs text-slate-500 mt-0.5">{item.detail}</p>
               </button>
             ))}
@@ -604,6 +611,10 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
         <span className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded border-2 border-green-300 bg-green-50 inline-block" />
           Bandeja
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded border-2 border-purple-300 bg-purple-50 inline-block" />
+          Bandeja de apoyo
         </span>
       </div>
 

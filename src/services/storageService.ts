@@ -45,16 +45,18 @@ export const storageService = {
       }
     }
 
+    const supportTrayIds = new Set<string>();
     if (trayIds.length > 0) {
       const { data: trays } = await supabase
         .from('trays')
-        .select('id, name, code, status')
+        .select('id, name, code, status, is_support_tray')
         .in('id', trayIds);
       for (const t of (trays ?? [])) {
         trayMap[t.id] = {
           label: t.name,
           detail: `${t.code ?? ''} · ${t.status}`,
         };
+        if (t.is_support_tray) supportTrayIds.add(t.id);
       }
     }
 
@@ -75,6 +77,9 @@ export const storageService = {
           : undefined,
         item_detail: slot.item_id
           ? (slot.item_type === 'implant_lot' ? lotMap[slot.item_id]?.detail : trayMap[slot.item_id]?.detail)
+          : undefined,
+        is_support_tray: slot.item_type === 'tray' && slot.item_id
+          ? supportTrayIds.has(slot.item_id)
           : undefined,
       })),
     }));
@@ -186,7 +191,7 @@ export const storageService = {
 
     let trayQuery = supabase
       .from('trays')
-      .select('id, name, code, status')
+      .select('id, name, code, status, is_support_tray')
       .order('name');
     if (orgOverride) trayQuery = (trayQuery as typeof trayQuery).eq('org_id', orgOverride);
     if (occupiedTrayIds.length > 0) {
@@ -208,6 +213,7 @@ export const storageService = {
         id: t.id,
         label: t.name,
         detail: `${t.code ?? ''} · ${t.status}`,
+        is_support_tray: t.is_support_tray ?? false,
       })),
     };
   },
