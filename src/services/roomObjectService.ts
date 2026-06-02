@@ -47,6 +47,11 @@ export const roomObjectService = {
     if (error) throw error;
   },
 
+  async updateSize(id: string, width: number, height: number): Promise<void> {
+    const { error } = await supabase.from('room_objects').update({ width, height }).eq('id', id);
+    if (error) throw error;
+  },
+
   async delete(id: string): Promise<void> {
     const { error } = await supabase.from('room_objects').delete().eq('id', id);
     if (error) throw error;

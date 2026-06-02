@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, Pencil, Trash2, Search, Warehouse, LayoutGrid, Map, Settings2, RotateCcw, X, Table2, Monitor, Minus, Square, DoorOpen } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Warehouse, LayoutGrid, Map, Settings2, RotateCcw, X, Table2, Monitor, Minus, Square, DoorOpen, Download } from 'lucide-react';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { PageLoader, EmptyState } from '../components/ui/Spinner';
@@ -500,27 +500,32 @@ interface FloorPlanCanvasProps {
   isAdmin: boolean;
   roomWidth: number;
   roomHeight: number;
+  highlightedShelfIds: Set<string>;
   onShelfMoved: (shelfId: string, x: number, y: number) => void;
   onRotate: (shelf: StorageShelf) => void;
   onRemoveFromMap: (shelfId: string) => void;
   onSlotClick: (slot: StorageSlot) => void;
   onObjectCreated: (type: RoomObjectType, x: number, y: number, w: number, h: number, color: string) => void;
   onObjectMoved: (id: string, x: number, y: number) => void;
+  onObjectResize: (id: string, w: number, h: number) => void;
   onObjectDelete: (id: string) => void;
+  onObjectEdit: (obj: RoomObject) => void;
 }
 
 const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
-  shelves, roomObjects, isAdmin, roomWidth, roomHeight,
+  shelves, roomObjects, isAdmin, roomWidth, roomHeight, highlightedShelfIds,
   onShelfMoved, onRotate, onRemoveFromMap, onSlotClick,
-  onObjectCreated, onObjectMoved, onObjectDelete,
+  onObjectCreated, onObjectMoved, onObjectResize, onObjectDelete, onObjectEdit,
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const dragShelfIdRef = useRef<string | null>(null);
   const dragObjectIdRef = useRef<string | null>(null);
   const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const resizingRef = useRef<{ id: string; startX: number; startY: number; startW: number; startH: number; objX: number; objY: number } | null>(null);
   const [dropPreview, setDropPreview] = useState<{ x: number; y: number; w: number; h: number; valid: boolean } | null>(null);
   const [hoveredShelfId, setHoveredShelfId] = useState<string | null>(null);
   const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
+  const [resizePreview, setResizePreview] = useState<{ id: string; w: number; h: number } | null>(null);
 
   const placed = shelves.filter(s => s.position_x != null && s.position_y != null);
 
@@ -623,6 +628,27 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
     setDropPreview(null);
   };
 
+  const handleResizeStart = (e: React.MouseEvent, obj: RoomObject) => {
+    e.preventDefault(); e.stopPropagation();
+    resizingRef.current = { id: obj.id, startX: e.clientX, startY: e.clientY, startW: obj.width, startH: obj.height, objX: obj.position_x, objY: obj.position_y };
+  };
+
+  const handleCanvasMouseMove = (e: React.MouseEvent) => {
+    if (!resizingRef.current) return;
+    const { id, startX, startY, startW, startH, objX, objY } = resizingRef.current;
+    const newW = Math.max(1, Math.min(startW + Math.round((e.clientX - startX) / CELL_PX), roomWidth - objX));
+    const newH = Math.max(1, Math.min(startH + Math.round((e.clientY - startY) / CELL_PX), roomHeight - objY));
+    setResizePreview({ id, w: newW, h: newH });
+  };
+
+  const handleCanvasMouseUp = () => {
+    if (resizingRef.current && resizePreview) {
+      onObjectResize(resizePreview.id, resizePreview.w, resizePreview.h);
+    }
+    resizingRef.current = null;
+    setResizePreview(null);
+  };
+
   return (
     <div
       ref={canvasRef}
@@ -635,6 +661,9 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
       onDragOver={handleCanvasDragOver}
       onDrop={handleCanvasDrop}
       onDragLeave={() => setDropPreview(null)}
+      onMouseMove={handleCanvasMouseMove}
+      onMouseUp={handleCanvasMouseUp}
+      onMouseLeave={handleCanvasMouseUp}
     >
       {/* Grid lines */}
       <svg
@@ -674,13 +703,15 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
         const occupied = shelf.slots?.filter(s => s.item_id).length ?? 0;
         const total = shelf.rows * shelf.cols;
         const isHovered = hoveredShelfId === shelf.id;
+        const pct = total > 0 ? occupied / total : 0;
+        const heatColor = pct >= 0.9 ? '#ef4444' : pct >= 0.6 ? '#f59e0b' : '#22c55e';
 
         return (
           <div
             key={shelf.id}
             className={cn(
               'absolute rounded-lg overflow-hidden transition-shadow cursor-grab active:cursor-grabbing',
-              isHovered ? 'shadow-lg z-20' : 'shadow-sm'
+              highlightedShelfIds.has(shelf.id) ? 'shadow-xl z-20 ring-4 ring-yellow-400' : isHovered ? 'shadow-lg z-20' : 'shadow-sm'
             )}
             style={{
               left: shelf.position_x! * CELL_PX + 1,
@@ -765,6 +796,25 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
                 </div>
               );
             })()}
+            {/* Heatmap bar — % ocupación */}
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-slate-100 pointer-events-none">
+              <div className="h-full transition-all" style={{ width: `${pct * 100}%`, backgroundColor: heatColor }} />
+            </div>
+            {/* Hover tooltip */}
+            {isHovered && (() => {
+              const items = shelf.slots?.filter(s => s.item_id) ?? [];
+              if (items.length === 0) return null;
+              return (
+                <div className="absolute left-0 pointer-events-none z-50 mt-1 bg-slate-900/95 text-white rounded-lg shadow-xl px-3 py-2 text-[10px] min-w-max max-w-[200px]"
+                  style={{ top: '100%' }}>
+                  <p className="font-bold mb-1 text-slate-300">{occupied}/{total} ocupados</p>
+                  {items.slice(0, 6).map(s => (
+                    <p key={s.id} className="truncate leading-tight">{s.item_label}</p>
+                  ))}
+                  {items.length > 6 && <p className="text-slate-400 mt-0.5">+{items.length - 6} más…</p>}
+                </div>
+              );
+            })()}
           </div>
         );
       })}
@@ -773,15 +823,17 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
       {roomObjects.map(obj => {
         const def = ROOM_OBJECT_DEFS[obj.type];
         const isObjHovered = hoveredObjectId === obj.id;
+        const dispW = resizePreview?.id === obj.id ? resizePreview.w : obj.width;
+        const dispH = resizePreview?.id === obj.id ? resizePreview.h : obj.height;
         return (
           <div
             key={obj.id}
-            className={cn('absolute rounded overflow-hidden transition-shadow select-none', isAdmin ? 'cursor-grab active:cursor-grabbing' : 'cursor-default', isObjHovered ? 'shadow-md z-10' : 'shadow-sm')}
+            className={cn('absolute rounded overflow-hidden transition-shadow select-none', isAdmin && !resizingRef.current ? 'cursor-grab active:cursor-grabbing' : 'cursor-default', isObjHovered ? 'shadow-md z-10' : 'shadow-sm')}
             style={{
               left: obj.position_x * CELL_PX + 1,
               top:  obj.position_y * CELL_PX + 1,
-              width:  obj.width  * CELL_PX - 2,
-              height: obj.height * CELL_PX - 2,
+              width:  dispW * CELL_PX - 2,
+              height: dispH * CELL_PX - 2,
               backgroundColor: obj.color + '22',
               border: `2px solid ${obj.color}`,
             }}
@@ -802,19 +854,75 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
                 {obj.label ?? def.label}
               </span>
             </div>
+            {isAdmin && (
+              <div
+                className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize rounded-tl bg-white/70 border-t border-l border-slate-400 hover:border-primary hover:bg-primary/10 transition-colors"
+                onMouseDown={e => handleResizeStart(e, obj)}
+              />
+            )}
             {isAdmin && isObjHovered && (
-              <button
-                title="Eliminar"
-                onClick={e => { e.stopPropagation(); onObjectDelete(obj.id); }}
-                className="absolute top-0.5 right-0.5 p-0.5 rounded bg-white/80 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
-              >
-                <X size={8} />
-              </button>
+              <div className="absolute top-0.5 right-0.5 flex gap-0.5">
+                <button title="Editar nombre" onClick={e => { e.stopPropagation(); onObjectEdit(obj); }}
+                  className="p-0.5 rounded bg-white/80 hover:bg-slate-100 text-slate-400 hover:text-primary transition-colors">
+                  <Pencil size={8} />
+                </button>
+                <button title="Eliminar" onClick={e => { e.stopPropagation(); onObjectDelete(obj.id); }}
+                  className="p-0.5 rounded bg-white/80 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors">
+                  <X size={8} />
+                </button>
+              </div>
             )}
           </div>
         );
       })}
     </div>
+  );
+};
+
+// ─── RoomObjectEditModal ──────────────────────────────────────────────────────
+interface RoomObjectEditModalProps {
+  obj: RoomObject | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onSaved: (id: string, label: string) => void;
+}
+
+const RoomObjectEditModal: React.FC<RoomObjectEditModalProps> = ({ obj, isOpen, onClose, onSaved }) => {
+  const toast = useToast();
+  const [label, setLabel] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && obj) setLabel(obj.label ?? ROOM_OBJECT_DEFS[obj.type]?.label ?? '');
+  }, [isOpen, obj]);
+
+  if (!obj) return null;
+  const def = ROOM_OBJECT_DEFS[obj.type];
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await roomObjectService.updateLabel(obj.id, label.trim() || def.label);
+      onSaved(obj.id, label.trim() || def.label);
+      onClose();
+    } catch { toast.error('Error guardando nombre'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={`Editar — ${def.label}`} size="sm">
+      <form onSubmit={handleSave} className="space-y-4">
+        <div>
+          <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Nombre</label>
+          <input autoFocus className="input" value={label} onChange={e => setLabel(e.target.value)} placeholder={def.label} />
+        </div>
+        <div className="flex gap-3 pt-1">
+          <button type="button" onClick={onClose} className="btn btn-secondary flex-1">Cancelar</button>
+          <button type="submit" disabled={saving} className="btn btn-primary flex-1">{saving ? 'Guardando...' : 'Guardar'}</button>
+        </div>
+      </form>
+    </Modal>
   );
 };
 
@@ -906,8 +1014,10 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
   const toast = useToast();
   const [shelves, setShelves] = useState<StorageShelf[]>([]);
   const [roomObjects, setRoomObjects] = useState<RoomObject[]>([]);
+  const [objectEditModal, setObjectEditModal] = useState<{ open: boolean; obj: RoomObject | null }>({ open: false, obj: null });
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'cards' | 'floorplan'>('cards');
+  const [zoom, setZoom] = useState(1);
   const [roomConfig, setRoomConfig] = useState({ room_width: 30, room_height: 20 });
   const [shelfModal, setShelfModal] = useState<{ open: boolean; shelf: StorageShelf | null }>({ open: false, shelf: null });
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -927,6 +1037,18 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
         if (slot.item_id && (slot.item_label?.toLowerCase().includes(q) || slot.item_detail?.toLowerCase().includes(q))) {
           ids.add(slot.id);
         }
+      }
+    }
+    return ids;
+  }, [mapSearch, shelves]);
+
+  const highlightedShelfIds = React.useMemo((): Set<string> => {
+    const q = mapSearch.trim().toLowerCase();
+    if (q.length < 2) return new Set();
+    const ids = new Set<string>();
+    for (const shelf of shelves) {
+      if (shelf.slots?.some(s => s.item_id && (s.item_label?.toLowerCase().includes(q) || s.item_detail?.toLowerCase().includes(q)))) {
+        ids.add(shelf.id);
       }
     }
     return ids;
@@ -1021,6 +1143,16 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
     } catch { toast.error('Error moviendo objeto'); load(); }
   };
 
+  const handleObjectResize = async (id: string, w: number, h: number) => {
+    setRoomObjects(prev => prev.map(o => o.id === id ? { ...o, width: w, height: h } : o));
+    try { await roomObjectService.updateSize(id, w, h); }
+    catch { toast.error('Error redimensionando objeto'); load(); }
+  };
+
+  const handleObjectLabelSaved = (id: string, label: string) => {
+    setRoomObjects(prev => prev.map(o => o.id === id ? { ...o, label } : o));
+  };
+
   const handleObjectDelete = async (id: string) => {
     setRoomObjects(prev => prev.filter(o => o.id !== id));
     try {
@@ -1058,6 +1190,23 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
           </div>
 
           {/* Room config (admin + floorplan view) */}
+          {view === 'floorplan' && (
+            <div className="flex items-center gap-2">
+              <button onClick={() => setZoom(z => Math.max(0.4, +(z - 0.1).toFixed(1)))} className="btn btn-secondary px-2 py-1 text-sm font-bold">−</button>
+              <span className="text-xs font-semibold text-slate-600 w-10 text-center">{Math.round(zoom * 100)}%</span>
+              <button onClick={() => setZoom(z => Math.min(2, +(z + 0.1).toFixed(1)))} className="btn btn-secondary px-2 py-1 text-sm font-bold">+</button>
+              <button onClick={() => setZoom(1)} className="btn btn-secondary px-2 py-1 text-xs">1:1</button>
+            </div>
+          )}
+          {view === 'floorplan' && (
+            <button
+              onClick={() => window.print()}
+              className="btn btn-secondary flex items-center gap-2 text-sm"
+              title="Exportar mapa como PDF/PNG"
+            >
+              <Download size={16} /> Exportar
+            </button>
+          )}
           {isAdmin && view === 'floorplan' && (
             <button
               onClick={() => setRoomConfigModal(true)}
@@ -1077,8 +1226,8 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
         </div>
       </div>
 
-      {/* Buscador (solo en vista tarjetas) */}
-      {view === 'cards' && (
+      {/* Buscador (tarjetas y mapa de sala) */}
+      {(view === 'cards' || view === 'floorplan') && (
         <>
           <div className="relative max-w-md">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -1100,8 +1249,8 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
             </p>
           )}
 
-          {/* Leyenda */}
-          <div className="flex items-center gap-5 text-xs text-slate-500 flex-wrap">
+          {/* Leyenda — solo tarjetas */}
+          {view === 'cards' && <div className="flex items-center gap-5 text-xs text-slate-500 flex-wrap">
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded border-2 border-dashed border-slate-300 bg-slate-50 inline-block" />Vacío
             </span>
@@ -1114,7 +1263,7 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded border-2 border-purple-300 bg-purple-50 inline-block" />Bandeja de apoyo
             </span>
-          </div>
+          </div>}
         </>
       )}
 
@@ -1153,12 +1302,14 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
           <p className="text-xs text-slate-400 italic">
             {isAdmin ? 'Arrastra las estanterías para posicionarlas en la sala.' : 'Vista del layout físico del almacén.'}
           </p>
-          <div className="flex gap-4 items-start overflow-auto">
-            <div className="overflow-auto rounded-xl">
+          <div className="flex gap-4 items-start overflow-auto floor-plan-print">
+            <div className="overflow-auto rounded-xl" style={{ width: roomConfig.room_width * CELL_PX * zoom + 2, height: roomConfig.room_height * CELL_PX * zoom + 2 }}>
+              <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', display: 'inline-block' }}>
               <FloorPlanCanvas
                 shelves={shelves}
                 roomObjects={roomObjects}
                 isAdmin={isAdmin}
+                highlightedShelfIds={highlightedShelfIds}
                 roomWidth={roomConfig.room_width}
                 roomHeight={roomConfig.room_height}
                 onShelfMoved={handleShelfMoved}
@@ -1167,8 +1318,11 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
                 onSlotClick={slot => setSlotModal({ open: true, slot })}
                 onObjectCreated={handleObjectCreated}
                 onObjectMoved={handleObjectMoved}
+                onObjectResize={handleObjectResize}
                 onObjectDelete={handleObjectDelete}
+                onObjectEdit={obj => setObjectEditModal({ open: true, obj })}
               />
+              </div>
             </div>
             <div className="flex flex-col gap-4">
               <UnplacedPanel shelves={shelves} isAdmin={isAdmin} />
@@ -1200,6 +1354,13 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
         roomWidth={roomConfig.room_width}
         roomHeight={roomConfig.room_height}
         onSaved={(w, h) => setRoomConfig({ room_width: w, room_height: h })}
+      />
+
+      <RoomObjectEditModal
+        isOpen={objectEditModal.open}
+        obj={objectEditModal.obj}
+        onClose={() => setObjectEditModal({ open: false, obj: null })}
+        onSaved={handleObjectLabelSaved}
       />
 
       <ConfirmDialog
