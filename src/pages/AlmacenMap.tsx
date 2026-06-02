@@ -704,71 +704,67 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
             onMouseEnter={() => setHoveredShelfId(shelf.id)}
             onMouseLeave={() => setHoveredShelfId(null)}
           >
-            {/* Color bar */}
-            <div className="h-1.5 w-full shrink-0" style={{ backgroundColor: shelf.color }} />
-
-            {/* Content */}
-            <div className="p-1 h-[calc(100%-6px)] flex flex-col overflow-hidden">
-              {/* Header row */}
-              <div className="flex items-start justify-between gap-0.5 mb-0.5">
-                <div className="min-w-0">
-                  <p
-                    className="text-[10px] font-bold text-slate-800 truncate leading-tight"
-                    style={
-                      shelf.facing === 'right' ? { writingMode: 'vertical-rl', transform: 'rotate(180deg)' } :
-                      shelf.facing === 'left'  ? { writingMode: 'vertical-rl' } :
-                      undefined
-                    }
-                  >{shelf.name}</p>
-                  <p className="text-[8px] text-slate-400 leading-tight">{occupied}/{total}</p>
-                </div>
-                {isAdmin && (
-                  <div className={cn('flex gap-0.5 shrink-0 transition-opacity', isHovered ? 'opacity-100' : 'opacity-0')}>
-                    <button
-                      title="Rotar estantería"
-                      onClick={e => { e.stopPropagation(); onRotate(shelf); }}
-                      className="p-0.5 rounded hover:bg-slate-100 text-slate-500 hover:text-primary transition-colors"
-                    >
-                      <RotateCcw size={10} />
-                    </button>
-                    <button
-                      title="Quitar del mapa"
-                      onClick={e => { e.stopPropagation(); onRemoveFromMap(shelf.id); }}
-                      className="p-0.5 rounded hover:bg-red-50 text-slate-500 hover:text-red-500 transition-colors"
-                    >
-                      <X size={10} />
-                    </button>
+            {/* Layout adapts to facing: header strip always on back/wall side */}
+            {(() => {
+              const isVertical = shelf.facing === 'right' || shelf.facing === 'left';
+              const flexDir: React.CSSProperties['flexDirection'] =
+                shelf.facing === 'bottom' ? 'column' :
+                shelf.facing === 'top'    ? 'column-reverse' :
+                shelf.facing === 'right'  ? 'row' : 'row-reverse';
+              const nameStyle: React.CSSProperties = isVertical
+                ? { writingMode: 'vertical-rl', transform: shelf.facing === 'right' ? 'rotate(180deg)' : 'none' }
+                : {};
+              const btnDir: React.CSSProperties['flexDirection'] = isVertical ? 'column' : 'row';
+              return (
+                <div className="w-full h-full flex overflow-hidden" style={{ flexDirection: flexDir }}>
+                  {/* Header strip: color bar + name + buttons */}
+                  <div className="shrink-0 flex overflow-hidden" style={{
+                    flexDirection: isVertical ? 'row' : 'column',
+                    backgroundColor: shelf.color + '18',
+                  }}>
+                    {/* Color accent */}
+                    <div style={{
+                      backgroundColor: shelf.color,
+                      ...(isVertical ? { width: 4, alignSelf: 'stretch' } : { height: 4, width: '100%' }),
+                    }} />
+                    {/* Name + count + buttons */}
+                    <div className="flex items-center justify-between gap-0.5 px-1 py-0.5 min-w-0" style={{ flexDirection: isVertical ? 'column' : 'row' }}>
+                      <div className="min-w-0" style={nameStyle}>
+                        <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">{shelf.name}</p>
+                        <p className="text-[8px] text-slate-400 leading-tight">{occupied}/{total}</p>
+                      </div>
+                      {isAdmin && (
+                        <div className={cn('flex gap-0.5 shrink-0 transition-opacity', isHovered ? 'opacity-100' : 'opacity-0')} style={{ flexDirection: btnDir }}>
+                          <button title="Rotar" onClick={e => { e.stopPropagation(); onRotate(shelf); }} className="p-0.5 rounded hover:bg-white/60 text-slate-500 hover:text-primary transition-colors"><RotateCcw size={9} /></button>
+                          <button title="Quitar" onClick={e => { e.stopPropagation(); onRemoveFromMap(shelf.id); }} className="p-0.5 rounded hover:bg-red-100/60 text-slate-500 hover:text-red-500 transition-colors"><X size={9} /></button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
-
-              {/* Mini slot grid — respects orientation */}
-              <div
-                className="flex-1 grid gap-px overflow-hidden"
-                style={{ gridTemplateColumns: `repeat(${fp.w}, 1fr)`, gridTemplateRows: `repeat(${fp.h}, 1fr)` }}
-              >
-                {Array.from({ length: fp.h }, (_, vr) =>
-                  Array.from({ length: fp.w }, (_, vc) => {
-                    // Map visual position → actual (row_index, col_index) based on orientation
-                    const r = shelf.orientation === 'horizontal' ? vr : vc;
-                    const c = shelf.orientation === 'horizontal' ? vc : vr;
-                    const slot = shelf.slots?.find(s => s.row_index === r && s.col_index === c);
-                    const bg = !slot?.item_id ? 'bg-slate-100'
-                      : slot.item_type === 'implant_lot' ? 'bg-blue-200'
-                      : slot.is_support_tray ? 'bg-purple-200'
-                      : 'bg-green-200';
-                    return (
-                      <div
-                        key={`${vr}-${vc}`}
-                        title={slot?.item_label ?? cellLabel(r, c)}
-                        className={cn('rounded-sm cursor-pointer hover:opacity-80 transition-opacity', bg)}
-                        onClick={() => slot && onSlotClick(slot)}
-                      />
-                    );
-                  })
-                )}
-              </div>
-            </div>
+                  {/* Mini slot grid */}
+                  <div className="flex-1 p-0.5 overflow-hidden">
+                    <div className="w-full h-full grid gap-px" style={{ gridTemplateColumns: `repeat(${fp.w}, 1fr)`, gridTemplateRows: `repeat(${fp.h}, 1fr)` }}>
+                      {Array.from({ length: fp.h }, (_, vr) =>
+                        Array.from({ length: fp.w }, (_, vc) => {
+                          const r = shelf.orientation === 'horizontal' ? vr : vc;
+                          const c = shelf.orientation === 'horizontal' ? vc : vr;
+                          const slot = shelf.slots?.find(s => s.row_index === r && s.col_index === c);
+                          const bg = !slot?.item_id ? 'bg-slate-100'
+                            : slot.item_type === 'implant_lot' ? 'bg-blue-200'
+                            : slot.is_support_tray ? 'bg-purple-200'
+                            : 'bg-green-200';
+                          return (
+                            <div key={`${vr}-${vc}`} title={slot?.item_label ?? cellLabel(r, c)}
+                              className={cn('rounded-sm cursor-pointer hover:opacity-80 transition-opacity', bg)}
+                              onClick={() => slot && onSlotClick(slot)} />
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         );
       })}
