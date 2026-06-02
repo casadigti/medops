@@ -1,0 +1,134 @@
+# MedOps — Handoff Document
+**Fecha:** 2026-06-01 | **Rama activa:** `feat/impersonation` | **Último PR:** #45 (en producción)
+
+---
+
+## Stack
+
+React 19.2.5 + Vite 8 + TypeScript 6 + Tailwind 4 + Supabase JS 2 + React Router 7 + Zustand 5 + Vercel
+
+---
+
+## Páginas (src/pages/)
+
+| Página | Función |
+|--------|---------|
+| `Dashboard.tsx` | KPIs + charts (cirugías mensuales, stock) |
+| `Cirugias.tsx` | CRUD cirugías, consumo implantes/lotes, PDF acta, 12 estados |
+| `Bandejas.tsx` | Inventario bandejas, esterilización, mantenimiento, ubicación |
+| `InventarioQuirurgico.tsx` | Implantes + lotes, alertas expiración, import/export Excel |
+| `Calendario.tsx` | Vista FullCalendar de cirugías por fecha/cirujano |
+| `Mantenimiento.tsx` | Log mantenimiento bandejas (limpieza, reparación) |
+| `Directorio.tsx` | Directorio cirujanos y hospitales, historial por cirujano |
+| `Reportes.tsx` | Analytics multi-vista: cirujano/hospital/ARS + charts |
+| `ReporteLotes.tsx` | Tracking expiración lotes, alertas, export Excel |
+| `ReporteReposicion.tsx` | Reporte consumo por material/cirugía, snapshot stock |
+| `Configuracion.tsx` | Settings org: identidad, ARS, tipos procedimiento, usuarios, backup |
+| `Organizaciones.tsx` | Admin multi-tenant: crear/desactivar orgs, impersonación |
+| `MisSolicitudes.tsx` | Portal cirujano: ver propias cirugías (read-only) |
+| `AlmacenMap.tsx` | Mapa visual almacén: floor plan 2D drag-and-drop, facing 4 estados, objetos de sala, tarjetas adaptativas |
+| `Login.tsx` | Auth con throttle 5 intentos, force-change-password |
+
+---
+
+## Servicios (src/services/)
+
+`surgeryService` · `surgeonService` · `hospitalService` · `trayService` · `implantService` · `arsService` · `procedureTypeService` · `organizationService` · `configService` · `notificationService` · `auditService` · `backupService` · `printService` · `storageService` · `roomObjectService`
+
+Patrón: todos aplican `getImpersonatedOrgId()` para multi-tenancy.
+
+---
+
+## Edge Functions (supabase/functions/)
+
+| Función | Propósito |
+|---------|-----------|
+| `inventory-search` | Bot Telegram: voz→texto (Groq Whisper) + búsqueda inventario. Deploy con `--no-verify-jwt` |
+| `manage-orgs` | Crear/eliminar org + auto-seed ARS & procedure_types de org del platform admin |
+| `manage-users` | Crear usuarios con rol, reset password, asignar org |
+| `send-surgery-alert` | Notificaciones push en cambios de estado de cirugía |
+
+---
+
+## Migraciones ejecutadas en producción
+
+| Archivo | Estado |
+|---------|--------|
+| `0000_baseline_schema.sql` | ✅ |
+| `0001_multitenancy_schema.sql` | ✅ |
+| `0001_add_telegram_chat_id.sql` | ✅ |
+| `0002_multitenancy_rls.sql` | ✅ |
+| `0003_storage_map.sql` | ✅ |
+| `0004_telegram_rpc_storage_location.sql` | ✅ |
+| `0005_fix_ars_procedure_types_unique_constraint.sql` | ✅ |
+| `0006_trays_unique_constraint_per_org.sql` | ✅ |
+| `0007_floorplan.sql` | ✅ |
+| `0008_shelf_facing.sql` | ✅ |
+| `0009_room_objects.sql` | ✅ |
+| `fix_notification_trigger_org_scope.sql` | ✅ |
+| `ALTER storage_shelves org_id default` | ✅ |
+
+---
+
+## IDs de producción
+
+| Entidad | ID |
+|---------|----|
+| Organización Principal | `12799f3f-1ab9-4a78-accf-9d88d6a58679` |
+| Ortho-Bone Dominicana | `806c8399-5ef2-483a-89a0-aef63697de57` |
+| Supabase project ref | `rlygbfossyzqljdtlvfk` |
+
+---
+
+## Pendientes
+
+**Media prioridad:**
+- **Platform admin `org_id = NULL`** — bloquea auto-seed en orgs futuras. Ejecutar:
+  ```sql
+  UPDATE profiles SET org_id = '12799f3f-1ab9-4a78-accf-9d88d6a58679'
+  WHERE is_platform_admin = true AND org_id IS NULL;
+  ```
+- Búsqueda global no resalta/filtra resultado específico al navegar
+- `AlmacenMap`: objetos de sala sin edición de label (solo se puede borrar y recrear)
+- `AlmacenMap`: sin resize de objetos de sala (tamaño fijo por tipo)
+
+**Baja prioridad:**
+- Security scan: Grado B (89/100) — denyList en `.claude/settings.json`
+
+---
+
+## Notas operativas
+
+| Tema | Detalle |
+|------|---------|
+| Dev server | `npm run dev` |
+| Build | `npm run build` |
+| Tests | `npm run test` (Vitest) · `npm run test:e2e` (Playwright) |
+| Deploy functions | `npm run deploy:functions` — incluye `--no-verify-jwt` |
+| Migraciones | SQL manual en Supabase Dashboard → SQL Editor. NO `supabase db push` |
+| Push | `git push fork feat/impersonation` |
+| PR | `gh pr create --base main --head jolumax:feat/impersonation` → URL plana |
+| Secrets Edge Fn | `TELEGRAM_BOT_TOKEN`, `GROQ_API_KEY` en Supabase Dashboard |
+| Webhook Telegram | `https://rlygbfossyzqljdtlvfk.supabase.co/functions/v1/inventory-search/telegram` |
+
+---
+
+## Roles
+
+`Superadmin` > `Administrador` > `Editor` > `Técnico` > `Lector` | `Cirujano` (portal separado)
+
+Admin check: `userProfile?.role === 'Administrador' || userProfile?.role === 'Superadmin'`
+
+---
+
+## Hooks activos (ECC plugin)
+
+- **GateGuard**: pide "facts" antes de cada Bash/Write. Desactivar: `ECC_GATEGUARD=off`
+- **MCP Sentinel**: bloquea patterns peligrosos en strings
+- **Caveman mode**: activo por defecto en todas las sesiones
+
+---
+
+## Skills instaladas
+
+`caveman` · `superpowers` · `agent-browser` · `ui-ux-pro-max` · `ecc` · `napkin`
