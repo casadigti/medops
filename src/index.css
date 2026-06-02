@@ -67,7 +67,15 @@ select.input { appearance: auto; }
 }
 
 /* Disable pull-to-refresh on mobile if desired */
-body { 
+body {
   overscroll-behavior-y: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Floor plan print export */
+@media print {
+  body > * { display: none !important; }
+  .floor-plan-print { display: block !important; }
+  .floor-plan-print * { display: revert !important; }
+  @page { margin: 10mm; size: landscape; }
 }

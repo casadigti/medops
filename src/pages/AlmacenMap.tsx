@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, Pencil, Trash2, Search, Warehouse, LayoutGrid, Map, Settings2, RotateCcw, X, Table2, Monitor, Minus, Square, DoorOpen } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Warehouse, LayoutGrid, Map, Settings2, RotateCcw, X, Table2, Monitor, Minus, Square, DoorOpen, Download } from 'lucide-react';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { PageLoader, EmptyState } from '../components/ui/Spinner';
@@ -1155,6 +1155,15 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
           </div>
 
           {/* Room config (admin + floorplan view) */}
+          {view === 'floorplan' && (
+            <button
+              onClick={() => window.print()}
+              className="btn btn-secondary flex items-center gap-2 text-sm"
+              title="Exportar mapa como PDF/PNG"
+            >
+              <Download size={16} /> Exportar
+            </button>
+          )}
           {isAdmin && view === 'floorplan' && (
             <button
               onClick={() => setRoomConfigModal(true)}
@@ -1250,7 +1259,7 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
           <p className="text-xs text-slate-400 italic">
             {isAdmin ? 'Arrastra las estanterías para posicionarlas en la sala.' : 'Vista del layout físico del almacén.'}
           </p>
-          <div className="flex gap-4 items-start overflow-auto">
+          <div className="flex gap-4 items-start overflow-auto floor-plan-print">
             <div className="overflow-auto rounded-xl">
               <FloorPlanCanvas
                 shelves={shelves}
