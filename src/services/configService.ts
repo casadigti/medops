@@ -42,6 +42,21 @@ export const configService = {
     return data;
   },
 
+  async getRoomConfig(): Promise<{ room_width: number; room_height: number }> {
+    const { data } = await supabase
+      .from('organization_settings')
+      .select('room_width, room_height')
+      .maybeSingle();
+    return { room_width: data?.room_width ?? 30, room_height: data?.room_height ?? 20 };
+  },
+
+  async saveRoomConfig(width: number, height: number): Promise<void> {
+    const { error } = await supabase
+      .from('organization_settings')
+      .upsert({ room_width: width, room_height: height }, { onConflict: 'org_id' });
+    if (error) throw error;
+  },
+
   async getUsers(): Promise<UserProfile[]> {
     const orgOverride = getImpersonatedOrgId();
     let query = supabase.from('profiles').select('*').order('full_name');

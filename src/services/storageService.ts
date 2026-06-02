@@ -70,6 +70,8 @@ export const storageService = {
       color: shelf.color,
       description: shelf.description,
       created_at: shelf.created_at,
+      position_x: shelf.position_x ?? null,
+      position_y: shelf.position_y ?? null,
       slots: (shelf.storage_slots ?? []).map((slot: StorageSlot) => ({
         ...slot,
         item_label:  slot.item_id
@@ -114,7 +116,7 @@ export const storageService = {
 
   async updateShelf(
     id: string,
-    updates: Partial<Pick<StorageShelf, 'name' | 'color' | 'description' | 'orientation'>>
+    updates: Partial<Pick<StorageShelf, 'name' | 'color' | 'description' | 'orientation' | 'position_x' | 'position_y'>>
   ): Promise<StorageShelf> {
     const { data, error } = await supabase
       .from('storage_shelves')
@@ -124,6 +126,25 @@ export const storageService = {
       .single();
     if (error) throw error;
     return data;
+  },
+
+  async updateShelfPosition(id: string, x: number | null, y: number | null): Promise<void> {
+    const { error } = await supabase
+      .from('storage_shelves')
+      .update({ position_x: x, position_y: y })
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  async rotateShelf(id: string, currentFacing: import('../types/domain').ShelfFacing): Promise<void> {
+    const cycle: Record<string, string> = { bottom: 'right', right: 'top', top: 'left', left: 'bottom' };
+    const newFacing = cycle[currentFacing] ?? 'bottom';
+    const newOrientation = (newFacing === 'left' || newFacing === 'right') ? 'vertical' : 'horizontal';
+    const { error } = await supabase
+      .from('storage_shelves')
+      .update({ facing: newFacing, orientation: newOrientation })
+      .eq('id', id);
+    if (error) throw error;
   },
 
   async deleteShelf(id: string): Promise<void> {
