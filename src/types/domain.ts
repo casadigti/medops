@@ -169,6 +169,9 @@ export interface OrganizationSettings {
   email?: string;
   address?: string;
   rnc?: string;
+  // Floor plan 2D — tamaño de la sala en unidades de celda
+  room_width?: number;
+  room_height?: number;
 }
 
 export interface AuditLog {
@@ -206,6 +209,9 @@ export interface StorageShelf {
   description?: string;
   created_at?: string;
   slots?: StorageSlot[];
+  // Floor plan 2D — posición en sala (null = sin colocar)
+  position_x?: number | null;
+  position_y?: number | null;
 }
 
 export interface StorageSlot {
