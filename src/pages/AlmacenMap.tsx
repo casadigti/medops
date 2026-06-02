@@ -500,6 +500,7 @@ interface FloorPlanCanvasProps {
   isAdmin: boolean;
   roomWidth: number;
   roomHeight: number;
+  highlightedShelfIds: Set<string>;
   onShelfMoved: (shelfId: string, x: number, y: number) => void;
   onRotate: (shelf: StorageShelf) => void;
   onRemoveFromMap: (shelfId: string) => void;
@@ -512,7 +513,7 @@ interface FloorPlanCanvasProps {
 }
 
 const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
-  shelves, roomObjects, isAdmin, roomWidth, roomHeight,
+  shelves, roomObjects, isAdmin, roomWidth, roomHeight, highlightedShelfIds,
   onShelfMoved, onRotate, onRemoveFromMap, onSlotClick,
   onObjectCreated, onObjectMoved, onObjectResize, onObjectDelete, onObjectEdit,
 }) => {
@@ -708,7 +709,7 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
             key={shelf.id}
             className={cn(
               'absolute rounded-lg overflow-hidden transition-shadow cursor-grab active:cursor-grabbing',
-              isHovered ? 'shadow-lg z-20' : 'shadow-sm'
+              highlightedShelfIds.has(shelf.id) ? 'shadow-xl z-20 ring-4 ring-yellow-400' : isHovered ? 'shadow-lg z-20' : 'shadow-sm'
             )}
             style={{
               left: shelf.position_x! * CELL_PX + 1,
@@ -1019,6 +1020,18 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
     return ids;
   }, [mapSearch, shelves]);
 
+  const highlightedShelfIds = React.useMemo((): Set<string> => {
+    const q = mapSearch.trim().toLowerCase();
+    if (q.length < 2) return new Set();
+    const ids = new Set<string>();
+    for (const shelf of shelves) {
+      if (shelf.slots?.some(s => s.item_id && (s.item_label?.toLowerCase().includes(q) || s.item_detail?.toLowerCase().includes(q)))) {
+        ids.add(shelf.id);
+      }
+    }
+    return ids;
+  }, [mapSearch, shelves]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -1183,8 +1196,8 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
         </div>
       </div>
 
-      {/* Buscador (solo en vista tarjetas) */}
-      {view === 'cards' && (
+      {/* Buscador (tarjetas y mapa de sala) */}
+      {(view === 'cards' || view === 'floorplan') && (
         <>
           <div className="relative max-w-md">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -1206,8 +1219,8 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
             </p>
           )}
 
-          {/* Leyenda */}
-          <div className="flex items-center gap-5 text-xs text-slate-500 flex-wrap">
+          {/* Leyenda — solo tarjetas */}
+          {view === 'cards' && <div className="flex items-center gap-5 text-xs text-slate-500 flex-wrap">
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded border-2 border-dashed border-slate-300 bg-slate-50 inline-block" />Vacío
             </span>
@@ -1220,7 +1233,7 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded border-2 border-purple-300 bg-purple-50 inline-block" />Bandeja de apoyo
             </span>
-          </div>
+          </div>}
         </>
       )}
 
@@ -1265,6 +1278,7 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
                 shelves={shelves}
                 roomObjects={roomObjects}
                 isAdmin={isAdmin}
+                highlightedShelfIds={highlightedShelfIds}
                 roomWidth={roomConfig.room_width}
                 roomHeight={roomConfig.room_height}
                 onShelfMoved={handleShelfMoved}
