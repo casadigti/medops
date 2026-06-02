@@ -794,6 +794,21 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
                 </div>
               );
             })()}
+            {/* Hover tooltip */}
+            {isHovered && (() => {
+              const items = shelf.slots?.filter(s => s.item_id) ?? [];
+              if (items.length === 0) return null;
+              return (
+                <div className="absolute left-0 pointer-events-none z-50 mt-1 bg-slate-900/95 text-white rounded-lg shadow-xl px-3 py-2 text-[10px] min-w-max max-w-[200px]"
+                  style={{ top: '100%' }}>
+                  <p className="font-bold mb-1 text-slate-300">{occupied}/{total} ocupados</p>
+                  {items.slice(0, 6).map(s => (
+                    <p key={s.id} className="truncate leading-tight">{s.item_label}</p>
+                  ))}
+                  {items.length > 6 && <p className="text-slate-400 mt-0.5">+{items.length - 6} más…</p>}
+                </div>
+              );
+            })()}
           </div>
         );
       })}
