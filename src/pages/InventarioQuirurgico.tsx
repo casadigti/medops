@@ -7,7 +7,7 @@ import { storageService } from '../services/storageService';
 import { useToast } from '../components/ui/Toast';
 import { Modal } from '../components/ui/Modal';
 import { cn } from '../utils/cn';
-import type { Implant, ImplantLot } from '../types/domain';
+import type { Implant, ImplantLot, SurgeryConsumption } from '../types/domain';
 
 const ImplantForm = ({ onSave, onCancel, initialData, loading }: { onSave: (data: any) => void; onCancel: () => void; initialData?: Partial<Implant> | null; loading: boolean }) => {
   const [form, setForm] = useState({
@@ -300,6 +300,73 @@ const ImportModal = ({ onImport, onCancel, loading }: { onImport: (data: any[]) 
   );
 };
 
+// ─── LotHistoryModal ──────────────────────────────────────────────────────────
+const LotHistoryModal: React.FC<{ lotId: string; lotNumber: string; isOpen: boolean; onClose: () => void }> = ({ lotId, lotNumber, isOpen, onClose }) => {
+  const [history, setHistory] = useState<SurgeryConsumption[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !lotId) return;
+    setLoading(true);
+    implantService.getLotHistory(lotId)
+      .then(setHistory)
+      .finally(() => setLoading(false));
+  }, [isOpen, lotId]);
+
+  const totalUsed = history.reduce((acc, h) => acc + h.quantity_used, 0);
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={`Historial — Lote ${lotNumber}`} size="lg">
+      {loading ? (
+        <div className="py-8 text-center text-slate-400">Cargando…</div>
+      ) : history.length === 0 ? (
+        <div className="py-8 text-center text-slate-400">Sin movimientos registrados para este lote.</div>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex items-center gap-4 text-sm">
+            <span className="font-semibold text-slate-700">{history.length} {history.length === 1 ? 'consumo' : 'consumos'}</span>
+            <span className="text-slate-400">·</span>
+            <span className="font-semibold text-slate-700">{totalUsed} unidades consumidas en total</span>
+          </div>
+          <div className="overflow-auto rounded-xl border border-slate-200">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wider">
+                <tr>
+                  <th className="py-3 px-3 text-left">Fecha</th>
+                  <th className="py-3 px-3 text-left">Paciente</th>
+                  <th className="py-3 px-3 text-left">Cirujano</th>
+                  <th className="py-3 px-3 text-left">Hospital</th>
+                  <th className="py-3 px-3 text-center">Cant.</th>
+                  <th className="py-3 px-3 text-left">ARS #</th>
+                  <th className="py-3 px-3 text-left">Notas</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {history.map(h => {
+                  const surgery = h.surgeries as any;
+                  return (
+                    <tr key={h.id} className="hover:bg-slate-50">
+                      <td className="py-2 px-3 whitespace-nowrap text-slate-600">
+                        {h.used_at ? new Date(h.used_at).toLocaleDateString('es-ES') : '—'}
+                      </td>
+                      <td className="py-2 px-3 font-semibold text-slate-800">{surgery?.patient_name ?? '—'}</td>
+                      <td className="py-2 px-3 text-slate-600">{surgery?.surgeon?.full_name ?? '—'}</td>
+                      <td className="py-2 px-3 text-slate-600">{surgery?.hospital?.name ?? '—'}</td>
+                      <td className="py-2 px-3 text-center font-bold text-primary">{h.quantity_used}</td>
+                      <td className="py-2 px-3 font-mono text-slate-500">{h.auth_number ?? '—'}</td>
+                      <td className="py-2 px-3 text-slate-500 max-w-[140px] truncate">{h.notes ?? '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+};
+
 export const InventarioQuirurgico: React.FC = () => {
   const toast = useToast();
   const [searchParams] = useSearchParams();
@@ -314,6 +381,7 @@ export const InventarioQuirurgico: React.FC = () => {
   const [selectedImplant, setSelectedImplant] = useState<Implant | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [slotLocationMap, setSlotLocationMap] = useState<Record<string, string>>({});
+  const [lotHistory, setLotHistory] = useState<{ open: boolean; lotId: string; lotNumber: string }>({ open: false, lotId: '', lotNumber: '' });
 
   const fetchImplants = async () => {
     try {
@@ -605,6 +673,15 @@ export const InventarioQuirurgico: React.FC = () => {
                                 <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold uppercase">Ok</span>
                               )}
                             </td>
+                            <td className="py-3 px-2 text-right">
+                              <button
+                                onClick={() => setLotHistory({ open: true, lotId: lot.id!, lotNumber: lot.lot_number })}
+                                className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-xs text-primary hover:underline transition-opacity"
+                                title="Ver historial de consumos"
+                              >
+                                <History size={12} /> Historial
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -654,6 +731,13 @@ export const InventarioQuirurgico: React.FC = () => {
           loading={actionLoading}
         />
       </Modal>
+
+      <LotHistoryModal
+        isOpen={lotHistory.open}
+        lotId={lotHistory.lotId}
+        lotNumber={lotHistory.lotNumber}
+        onClose={() => setLotHistory({ open: false, lotId: '', lotNumber: '' })}
+      />
     </div>
   );
 };

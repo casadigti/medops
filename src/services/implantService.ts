@@ -191,6 +191,21 @@ export const implantService = {
     });
   },
 
+  async getLotHistory(lotId: string): Promise<SurgeryConsumption[]> {
+    const { data, error } = await supabase
+      .from('surgery_consumption')
+      .select(`
+        id, quantity_used, notes, auth_number, used_at,
+        surgeries (id, patient_name, surgery_date,
+          surgeon: surgeons (full_name),
+          hospital: hospitals (name))
+      `)
+      .eq('implant_lot_id', lotId)
+      .order('used_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as unknown as SurgeryConsumption[];
+  },
+
   async getAllLotsDetailed(): Promise<ImplantLot[]> {
     const orgOverride = getImpersonatedOrgId();
     let query = supabase
