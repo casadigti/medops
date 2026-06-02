@@ -703,6 +703,8 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
         const occupied = shelf.slots?.filter(s => s.item_id).length ?? 0;
         const total = shelf.rows * shelf.cols;
         const isHovered = hoveredShelfId === shelf.id;
+        const pct = total > 0 ? occupied / total : 0;
+        const heatColor = pct >= 0.9 ? '#ef4444' : pct >= 0.6 ? '#f59e0b' : '#22c55e';
 
         return (
           <div
@@ -794,6 +796,10 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
                 </div>
               );
             })()}
+            {/* Heatmap bar — % ocupación */}
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-slate-100 pointer-events-none">
+              <div className="h-full transition-all" style={{ width: `${pct * 100}%`, backgroundColor: heatColor }} />
+            </div>
             {/* Hover tooltip */}
             {isHovered && (() => {
               const items = shelf.slots?.filter(s => s.item_id) ?? [];
