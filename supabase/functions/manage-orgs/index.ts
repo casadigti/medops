@@ -156,8 +156,15 @@ serve(async (req) => {
       await del('audit_logs')
       await del('surgeries')
       await del('maintenance_logs')
-      await del('storage_slots')        // slots antes que shelves
-      await del('storage_shelves')      // shelves antes que org
+      // storage_slots no tiene org_id — borrar via shelf_id
+      const { data: shelves } = await supabaseAdmin
+        .from('storage_shelves').select('id').eq('org_id', orgId)
+      if (shelves && shelves.length > 0) {
+        const ids = shelves.map((s: { id: string }) => s.id)
+        const { error: slotErr } = await supabaseAdmin.from('storage_slots').delete().in('shelf_id', ids)
+        if (slotErr) throw new Error(`Error eliminando storage_slots: ${slotErr.message}`)
+      }
+      await del('storage_shelves')
       await del('trays')
       await del('implant_lots')
       await del('implants')
