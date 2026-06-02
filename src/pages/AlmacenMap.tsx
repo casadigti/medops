@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, Pencil, Trash2, Search, Warehouse, LayoutGrid, Map, Settings2, RotateCcw, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Warehouse, LayoutGrid, Map, Settings2, RotateCcw, X, Table2, Monitor, Minus, Square, DoorOpen } from 'lucide-react';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { PageLoader, EmptyState } from '../components/ui/Spinner';
@@ -7,12 +7,21 @@ import { useToast } from '../components/ui/Toast';
 import { cn } from '../utils/cn';
 import { storageService, cellLabel } from '../services/storageService';
 import { configService } from '../services/configService';
-import type { StorageShelf, StorageSlot, AvailableItems, UserProfile } from '../types/domain';
+import { roomObjectService } from '../services/roomObjectService';
+import type { StorageShelf, StorageSlot, AvailableItems, UserProfile, RoomObject, RoomObjectType } from '../types/domain';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PRESET_COLORS = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 const CELL_PX = 50;       // pixels per room unit in floor plan
 const CARD_CELL_PX = 52;  // fixed cell size in cards view
+
+const ROOM_OBJECT_DEFS: Record<RoomObjectType, { label: string; color: string; w: number; h: number; Icon: React.FC<{ size?: number; style?: React.CSSProperties; className?: string }> }> = {
+  table:  { label: 'Mesa',       color: '#d97706', w: 4, h: 3, Icon: Table2 },
+  desk:   { label: 'Escritorio', color: '#64748b', w: 2, h: 2, Icon: Monitor },
+  wall:   { label: 'Pared',      color: '#374151', w: 8, h: 1, Icon: Minus },
+  column: { label: 'Columna',    color: '#6b7280', w: 1, h: 1, Icon: Square },
+  door:   { label: 'Puerta',     color: '#0ea5e9', w: 2, h: 1, Icon: DoorOpen },
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getFootprint(shelf: StorageShelf) {
@@ -487,6 +496,7 @@ const RoomConfigModal: React.FC<RoomConfigModalProps> = ({ isOpen, onClose, room
 // ─── FloorPlanCanvas ──────────────────────────────────────────────────────────
 interface FloorPlanCanvasProps {
   shelves: StorageShelf[];
+  roomObjects: RoomObject[];
   isAdmin: boolean;
   roomWidth: number;
   roomHeight: number;
@@ -494,16 +504,23 @@ interface FloorPlanCanvasProps {
   onRotate: (shelf: StorageShelf) => void;
   onRemoveFromMap: (shelfId: string) => void;
   onSlotClick: (slot: StorageSlot) => void;
+  onObjectCreated: (type: RoomObjectType, x: number, y: number, w: number, h: number, color: string) => void;
+  onObjectMoved: (id: string, x: number, y: number) => void;
+  onObjectDelete: (id: string) => void;
 }
 
 const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
-  shelves, isAdmin, roomWidth, roomHeight, onShelfMoved, onRotate, onRemoveFromMap, onSlotClick,
+  shelves, roomObjects, isAdmin, roomWidth, roomHeight,
+  onShelfMoved, onRotate, onRemoveFromMap, onSlotClick,
+  onObjectCreated, onObjectMoved, onObjectDelete,
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const dragShelfIdRef = useRef<string | null>(null);
+  const dragObjectIdRef = useRef<string | null>(null);
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const [dropPreview, setDropPreview] = useState<{ x: number; y: number; w: number; h: number; valid: boolean } | null>(null);
   const [hoveredShelfId, setHoveredShelfId] = useState<string | null>(null);
+  const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
 
   const placed = shelves.filter(s => s.position_x != null && s.position_y != null);
 
@@ -521,44 +538,88 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
 
   const handleCanvasDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    const shelfId = dragShelfIdRef.current;
-    if (!shelfId || !canvasRef.current) return;
-
-    const shelf = shelves.find(s => s.id === shelfId);
-    if (!shelf) return;
-
+    if (!canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
-    const rawX = Math.floor((e.clientX - rect.left) / CELL_PX) - dragOffsetRef.current.x;
-    const rawY = Math.floor((e.clientY - rect.top) / CELL_PX) - dragOffsetRef.current.y;
-    const fp = getFootprint(shelf);
-    const x = Math.max(0, Math.min(rawX, roomWidth - fp.w));
-    const y = Math.max(0, Math.min(rawY, roomHeight - fp.h));
 
-    const fits = fitsInRoom(x, y, fp.w, fp.h, roomWidth, roomHeight);
-    const noCollision = !hasCollision(shelves, shelfId, x, y, fp.w, fp.h);
-    setDropPreview({ x, y, w: fp.w, h: fp.h, valid: fits && noCollision });
-    e.dataTransfer.dropEffect = fits && noCollision ? 'move' : 'none';
+    if (dragShelfIdRef.current) {
+      const shelf = shelves.find(s => s.id === dragShelfIdRef.current);
+      if (!shelf) return;
+      const fp = getFootprint(shelf);
+      const rawX = Math.floor((e.clientX - rect.left) / CELL_PX) - dragOffsetRef.current.x;
+      const rawY = Math.floor((e.clientY - rect.top) / CELL_PX) - dragOffsetRef.current.y;
+      const x = Math.max(0, Math.min(rawX, roomWidth - fp.w));
+      const y = Math.max(0, Math.min(rawY, roomHeight - fp.h));
+      const valid = fitsInRoom(x, y, fp.w, fp.h, roomWidth, roomHeight) && !hasCollision(shelves, dragShelfIdRef.current, x, y, fp.w, fp.h);
+      setDropPreview({ x, y, w: fp.w, h: fp.h, valid });
+      e.dataTransfer.dropEffect = valid ? 'move' : 'none';
+      return;
+    }
+
+    // Room object (new from palette or existing)
+    const objType = e.dataTransfer.types.includes('roomobjecttype') ? e.dataTransfer.getData('roomObjectType') as RoomObjectType : null;
+    const objId = dragObjectIdRef.current;
+    if (objType || objId) {
+      const w = objType ? ROOM_OBJECT_DEFS[objType].w : (roomObjects.find(o => o.id === objId)?.width ?? 2);
+      const h = objType ? ROOM_OBJECT_DEFS[objType].h : (roomObjects.find(o => o.id === objId)?.height ?? 2);
+      const rawX = Math.floor((e.clientX - rect.left) / CELL_PX) - dragOffsetRef.current.x;
+      const rawY = Math.floor((e.clientY - rect.top) / CELL_PX) - dragOffsetRef.current.y;
+      const x = Math.max(0, Math.min(rawX, roomWidth - w));
+      const y = Math.max(0, Math.min(rawY, roomHeight - h));
+      setDropPreview({ x, y, w, h, valid: fitsInRoom(x, y, w, h, roomWidth, roomHeight) });
+      e.dataTransfer.dropEffect = 'move';
+    }
   };
 
   const handleCanvasDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const shelfId = e.dataTransfer.getData('shelfId');
-    if (!shelfId || !canvasRef.current) { setDropPreview(null); return; }
-
-    const shelf = shelves.find(s => s.id === shelfId);
-    if (!shelf) { setDropPreview(null); return; }
-
+    if (!canvasRef.current) { setDropPreview(null); return; }
     const rect = canvasRef.current.getBoundingClientRect();
-    const rawX = Math.floor((e.clientX - rect.left) / CELL_PX) - dragOffsetRef.current.x;
-    const rawY = Math.floor((e.clientY - rect.top) / CELL_PX) - dragOffsetRef.current.y;
-    const fp = getFootprint(shelf);
-    const x = Math.max(0, Math.min(rawX, roomWidth - fp.w));
-    const y = Math.max(0, Math.min(rawY, roomHeight - fp.h));
 
-    if (fitsInRoom(x, y, fp.w, fp.h, roomWidth, roomHeight) && !hasCollision(shelves, shelfId, x, y, fp.w, fp.h)) {
-      onShelfMoved(shelfId, x, y);
+    // Shelf drop
+    const shelfId = e.dataTransfer.getData('shelfId');
+    if (shelfId) {
+      const shelf = shelves.find(s => s.id === shelfId);
+      if (shelf) {
+        const fp = getFootprint(shelf);
+        const rawX = Math.floor((e.clientX - rect.left) / CELL_PX) - dragOffsetRef.current.x;
+        const rawY = Math.floor((e.clientY - rect.top) / CELL_PX) - dragOffsetRef.current.y;
+        const x = Math.max(0, Math.min(rawX, roomWidth - fp.w));
+        const y = Math.max(0, Math.min(rawY, roomHeight - fp.h));
+        if (fitsInRoom(x, y, fp.w, fp.h, roomWidth, roomHeight) && !hasCollision(shelves, shelfId, x, y, fp.w, fp.h)) {
+          onShelfMoved(shelfId, x, y);
+        }
+      }
+      dragShelfIdRef.current = null;
+      setDropPreview(null);
+      return;
     }
-    dragShelfIdRef.current = null;
+
+    // New room object from palette
+    const objType = e.dataTransfer.getData('roomObjectType') as RoomObjectType | '';
+    if (objType && objType in ROOM_OBJECT_DEFS) {
+      const def = ROOM_OBJECT_DEFS[objType];
+      const rawX = Math.floor((e.clientX - rect.left) / CELL_PX) - Math.floor(def.w / 2);
+      const rawY = Math.floor((e.clientY - rect.top)  / CELL_PX) - Math.floor(def.h / 2);
+      const x = Math.max(0, Math.min(rawX, roomWidth  - def.w));
+      const y = Math.max(0, Math.min(rawY, roomHeight - def.h));
+      onObjectCreated(objType, x, y, def.w, def.h, def.color);
+      setDropPreview(null);
+      return;
+    }
+
+    // Existing room object move
+    const objId = dragObjectIdRef.current;
+    if (objId) {
+      const obj = roomObjects.find(o => o.id === objId);
+      if (obj) {
+        const rawX = Math.floor((e.clientX - rect.left) / CELL_PX) - dragOffsetRef.current.x;
+        const rawY = Math.floor((e.clientY - rect.top)  / CELL_PX) - dragOffsetRef.current.y;
+        const x = Math.max(0, Math.min(rawX, roomWidth  - obj.width));
+        const y = Math.max(0, Math.min(rawY, roomHeight - obj.height));
+        onObjectMoved(objId, x, y);
+      }
+      dragObjectIdRef.current = null;
+    }
     setDropPreview(null);
   };
 
@@ -651,7 +712,14 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
               {/* Header row */}
               <div className="flex items-start justify-between gap-0.5 mb-0.5">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">{shelf.name}</p>
+                  <p
+                    className="text-[10px] font-bold text-slate-800 truncate leading-tight"
+                    style={
+                      shelf.facing === 'right' ? { writingMode: 'vertical-rl', transform: 'rotate(180deg)' } :
+                      shelf.facing === 'left'  ? { writingMode: 'vertical-rl' } :
+                      undefined
+                    }
+                  >{shelf.name}</p>
                   <p className="text-[8px] text-slate-400 leading-tight">{occupied}/{total}</p>
                 </div>
                 {isAdmin && (
@@ -704,6 +772,85 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
           </div>
         );
       })}
+
+      {/* Room objects */}
+      {roomObjects.map(obj => {
+        const def = ROOM_OBJECT_DEFS[obj.type];
+        const isObjHovered = hoveredObjectId === obj.id;
+        return (
+          <div
+            key={obj.id}
+            className={cn('absolute rounded overflow-hidden transition-shadow select-none', isAdmin ? 'cursor-grab active:cursor-grabbing' : 'cursor-default', isObjHovered ? 'shadow-md z-10' : 'shadow-sm')}
+            style={{
+              left: obj.position_x * CELL_PX + 1,
+              top:  obj.position_y * CELL_PX + 1,
+              width:  obj.width  * CELL_PX - 2,
+              height: obj.height * CELL_PX - 2,
+              backgroundColor: obj.color + '22',
+              border: `2px solid ${obj.color}`,
+            }}
+            draggable={isAdmin}
+            onDragStart={e => {
+              dragObjectIdRef.current = obj.id;
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              dragOffsetRef.current = { x: Math.floor((e.clientX - rect.left) / CELL_PX), y: Math.floor((e.clientY - rect.top) / CELL_PX) };
+              e.dataTransfer.effectAllowed = 'move';
+              e.dataTransfer.setData('roomObjectId', obj.id);
+            }}
+            onMouseEnter={() => setHoveredObjectId(obj.id)}
+            onMouseLeave={() => setHoveredObjectId(null)}
+          >
+            <div className="w-full h-full flex flex-col items-center justify-center gap-0.5 p-1">
+              <def.Icon size={Math.min(16, (obj.width * CELL_PX) / 3)} style={{ color: obj.color }} />
+              <span className="text-[9px] font-bold truncate w-full text-center leading-tight" style={{ color: obj.color }}>
+                {obj.label ?? def.label}
+              </span>
+            </div>
+            {isAdmin && isObjHovered && (
+              <button
+                title="Eliminar"
+                onClick={e => { e.stopPropagation(); onObjectDelete(obj.id); }}
+                className="absolute top-0.5 right-0.5 p-0.5 rounded bg-white/80 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+              >
+                <X size={8} />
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// ─── RoomObjectPalette ────────────────────────────────────────────────────────
+interface RoomObjectPaletteProps { isAdmin: boolean }
+
+const RoomObjectPalette: React.FC<RoomObjectPaletteProps> = ({ isAdmin }) => {
+  if (!isAdmin) return null;
+  return (
+    <div className="w-48 shrink-0">
+      <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Objetos</p>
+      <div className="space-y-2">
+        {(Object.entries(ROOM_OBJECT_DEFS) as [RoomObjectType, typeof ROOM_OBJECT_DEFS[RoomObjectType]][]).map(([type, def]) => (
+          <div
+            key={type}
+            draggable
+            onDragStart={e => {
+              e.dataTransfer.effectAllowed = 'copy';
+              e.dataTransfer.setData('roomObjectType', type);
+            }}
+            className="card p-2 flex items-center gap-2 cursor-grab active:cursor-grabbing hover:shadow-md select-none"
+            title={`Arrastra para agregar ${def.label}`}
+          >
+            <def.Icon size={14} style={{ color: def.color, flexShrink: 0 }} />
+            <div>
+              <p className="text-xs font-bold text-slate-800">{def.label}</p>
+              <p className="text-[10px] text-slate-400">{def.w}×{def.h} un.</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] text-slate-400 mt-2 italic">Arrastra al mapa →</p>
     </div>
   );
 };
@@ -762,6 +909,7 @@ interface AlmacenMapProps {
 export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
   const toast = useToast();
   const [shelves, setShelves] = useState<StorageShelf[]>([]);
+  const [roomObjects, setRoomObjects] = useState<RoomObject[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'cards' | 'floorplan'>('cards');
   const [roomConfig, setRoomConfig] = useState({ room_width: 30, room_height: 20 });
@@ -791,12 +939,14 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [shelvesData, cfg] = await Promise.all([
+      const [shelvesData, cfg, objects] = await Promise.all([
         storageService.getShelves(),
         configService.getRoomConfig(),
+        roomObjectService.getAll(),
       ]);
       setShelves(shelvesData);
       setRoomConfig(cfg);
+      setRoomObjects(objects);
     } catch {
       toast.error('Error cargando mapa de almacén');
     } finally {
@@ -859,6 +1009,27 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
       toast.error('Error quitando estantería del mapa');
       load();
     }
+  };
+
+  const handleObjectCreated = async (type: RoomObjectType, x: number, y: number, w: number, h: number, color: string) => {
+    try {
+      const obj = await roomObjectService.create({ type, position_x: x, position_y: y, width: w, height: h, color });
+      setRoomObjects(prev => [...prev, obj]);
+    } catch { toast.error('Error creando objeto'); }
+  };
+
+  const handleObjectMoved = async (id: string, x: number, y: number) => {
+    setRoomObjects(prev => prev.map(o => o.id === id ? { ...o, position_x: x, position_y: y } : o));
+    try {
+      await roomObjectService.updatePosition(id, x, y);
+    } catch { toast.error('Error moviendo objeto'); load(); }
+  };
+
+  const handleObjectDelete = async (id: string) => {
+    setRoomObjects(prev => prev.filter(o => o.id !== id));
+    try {
+      await roomObjectService.delete(id);
+    } catch { toast.error('Error eliminando objeto'); load(); }
   };
 
   return (
@@ -990,6 +1161,7 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
             <div className="overflow-auto rounded-xl">
               <FloorPlanCanvas
                 shelves={shelves}
+                roomObjects={roomObjects}
                 isAdmin={isAdmin}
                 roomWidth={roomConfig.room_width}
                 roomHeight={roomConfig.room_height}
@@ -997,9 +1169,15 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
                 onRotate={handleRotate}
                 onRemoveFromMap={handleRemoveFromMap}
                 onSlotClick={slot => setSlotModal({ open: true, slot })}
+                onObjectCreated={handleObjectCreated}
+                onObjectMoved={handleObjectMoved}
+                onObjectDelete={handleObjectDelete}
               />
             </div>
-            <UnplacedPanel shelves={shelves} isAdmin={isAdmin} />
+            <div className="flex flex-col gap-4">
+              <UnplacedPanel shelves={shelves} isAdmin={isAdmin} />
+              <RoomObjectPalette isAdmin={isAdmin} />
+            </div>
           </div>
         </div>
       )}

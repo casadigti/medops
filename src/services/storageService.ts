@@ -65,6 +65,7 @@ export const storageService = {
       org_id: shelf.org_id,
       name: shelf.name,
       orientation: shelf.orientation,
+      facing: shelf.facing ?? 'bottom',
       rows: shelf.rows,
       cols: shelf.cols,
       color: shelf.color,

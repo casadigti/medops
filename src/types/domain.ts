@@ -232,3 +232,19 @@ export interface AvailableItems {
   implantLots: Array<{ id: string; label: string; detail: string }>;
   trays:       Array<{ id: string; label: string; detail: string; is_support_tray?: boolean }>;
 }
+
+// ─── Room Objects ───────────────────────────────────────────────────────────────
+export type RoomObjectType = 'table' | 'desk' | 'wall' | 'column' | 'door';
+
+export interface RoomObject {
+  id: string;
+  org_id: string;
+  type: RoomObjectType;
+  label?: string;
+  position_x: number;
+  position_y: number;
+  width: number;
+  height: number;
+  color: string;
+  created_at?: string;
+}
