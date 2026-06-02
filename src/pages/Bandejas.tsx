@@ -107,7 +107,7 @@ const TrayItemsPanel: React.FC<{ trayId: string; canEdit: boolean }> = ({ trayId
   }, [trayId]);
 
   const results = allImplants.filter(i =>
-    search.length >= 2 &&
+    search.length >= 1 &&
     (i.name.toLowerCase().includes(search.toLowerCase()) || (i.sku ?? '').toLowerCase().includes(search.toLowerCase()))
   ).slice(0, 8);
 
@@ -146,19 +146,19 @@ const TrayItemsPanel: React.FC<{ trayId: string; canEdit: boolean }> = ({ trayId
     <div className="mt-3 pt-3 border-t border-slate-100 space-y-3">
       {canEdit && (
         <div className="relative">
-          <div className="flex gap-2">
-            <div className="relative flex-1">
+          <div className="flex gap-2 items-center">
+            <div className="relative min-w-0 flex-1">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
-                className="input !pl-8 text-sm"
-                placeholder="Buscar implante por nombre o SKU…"
+                className="input !pl-8 text-sm w-full"
+                placeholder="Buscar implante…"
                 value={selected ? selected.name : search}
                 onChange={e => { setSearch(e.target.value); setSelected(null); setShowDropdown(true); }}
-                onFocus={() => setShowDropdown(true)}
-                onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+                onFocus={() => { setShowDropdown(true); }}
+                onBlur={() => setTimeout(() => setShowDropdown(false), 250)}
               />
             </div>
-            <input type="number" min={1} max={999} className="input w-16 text-sm text-center" value={qty} onChange={e => setQty(Math.max(1, +e.target.value))} title="Cantidad" />
+            <input type="number" min={1} max={999} className="input w-14 text-sm text-center shrink-0" value={qty} onChange={e => setQty(Math.max(1, +e.target.value))} title="Cantidad" />
             <button onClick={handleAdd} disabled={!selected || saving} className="btn btn-primary text-sm px-3 whitespace-nowrap">
               + Agregar
             </button>
