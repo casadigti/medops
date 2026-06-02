@@ -78,6 +78,16 @@ export interface Tray {
   created_at?: string;
 }
 
+export interface TrayItem {
+  id: string;
+  tray_id: string;
+  implant_id: string;
+  quantity: number;
+  notes?: string;
+  created_at?: string;
+  implant?: Pick<Implant, 'id' | 'name' | 'sku' | 'category'>;
+}
+
 export interface TrayWithAvailability extends Tray {
   busy: boolean;
   unavailable_reason: string | null;

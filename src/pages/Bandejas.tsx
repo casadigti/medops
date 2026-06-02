@@ -7,10 +7,11 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { StatusBadge } from '../components/ui/Badge';
 import { PageLoader, EmptyState } from '../components/ui/Spinner';
 import { TRAY_STATUSES, MAX_STERILIZATIONS } from '../data/catalogo';
-import { Package, Plus, Pencil, Trash2, Search, AlertTriangle, Wrench, Stethoscope, MapPin } from 'lucide-react';
+import { Package, Plus, Pencil, Trash2, Search, AlertTriangle, Wrench, Stethoscope, MapPin, ChevronDown, ChevronUp, X, ListChecks } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useToast } from '../components/ui/Toast';
-import type { Tray } from '../types/domain';
+import { implantService } from '../services/implantService';
+import type { Tray, TrayItem, Implant } from '../types/domain';
 
 const TrayForm = ({ initial, onSave, onCancel, loading }: { initial: Partial<Tray> | null; onSave: (data: any) => void; onCancel: () => void; loading: boolean }) => {
   const [form, setForm] = useState(initial || {
@@ -42,8 +43,8 @@ const TrayForm = ({ initial, onSave, onCancel, loading }: { initial: Partial<Tra
           <input className="input" value={form.procedure_type} onChange={e => set('procedure_type', e.target.value)} placeholder="Artroplastia total de rodilla" />
         </div>
         <div className="sm:col-span-2">
-          <label className="block text-sm font-semibold text-slate-700 mb-1">Contenido (instrumentos/implantes)</label>
-          <textarea rows={3} className="input resize-none" value={form.content} onChange={e => set('content', e.target.value)} placeholder="Sierra oscilante, guías de corte, retractores..." />
+          <label className="block text-sm font-semibold text-slate-700 mb-1">Notas / descripción general</label>
+          <textarea rows={2} className="input resize-none" value={form.content} onChange={e => set('content', e.target.value)} placeholder="Notas adicionales sobre la bandeja..." />
         </div>
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-1">Ubicación Actual</label>
@@ -84,6 +85,136 @@ const TrayForm = ({ initial, onSave, onCancel, loading }: { initial: Partial<Tra
   );
 };
 
+// ─── TrayItemsPanel ──────────────────────────────────────────────────────────
+const TrayItemsPanel: React.FC<{ trayId: string; canEdit: boolean }> = ({ trayId, canEdit }) => {
+  const toast = useToast();
+  const [items, setItems] = useState<TrayItem[]>([]);
+  const [allImplants, setAllImplants] = useState<Implant[]>([]);
+  const [loadingItems, setLoadingItems] = useState(true);
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<Implant | null>(null);
+  const [qty, setQty] = useState(1);
+  const [saving, setSaving] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editQty, setEditQty] = useState(1);
+
+  useEffect(() => {
+    Promise.all([trayService.getTrayItems(trayId), implantService.getAll()])
+      .then(([it, imp]) => { setItems(it); setAllImplants(imp); })
+      .catch(() => toast.error('Error cargando componentes'))
+      .finally(() => setLoadingItems(false));
+  }, [trayId]);
+
+  const results = allImplants.filter(i =>
+    search.length >= 1 &&
+    (i.name.toLowerCase().includes(search.toLowerCase()) || (i.sku ?? '').toLowerCase().includes(search.toLowerCase()))
+  ).slice(0, 8);
+
+  const handleAdd = async () => {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      const item = await trayService.addTrayItem(trayId, selected.id, qty);
+      setItems(prev => {
+        const existing = prev.findIndex(i => i.implant_id === selected.id);
+        if (existing >= 0) { const copy = [...prev]; copy[existing] = item; return copy; }
+        return [...prev, item];
+      });
+      setSelected(null); setSearch(''); setQty(1); setShowDropdown(false);
+      toast.success('Componente agregado');
+    } catch { toast.error('Error agregando componente'); }
+    finally { setSaving(false); }
+  };
+
+  const handleRemove = async (id: string) => {
+    setItems(prev => prev.filter(i => i.id !== id));
+    try { await trayService.removeTrayItem(id); }
+    catch { toast.error('Error eliminando componente'); trayService.getTrayItems(trayId).then(setItems); }
+  };
+
+  const handleEditQty = async (id: string) => {
+    setItems(prev => prev.map(i => i.id === id ? { ...i, quantity: editQty } : i));
+    setEditingId(null);
+    try { await trayService.updateTrayItem(id, editQty); }
+    catch { toast.error('Error actualizando cantidad'); trayService.getTrayItems(trayId).then(setItems); }
+  };
+
+  if (loadingItems) return <div className="py-3 text-xs text-slate-400">Cargando componentes…</div>;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-slate-100 space-y-3">
+      {canEdit && (
+        <div className="relative">
+          <div className="grid gap-2 items-center" style={{ gridTemplateColumns: '1fr 56px auto' }}>
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                className="input !pl-8 text-sm w-full"
+                placeholder="Buscar implante…"
+                value={selected ? selected.name : search}
+                onChange={e => { setSearch(e.target.value); setSelected(null); setShowDropdown(true); }}
+                onFocus={() => { setShowDropdown(true); }}
+                onBlur={() => setTimeout(() => setShowDropdown(false), 250)}
+              />
+            </div>
+            <input type="number" min={1} max={999} className="input text-sm text-center w-full" value={qty} onChange={e => setQty(Math.max(1, +e.target.value))} title="Cantidad" />
+            <button onClick={handleAdd} disabled={!selected || saving} className="btn btn-primary text-sm px-3 whitespace-nowrap">
+              + Agregar
+            </button>
+          </div>
+          {showDropdown && results.length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-20 max-h-48 overflow-auto">
+              {results.map(imp => (
+                <button key={imp.id} onMouseDown={() => { setSelected(imp); setSearch(imp.name); setShowDropdown(false); }}
+                  className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between gap-2 text-sm">
+                  <span className="font-semibold text-slate-800">{imp.name}</span>
+                  <span className="text-xs text-slate-400 font-mono shrink-0">{imp.sku}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {items.length === 0 ? (
+        <p className="text-xs text-slate-400 italic">{canEdit ? 'Busca y agrega componentes desde el inventario.' : 'Sin componentes registrados.'}</p>
+      ) : (
+        <div className="space-y-1">
+          {items.map(item => (
+            <div key={item.id} className="flex items-center gap-2 group py-1 px-2 rounded-lg hover:bg-slate-50">
+              <div className="flex-1 min-w-0">
+                <span className="text-sm font-semibold text-slate-800">{item.implant?.name ?? '—'}</span>
+                {item.implant?.sku && <span className="ml-2 text-[10px] font-mono text-slate-400">{item.implant.sku}</span>}
+              </div>
+              {canEdit && editingId === item.id ? (
+                <div className="flex items-center gap-1 shrink-0">
+                  <input type="number" min={1} max={999} className="input w-14 text-xs text-center py-0.5" value={editQty}
+                    onChange={e => setEditQty(Math.max(1, +e.target.value))}
+                    onKeyDown={e => { if (e.key === 'Enter') handleEditQty(item.id); if (e.key === 'Escape') setEditingId(null); }}
+                    autoFocus />
+                  <button onClick={() => handleEditQty(item.id)} className="text-xs text-primary font-bold hover:underline">Ok</button>
+                </div>
+              ) : (
+                <button onClick={() => canEdit ? (setEditingId(item.id), setEditQty(item.quantity)) : undefined}
+                  className={cn('shrink-0 text-xs font-bold px-2 py-0.5 rounded bg-primary/10 text-primary', canEdit && 'hover:bg-primary/20 cursor-pointer')}>
+                  ×{item.quantity}
+                </button>
+              )}
+              {canEdit && (
+                <button onClick={() => handleRemove(item.id)}
+                  className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all shrink-0">
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const Bandejas: React.FC = () => {
   const toast = useToast();
   const [searchParams] = useSearchParams();
@@ -94,6 +225,8 @@ export const Bandejas: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState('');
   const [modal, setModal] = useState<{ data: Tray | null } | null>(null);
   const [confirm, setConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [expandedItems, setExpandedItems] = useState<string | null>(null);
+  const isAdmin = true; // TODO: pass userProfile when available — for now all can manage items
 
   const fetchTrays = async () => { setLoading(true); const d = await trayService.getAll(); setTrays(d); setLoading(false); };
   useEffect(() => { fetchTrays(); }, []);
@@ -243,6 +376,18 @@ export const Bandejas: React.FC = () => {
                   </div>
                   {t.last_sterilization && (
                     <p className="text-xs text-slate-400 mt-2">Última esterilización: {new Date(t.last_sterilization).toLocaleDateString('es-ES')}</p>
+                  )}
+
+                  {/* Componentes toggle */}
+                  <button
+                    onClick={() => setExpandedItems(prev => prev === t.id ? null : t.id)}
+                    className="mt-3 w-full flex items-center justify-between text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+                  >
+                    <span className="flex items-center gap-1.5"><ListChecks size={13} /> Componentes</span>
+                    {expandedItems === t.id ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  </button>
+                  {expandedItems === t.id && (
+                    <TrayItemsPanel trayId={t.id} canEdit={isAdmin} />
                   )}
                 </div>
               );

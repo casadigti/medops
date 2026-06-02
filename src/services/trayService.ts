@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { getLocalDateString } from '../utils/dateUtils';
 import { getImpersonatedOrgId } from '../utils/impersonation';
-import type { Tray, TrayWithAvailability, MaintenanceLog } from '../types/domain';
+import type { Tray, TrayWithAvailability, MaintenanceLog, TrayItem } from '../types/domain';
 
 type TrayInput = Partial<Tray> & {
   surgery_trays?: unknown;
@@ -98,6 +98,44 @@ export const trayService = {
     const { error } = await supabase
       .from('maintenance_logs')
       .insert({ tray_id: trayId, action, notes, performed_by: performedBy });
+    if (error) throw error;
+  },
+
+  // ─── Tray Items (componentes estructurados) ────────────────────────────────
+
+  async getTrayItems(trayId: string): Promise<TrayItem[]> {
+    const { data, error } = await supabase
+      .from('tray_items')
+      .select('*, implant:implants(id, name, sku, category)')
+      .eq('tray_id', trayId)
+      .order('created_at');
+    if (error) throw error;
+    return (data ?? []) as unknown as TrayItem[];
+  },
+
+  async addTrayItem(trayId: string, implantId: string, quantity: number, notes?: string): Promise<TrayItem> {
+    const { data, error } = await supabase
+      .from('tray_items')
+      .upsert(
+        { tray_id: trayId, implant_id: implantId, quantity, notes },
+        { onConflict: 'tray_id,implant_id' }
+      )
+      .select('*, implant:implants(id, name, sku, category)')
+      .single();
+    if (error) throw error;
+    return data as unknown as TrayItem;
+  },
+
+  async updateTrayItem(id: string, quantity: number, notes?: string): Promise<void> {
+    const { error } = await supabase
+      .from('tray_items')
+      .update({ quantity, notes })
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  async removeTrayItem(id: string): Promise<void> {
+    const { error } = await supabase.from('tray_items').delete().eq('id', id);
     if (error) throw error;
   },
 };
