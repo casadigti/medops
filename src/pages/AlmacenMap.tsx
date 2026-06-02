@@ -506,21 +506,25 @@ interface FloorPlanCanvasProps {
   onSlotClick: (slot: StorageSlot) => void;
   onObjectCreated: (type: RoomObjectType, x: number, y: number, w: number, h: number, color: string) => void;
   onObjectMoved: (id: string, x: number, y: number) => void;
+  onObjectResize: (id: string, w: number, h: number) => void;
   onObjectDelete: (id: string) => void;
+  onObjectEdit: (obj: RoomObject) => void;
 }
 
 const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
   shelves, roomObjects, isAdmin, roomWidth, roomHeight,
   onShelfMoved, onRotate, onRemoveFromMap, onSlotClick,
-  onObjectCreated, onObjectMoved, onObjectDelete,
+  onObjectCreated, onObjectMoved, onObjectResize, onObjectDelete, onObjectEdit,
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const dragShelfIdRef = useRef<string | null>(null);
   const dragObjectIdRef = useRef<string | null>(null);
   const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const resizingRef = useRef<{ id: string; startX: number; startY: number; startW: number; startH: number; objX: number; objY: number } | null>(null);
   const [dropPreview, setDropPreview] = useState<{ x: number; y: number; w: number; h: number; valid: boolean } | null>(null);
   const [hoveredShelfId, setHoveredShelfId] = useState<string | null>(null);
   const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
+  const [resizePreview, setResizePreview] = useState<{ id: string; w: number; h: number } | null>(null);
 
   const placed = shelves.filter(s => s.position_x != null && s.position_y != null);
 
@@ -623,6 +627,27 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
     setDropPreview(null);
   };
 
+  const handleResizeStart = (e: React.MouseEvent, obj: RoomObject) => {
+    e.preventDefault(); e.stopPropagation();
+    resizingRef.current = { id: obj.id, startX: e.clientX, startY: e.clientY, startW: obj.width, startH: obj.height, objX: obj.position_x, objY: obj.position_y };
+  };
+
+  const handleCanvasMouseMove = (e: React.MouseEvent) => {
+    if (!resizingRef.current) return;
+    const { id, startX, startY, startW, startH, objX, objY } = resizingRef.current;
+    const newW = Math.max(1, Math.min(startW + Math.round((e.clientX - startX) / CELL_PX), roomWidth - objX));
+    const newH = Math.max(1, Math.min(startH + Math.round((e.clientY - startY) / CELL_PX), roomHeight - objY));
+    setResizePreview({ id, w: newW, h: newH });
+  };
+
+  const handleCanvasMouseUp = () => {
+    if (resizingRef.current && resizePreview) {
+      onObjectResize(resizePreview.id, resizePreview.w, resizePreview.h);
+    }
+    resizingRef.current = null;
+    setResizePreview(null);
+  };
+
   return (
     <div
       ref={canvasRef}
@@ -635,6 +660,9 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
       onDragOver={handleCanvasDragOver}
       onDrop={handleCanvasDrop}
       onDragLeave={() => setDropPreview(null)}
+      onMouseMove={handleCanvasMouseMove}
+      onMouseUp={handleCanvasMouseUp}
+      onMouseLeave={handleCanvasMouseUp}
     >
       {/* Grid lines */}
       <svg
@@ -773,15 +801,17 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
       {roomObjects.map(obj => {
         const def = ROOM_OBJECT_DEFS[obj.type];
         const isObjHovered = hoveredObjectId === obj.id;
+        const dispW = resizePreview?.id === obj.id ? resizePreview.w : obj.width;
+        const dispH = resizePreview?.id === obj.id ? resizePreview.h : obj.height;
         return (
           <div
             key={obj.id}
-            className={cn('absolute rounded overflow-hidden transition-shadow select-none', isAdmin ? 'cursor-grab active:cursor-grabbing' : 'cursor-default', isObjHovered ? 'shadow-md z-10' : 'shadow-sm')}
+            className={cn('absolute rounded overflow-hidden transition-shadow select-none', isAdmin && !resizingRef.current ? 'cursor-grab active:cursor-grabbing' : 'cursor-default', isObjHovered ? 'shadow-md z-10' : 'shadow-sm')}
             style={{
               left: obj.position_x * CELL_PX + 1,
               top:  obj.position_y * CELL_PX + 1,
-              width:  obj.width  * CELL_PX - 2,
-              height: obj.height * CELL_PX - 2,
+              width:  dispW * CELL_PX - 2,
+              height: dispH * CELL_PX - 2,
               backgroundColor: obj.color + '22',
               border: `2px solid ${obj.color}`,
             }}
@@ -802,19 +832,75 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
                 {obj.label ?? def.label}
               </span>
             </div>
+            {isAdmin && (
+              <div
+                className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize rounded-tl bg-white/70 border-t border-l border-slate-400 hover:border-primary hover:bg-primary/10 transition-colors"
+                onMouseDown={e => handleResizeStart(e, obj)}
+              />
+            )}
             {isAdmin && isObjHovered && (
-              <button
-                title="Eliminar"
-                onClick={e => { e.stopPropagation(); onObjectDelete(obj.id); }}
-                className="absolute top-0.5 right-0.5 p-0.5 rounded bg-white/80 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
-              >
-                <X size={8} />
-              </button>
+              <div className="absolute top-0.5 right-0.5 flex gap-0.5">
+                <button title="Editar nombre" onClick={e => { e.stopPropagation(); onObjectEdit(obj); }}
+                  className="p-0.5 rounded bg-white/80 hover:bg-slate-100 text-slate-400 hover:text-primary transition-colors">
+                  <Pencil size={8} />
+                </button>
+                <button title="Eliminar" onClick={e => { e.stopPropagation(); onObjectDelete(obj.id); }}
+                  className="p-0.5 rounded bg-white/80 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors">
+                  <X size={8} />
+                </button>
+              </div>
             )}
           </div>
         );
       })}
     </div>
+  );
+};
+
+// ─── RoomObjectEditModal ──────────────────────────────────────────────────────
+interface RoomObjectEditModalProps {
+  obj: RoomObject | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onSaved: (id: string, label: string) => void;
+}
+
+const RoomObjectEditModal: React.FC<RoomObjectEditModalProps> = ({ obj, isOpen, onClose, onSaved }) => {
+  const toast = useToast();
+  const [label, setLabel] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && obj) setLabel(obj.label ?? ROOM_OBJECT_DEFS[obj.type]?.label ?? '');
+  }, [isOpen, obj]);
+
+  if (!obj) return null;
+  const def = ROOM_OBJECT_DEFS[obj.type];
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await roomObjectService.updateLabel(obj.id, label.trim() || def.label);
+      onSaved(obj.id, label.trim() || def.label);
+      onClose();
+    } catch { toast.error('Error guardando nombre'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={`Editar — ${def.label}`} size="sm">
+      <form onSubmit={handleSave} className="space-y-4">
+        <div>
+          <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Nombre</label>
+          <input autoFocus className="input" value={label} onChange={e => setLabel(e.target.value)} placeholder={def.label} />
+        </div>
+        <div className="flex gap-3 pt-1">
+          <button type="button" onClick={onClose} className="btn btn-secondary flex-1">Cancelar</button>
+          <button type="submit" disabled={saving} className="btn btn-primary flex-1">{saving ? 'Guardando...' : 'Guardar'}</button>
+        </div>
+      </form>
+    </Modal>
   );
 };
 
@@ -906,6 +992,7 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
   const toast = useToast();
   const [shelves, setShelves] = useState<StorageShelf[]>([]);
   const [roomObjects, setRoomObjects] = useState<RoomObject[]>([]);
+  const [objectEditModal, setObjectEditModal] = useState<{ open: boolean; obj: RoomObject | null }>({ open: false, obj: null });
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'cards' | 'floorplan'>('cards');
   const [roomConfig, setRoomConfig] = useState({ room_width: 30, room_height: 20 });
@@ -1019,6 +1106,16 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
     try {
       await roomObjectService.updatePosition(id, x, y);
     } catch { toast.error('Error moviendo objeto'); load(); }
+  };
+
+  const handleObjectResize = async (id: string, w: number, h: number) => {
+    setRoomObjects(prev => prev.map(o => o.id === id ? { ...o, width: w, height: h } : o));
+    try { await roomObjectService.updateSize(id, w, h); }
+    catch { toast.error('Error redimensionando objeto'); load(); }
+  };
+
+  const handleObjectLabelSaved = (id: string, label: string) => {
+    setRoomObjects(prev => prev.map(o => o.id === id ? { ...o, label } : o));
   };
 
   const handleObjectDelete = async (id: string) => {
@@ -1167,7 +1264,9 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
                 onSlotClick={slot => setSlotModal({ open: true, slot })}
                 onObjectCreated={handleObjectCreated}
                 onObjectMoved={handleObjectMoved}
+                onObjectResize={handleObjectResize}
                 onObjectDelete={handleObjectDelete}
+                onObjectEdit={obj => setObjectEditModal({ open: true, obj })}
               />
             </div>
             <div className="flex flex-col gap-4">
@@ -1200,6 +1299,13 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
         roomWidth={roomConfig.room_width}
         roomHeight={roomConfig.room_height}
         onSaved={(w, h) => setRoomConfig({ room_width: w, room_height: h })}
+      />
+
+      <RoomObjectEditModal
+        isOpen={objectEditModal.open}
+        obj={objectEditModal.obj}
+        onClose={() => setObjectEditModal({ open: false, obj: null })}
+        onSaved={handleObjectLabelSaved}
       />
 
       <ConfirmDialog
