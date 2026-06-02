@@ -1200,7 +1200,16 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
           )}
           {view === 'floorplan' && (
             <button
-              onClick={() => window.print()}
+              onClick={() => {
+                const el = document.querySelector('.floor-plan-print') as HTMLElement | null;
+                const scale = el ? Math.min(980 / el.scrollWidth, 640 / el.scrollHeight, 1) : 1;
+                const s = document.createElement('style');
+                s.id = 'fp-print-scale';
+                s.textContent = `@media print { .floor-plan-print { zoom: ${scale.toFixed(3)}; } }`;
+                document.head.appendChild(s);
+                window.print();
+                document.getElementById('fp-print-scale')?.remove();
+              }}
               className="btn btn-secondary flex items-center gap-2 text-sm"
               title="Exportar mapa como PDF/PNG"
             >
