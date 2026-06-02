@@ -146,8 +146,8 @@ const TrayItemsPanel: React.FC<{ trayId: string; canEdit: boolean }> = ({ trayId
     <div className="mt-3 pt-3 border-t border-slate-100 space-y-3">
       {canEdit && (
         <div className="relative">
-          <div className="flex gap-2 items-center">
-            <div className="relative min-w-0 flex-1">
+          <div className="grid gap-2 items-center" style={{ gridTemplateColumns: '1fr 56px auto' }}>
+            <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
                 className="input !pl-8 text-sm w-full"
@@ -158,7 +158,7 @@ const TrayItemsPanel: React.FC<{ trayId: string; canEdit: boolean }> = ({ trayId
                 onBlur={() => setTimeout(() => setShowDropdown(false), 250)}
               />
             </div>
-            <input type="number" min={1} max={999} className="input w-14 text-sm text-center shrink-0" value={qty} onChange={e => setQty(Math.max(1, +e.target.value))} title="Cantidad" />
+            <input type="number" min={1} max={999} className="input text-sm text-center w-full" value={qty} onChange={e => setQty(Math.max(1, +e.target.value))} title="Cantidad" />
             <button onClick={handleAdd} disabled={!selected || saving} className="btn btn-primary text-sm px-3 whitespace-nowrap">
               + Agregar
             </button>
