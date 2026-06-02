@@ -996,6 +996,7 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
   const [objectEditModal, setObjectEditModal] = useState<{ open: boolean; obj: RoomObject | null }>({ open: false, obj: null });
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'cards' | 'floorplan'>('cards');
+  const [zoom, setZoom] = useState(1);
   const [roomConfig, setRoomConfig] = useState({ room_width: 30, room_height: 20 });
   const [shelfModal, setShelfModal] = useState<{ open: boolean; shelf: StorageShelf | null }>({ open: false, shelf: null });
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -1169,6 +1170,14 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
 
           {/* Room config (admin + floorplan view) */}
           {view === 'floorplan' && (
+            <div className="flex items-center gap-2">
+              <button onClick={() => setZoom(z => Math.max(0.4, +(z - 0.1).toFixed(1)))} className="btn btn-secondary px-2 py-1 text-sm font-bold">−</button>
+              <span className="text-xs font-semibold text-slate-600 w-10 text-center">{Math.round(zoom * 100)}%</span>
+              <button onClick={() => setZoom(z => Math.min(2, +(z + 0.1).toFixed(1)))} className="btn btn-secondary px-2 py-1 text-sm font-bold">+</button>
+              <button onClick={() => setZoom(1)} className="btn btn-secondary px-2 py-1 text-xs">1:1</button>
+            </div>
+          )}
+          {view === 'floorplan' && (
             <button
               onClick={() => window.print()}
               className="btn btn-secondary flex items-center gap-2 text-sm"
@@ -1273,7 +1282,8 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
             {isAdmin ? 'Arrastra las estanterías para posicionarlas en la sala.' : 'Vista del layout físico del almacén.'}
           </p>
           <div className="flex gap-4 items-start overflow-auto floor-plan-print">
-            <div className="overflow-auto rounded-xl">
+            <div className="overflow-auto rounded-xl" style={{ width: roomConfig.room_width * CELL_PX * zoom + 2, height: roomConfig.room_height * CELL_PX * zoom + 2 }}>
+              <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', display: 'inline-block' }}>
               <FloorPlanCanvas
                 shelves={shelves}
                 roomObjects={roomObjects}
@@ -1291,6 +1301,7 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
                 onObjectDelete={handleObjectDelete}
                 onObjectEdit={obj => setObjectEditModal({ open: true, obj })}
               />
+              </div>
             </div>
             <div className="flex flex-col gap-4">
               <UnplacedPanel shelves={shelves} isAdmin={isAdmin} />
