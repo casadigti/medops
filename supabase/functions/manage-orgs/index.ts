@@ -143,20 +143,36 @@ serve(async (req) => {
       const orgId: string = body.orgId
       if (!orgId) throw new Error('orgId es obligatorio para delete-org')
 
-      // Borrar en orden de dependencias FK para evitar constraint errors.
-      await supabaseAdmin.from('surgery_consumption').delete().eq('org_id', orgId)
-      await supabaseAdmin.from('surgery_trays').delete().eq('org_id', orgId)
-      await supabaseAdmin.from('notifications').delete().eq('org_id', orgId)
-      await supabaseAdmin.from('audit_logs').delete().eq('org_id', orgId)
-      await supabaseAdmin.from('surgeries').delete().eq('org_id', orgId)
-      await supabaseAdmin.from('maintenance_logs').delete().eq('org_id', orgId)
-      await supabaseAdmin.from('trays').delete().eq('org_id', orgId)
-      await supabaseAdmin.from('implant_lots').delete().eq('org_id', orgId)
-      await supabaseAdmin.from('implants').delete().eq('org_id', orgId)
-      await supabaseAdmin.from('ars').delete().eq('org_id', orgId)
-      await supabaseAdmin.from('surgeons').delete().eq('org_id', orgId)
-      await supabaseAdmin.from('hospitals').delete().eq('org_id', orgId)
-      await supabaseAdmin.from('organization_settings').delete().eq('org_id', orgId)
+      // Helper: borrar tabla y propagar error si falla
+      const del = async (table: string, col = 'org_id') => {
+        const { error } = await supabaseAdmin.from(table).delete().eq(col, orgId)
+        if (error) throw new Error(`Error eliminando ${table}: ${error.message}`)
+      }
+
+      // Orden correcto de dependencias FK
+      await del('surgery_consumption')
+      await del('surgery_trays')
+      await del('notifications')
+      await del('audit_logs')
+      await del('surgeries')
+      await del('maintenance_logs')
+      // storage_slots no tiene org_id — borrar via shelf_id
+      const { data: shelves } = await supabaseAdmin
+        .from('storage_shelves').select('id').eq('org_id', orgId)
+      if (shelves && shelves.length > 0) {
+        const ids = shelves.map((s: { id: string }) => s.id)
+        const { error: slotErr } = await supabaseAdmin.from('storage_slots').delete().in('shelf_id', ids)
+        if (slotErr) throw new Error(`Error eliminando storage_slots: ${slotErr.message}`)
+      }
+      await del('storage_shelves')
+      await del('trays')
+      await del('implant_lots')
+      await del('implants')
+      await del('ars')
+      await del('procedure_types')
+      await del('surgeons')
+      await del('hospitals')
+      await del('organization_settings')
 
       // Eliminar cuentas auth.users de todos los miembros de la org.
       const { data: members } = await supabaseAdmin
@@ -171,8 +187,8 @@ serve(async (req) => {
         }
       }
 
-      await supabaseAdmin.from('profiles').delete().eq('org_id', orgId)
-      await supabaseAdmin.from('organizations').delete().eq('id', orgId)
+      await del('profiles')
+      await del('organizations', 'id')
 
       return new Response(
         JSON.stringify({ success: true, orgId }),

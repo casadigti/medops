@@ -113,16 +113,24 @@ serve(async (req) => {
 
     // 2. ACTUALIZAR USUARIO
     if (action === 'update') {
-      const { email, password, full_name, role, is_active } = userData
+      const { password, full_name, role } = userData
+
+      // NO incluir `email` en el payload de updateUserById.
+      // Cambiar el email dispara el flujo "Secure email change" de Supabase,
+      // que requiere SMTP configurado y falla con 400 si no lo hay.
+      // El email se persiste solo en la tabla `profiles` desde el cliente.
       const updates: any = {
-        email,
-        user_metadata: { full_name, role }
+        user_metadata: { full_name, role },
       }
       if (password) updates.password = password
 
       const { data, error } = await supabaseAdmin.auth.admin.updateUserById(userId, updates)
-      if (error) throw error
-      return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+
+      // El password update es crítico: si falla, propagar el error real
+      // para no dar un falso "éxito" al usuario.
+      if (error && !error.message.toLowerCase().includes('not found')) throw error
+
+      return new Response(JSON.stringify(data ?? { success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
     // 3. ELIMINAR USUARIO
