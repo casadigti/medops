@@ -136,10 +136,13 @@ export const storageService = {
     if (error) throw error;
   },
 
-  async rotateShelf(id: string, currentOrientation: 'horizontal' | 'vertical'): Promise<void> {
+  async rotateShelf(id: string, currentFacing: import('../types/domain').ShelfFacing): Promise<void> {
+    const cycle: Record<string, string> = { bottom: 'right', right: 'top', top: 'left', left: 'bottom' };
+    const newFacing = cycle[currentFacing] ?? 'bottom';
+    const newOrientation = (newFacing === 'left' || newFacing === 'right') ? 'vertical' : 'horizontal';
     const { error } = await supabase
       .from('storage_shelves')
-      .update({ orientation: currentOrientation === 'horizontal' ? 'vertical' : 'horizontal' })
+      .update({ facing: newFacing, orientation: newOrientation })
       .eq('id', id);
     if (error) throw error;
   },

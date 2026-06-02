@@ -16,9 +16,10 @@ const CARD_CELL_PX = 52;  // fixed cell size in cards view
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getFootprint(shelf: StorageShelf) {
-  return shelf.orientation === 'horizontal'
-    ? { w: shelf.cols, h: shelf.rows }
-    : { w: shelf.rows, h: shelf.cols };
+  const isVertical = shelf.facing === 'left' || shelf.facing === 'right';
+  return isVertical
+    ? { w: shelf.rows, h: shelf.cols }
+    : { w: shelf.cols, h: shelf.rows };
 }
 
 function hasCollision(
@@ -617,8 +618,8 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
           <div
             key={shelf.id}
             className={cn(
-              'absolute rounded-lg border-2 overflow-hidden transition-shadow cursor-grab active:cursor-grabbing',
-              isHovered ? 'shadow-lg z-20 border-slate-400' : 'shadow-sm border-slate-300'
+              'absolute rounded-lg overflow-hidden transition-shadow cursor-grab active:cursor-grabbing',
+              isHovered ? 'shadow-lg z-20' : 'shadow-sm'
             )}
             style={{
               left: shelf.position_x! * CELL_PX + 1,
@@ -626,6 +627,16 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
               width: fp.w * CELL_PX - 2,
               height: fp.h * CELL_PX - 2,
               backgroundColor: 'white',
+              // Thick colored border on back/wall side, thin on rest
+              borderStyle: 'solid',
+              borderTopWidth:    shelf.facing === 'bottom' ? 5 : 2,
+              borderRightWidth:  shelf.facing === 'left'   ? 5 : 2,
+              borderBottomWidth: shelf.facing === 'top'    ? 5 : 2,
+              borderLeftWidth:   shelf.facing === 'right'  ? 5 : 2,
+              borderTopColor:    shelf.facing === 'bottom' ? shelf.color : (isHovered ? '#94a3b8' : '#cbd5e1'),
+              borderRightColor:  shelf.facing === 'left'   ? shelf.color : (isHovered ? '#94a3b8' : '#cbd5e1'),
+              borderBottomColor: shelf.facing === 'top'    ? shelf.color : (isHovered ? '#94a3b8' : '#cbd5e1'),
+              borderLeftColor:   shelf.facing === 'right'  ? shelf.color : (isHovered ? '#94a3b8' : '#cbd5e1'),
             }}
             draggable={isAdmin}
             onDragStart={e => handleDragStart(e, shelf)}
@@ -643,8 +654,8 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
                   <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">{shelf.name}</p>
                   <p className="text-[8px] text-slate-400 leading-tight">{occupied}/{total}</p>
                 </div>
-                {isAdmin && isHovered && (
-                  <div className="flex gap-0.5 shrink-0">
+                {isAdmin && (
+                  <div className={cn('flex gap-0.5 shrink-0 transition-opacity', isHovered ? 'opacity-100' : 'opacity-0')}>
                     <button
                       title="Rotar estantería"
                       onClick={e => { e.stopPropagation(); onRotate(shelf); }}
@@ -663,13 +674,16 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
                 )}
               </div>
 
-              {/* Mini slot grid */}
+              {/* Mini slot grid — respects orientation */}
               <div
                 className="flex-1 grid gap-px overflow-hidden"
-                style={{ gridTemplateColumns: `repeat(${shelf.cols}, 1fr)`, gridTemplateRows: `repeat(${shelf.rows}, 1fr)` }}
+                style={{ gridTemplateColumns: `repeat(${fp.w}, 1fr)`, gridTemplateRows: `repeat(${fp.h}, 1fr)` }}
               >
-                {Array.from({ length: shelf.rows }, (_, r) =>
-                  Array.from({ length: shelf.cols }, (_, c) => {
+                {Array.from({ length: fp.h }, (_, vr) =>
+                  Array.from({ length: fp.w }, (_, vc) => {
+                    // Map visual position → actual (row_index, col_index) based on orientation
+                    const r = shelf.orientation === 'horizontal' ? vr : vc;
+                    const c = shelf.orientation === 'horizontal' ? vc : vr;
                     const slot = shelf.slots?.find(s => s.row_index === r && s.col_index === c);
                     const bg = !slot?.item_id ? 'bg-slate-100'
                       : slot.item_type === 'implant_lot' ? 'bg-blue-200'
@@ -677,7 +691,7 @@ const FloorPlanCanvas: React.FC<FloorPlanCanvasProps> = ({
                       : 'bg-green-200';
                     return (
                       <div
-                        key={`${r}-${c}`}
+                        key={`${vr}-${vc}`}
                         title={slot?.item_label ?? cellLabel(r, c)}
                         className={cn('rounded-sm cursor-pointer hover:opacity-80 transition-opacity', bg)}
                         onClick={() => slot && onSlotClick(slot)}
@@ -814,24 +828,23 @@ export const AlmacenMap: React.FC<AlmacenMapProps> = ({ userProfile }) => {
   };
 
   const handleRotate = async (shelf: StorageShelf) => {
-    const fp = getFootprint(shelf);
-    const newW = fp.h; const newH = fp.w; // after rotation
-    // Check rotated footprint still fits and no collision
+    const cycle: Record<string, import('../types/domain').ShelfFacing> = { bottom: 'right', right: 'top', top: 'left', left: 'bottom' };
+    const newFacing = cycle[shelf.facing ?? 'bottom'];
+    const isVertical = newFacing === 'left' || newFacing === 'right';
+    const newW = isVertical ? shelf.rows : shelf.cols;
+    const newH = isVertical ? shelf.cols : shelf.rows;
     if (shelf.position_x != null && shelf.position_y != null) {
       if (!fitsInRoom(shelf.position_x, shelf.position_y, newW, newH, roomConfig.room_width, roomConfig.room_height)) {
-        toast.error('La rotación no cabe en la posición actual');
-        return;
+        toast.error('La rotación no cabe en la posición actual'); return;
       }
       if (hasCollision(shelves, shelf.id, shelf.position_x, shelf.position_y, newW, newH)) {
-        toast.error('Hay colisión con otra estantería al rotar');
-        return;
+        toast.error('Hay colisión con otra estantería al rotar'); return;
       }
     }
-    // Optimistic update
-    const newOrientation = shelf.orientation === 'horizontal' ? 'vertical' : 'horizontal';
-    setShelves(prev => prev.map(s => s.id === shelf.id ? { ...s, orientation: newOrientation } : s));
+    const newOrientation = isVertical ? 'vertical' : 'horizontal';
+    setShelves(prev => prev.map(s => s.id === shelf.id ? { ...s, facing: newFacing, orientation: newOrientation } : s));
     try {
-      await storageService.rotateShelf(shelf.id, shelf.orientation);
+      await storageService.rotateShelf(shelf.id, shelf.facing ?? 'bottom');
     } catch {
       toast.error('Error rotando estantería');
       load();

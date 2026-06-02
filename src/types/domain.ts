@@ -197,19 +197,20 @@ export interface MaintenanceLog {
 // ─── Storage Map ───────────────────────────────────────────────────────────────
 
 export type SlotItemType = 'implant_lot' | 'tray';
+export type ShelfFacing = 'top' | 'right' | 'bottom' | 'left';
 
 export interface StorageShelf {
   id: string;
   org_id: string;
   name: string;
   orientation: 'horizontal' | 'vertical';
+  facing: ShelfFacing;
   rows: number;
   cols: number;
   color: string;
   description?: string;
   created_at?: string;
   slots?: StorageSlot[];
-  // Floor plan 2D — posición en sala (null = sin colocar)
   position_x?: number | null;
   position_y?: number | null;
 }
