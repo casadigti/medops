@@ -1,4 +1,5 @@
 // ─── Core domain types for MedOps ────────────────────────────────────────────
+import type { ElementType } from 'react';
 
 export interface Surgeon {
   id: string;
@@ -257,4 +258,14 @@ export interface RoomObject {
   height: number;
   color: string;
   created_at?: string;
+}
+
+export interface NavItem {
+  icon: ElementType;
+  label: string;
+  path: string;
+  roles: string[];
+  showStockAlert?: boolean;
+  isPreview?: boolean;
+  platformOnly?: boolean;
 }
