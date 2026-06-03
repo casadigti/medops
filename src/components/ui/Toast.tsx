@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, Component } from 'react';
 import { CheckCircle2, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
@@ -93,6 +93,12 @@ interface ToastEntry extends ToastOptions {
   id: string;
 }
 
+class ToastErrorBoundary extends Component<{ children: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() { return this.state.failed ? null : this.props.children; }
+}
+
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastEntry[]>([]);
 
@@ -100,27 +106,32 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setToasts(t => t.filter(toast => toast.id !== id));
   }, []);
 
-  const toast = useCallback(({ type = 'info', message, duration }: ToastOptions): string => {
-    const id = `${Date.now()}-${Math.random()}`;
-    setToasts(t => [...t, { id, type, message, duration }]);
-    return id;
-  }, []) as ToastFn;
-
-  toast.success = (msg, opts) => toast({ type: 'success', message: msg, ...opts });
-  toast.error   = (msg, opts) => toast({ type: 'error',   message: msg, ...opts });
-  toast.warning = (msg, opts) => toast({ type: 'warning', message: msg, ...opts });
-  toast.info    = (msg, opts) => toast({ type: 'info',    message: msg, ...opts });
+  const toast = useMemo<ToastFn>(() => {
+    const add = ({ type = 'info', message, duration }: ToastOptions): string => {
+      const id = `${Date.now()}-${Math.random()}`;
+      setToasts(t => [...t, { id, type, message, duration }]);
+      return id;
+    };
+    const fn = add as ToastFn;
+    fn.success = (msg, opts) => add({ type: 'success', message: msg, ...opts });
+    fn.error   = (msg, opts) => add({ type: 'error',   message: msg, ...opts });
+    fn.warning = (msg, opts) => add({ type: 'warning', message: msg, ...opts });
+    fn.info    = (msg, opts) => add({ type: 'info',    message: msg, ...opts });
+    return fn;
+  }, []);
 
   return (
     <ToastContext.Provider value={toast}>
       {children}
-      <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-3 items-end pointer-events-none">
-        {toasts.map(t => (
-          <div key={t.id} className="pointer-events-auto">
-            <ToastItem {...t} onDismiss={dismiss} />
-          </div>
-        ))}
-      </div>
+      <ToastErrorBoundary>
+        <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-3 items-end pointer-events-none">
+          {toasts.map(t => (
+            <div key={t.id} className="pointer-events-auto">
+              <ToastItem {...t} onDismiss={dismiss} />
+            </div>
+          ))}
+        </div>
+      </ToastErrorBoundary>
     </ToastContext.Provider>
   );
 };

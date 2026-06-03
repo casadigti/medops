@@ -12,14 +12,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { NotificationPanel } from './NotificationPanel';
 import { notificationService } from '../../services/notificationService';
-import type { UserProfile } from '../../types/domain';
-
-interface NavItem {
-  icon: React.ElementType;
-  path: string;
-  label: string;
-  roles: string[];
-}
+import type { UserProfile, NavItem } from '../../types/domain';
 
 const MobileNav: React.FC<{ role?: string }> = ({ role }) => {
   const { pathname } = useLocation();

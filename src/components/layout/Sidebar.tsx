@@ -6,18 +6,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { supabase } from '../../lib/supabase';
-import type { UserProfile } from '../../types/domain';
-
-interface NavItem {
-  icon: React.ElementType;
-  label: string;
-  path: string;
-  roles: string[];
-  showStockAlert?: boolean;
-  isPreview?: boolean;
-  // Visible solo para un administrador de plataforma (multi-tenancy).
-  platformOnly?: boolean;
-}
+import type { UserProfile, NavItem } from '../../types/domain';
 
 const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard',        path: '/',                  roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor', 'Lector'] },
