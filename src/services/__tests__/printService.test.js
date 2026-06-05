@@ -43,35 +43,35 @@ beforeEach(() => {
 describe('printService.generateReplenishmentReport — daysLeft calculation', () => {
   const dateRange = { start: '2026-05-01', end: '2026-05-31' }; // 30 days
 
-  it('calculates daysLeft as floor(current_stock / daily_consumption)', () => {
+  it('calculates daysLeft as floor(current_stock / daily_consumption)', async () => {
     const summary = {
       prod1: { name: 'Tornillo A', sku: 'T-001', category: 'Ortopedia', current_stock: 60, total_used: 30, unit_cost: 100 },
     };
 
-    printService.generateReplenishmentReport({}, dateRange, summary);
+    await printService.generateReplenishmentReport({}, dateRange, summary);
 
     // daysInRange = 30, dailyConsumption = 30/30 = 1, daysLeft = floor(60/1) = 60
     const rows = capturedAutoTableCalls[0].body;
     expect(rows[0][5]).toBe('60 días');
   });
 
-  it('shows ∞ when total_used is 0 (no consumption)', () => {
+  it('shows ∞ when total_used is 0 (no consumption)', async () => {
     const summary = {
       prod1: { name: 'Placa B', sku: 'P-001', category: 'Trauma', current_stock: 10, total_used: 0, unit_cost: 500 },
     };
 
-    printService.generateReplenishmentReport({}, dateRange, summary);
+    await printService.generateReplenishmentReport({}, dateRange, summary);
 
     const rows = capturedAutoTableCalls[0].body;
     expect(rows[0][5]).toBe('∞');
   });
 
-  it('floors decimal daysLeft', () => {
+  it('floors decimal daysLeft', async () => {
     const summary = {
       prod1: { name: 'Clavo C', sku: 'C-001', category: 'Trauma', current_stock: 7, total_used: 10, unit_cost: 200 },
     };
 
-    printService.generateReplenishmentReport({}, dateRange, summary);
+    await printService.generateReplenishmentReport({}, dateRange, summary);
 
     // daysInRange=30, dailyConsumption=10/30≈0.333, daysLeft=floor(7/0.333)=floor(21)=21
     const rows = capturedAutoTableCalls[0].body;
@@ -82,14 +82,14 @@ describe('printService.generateReplenishmentReport — daysLeft calculation', ()
 describe('printService.generateReplenishmentReport — totalCost calculation', () => {
   const dateRange = { start: '2026-05-01', end: '2026-05-10' }; // 9 days
 
-  it('sums total_used * unit_cost across all products via subtotal column', () => {
+  it('sums total_used * unit_cost across all products via subtotal column', async () => {
     const summary = {
       a: { name: 'A', sku: 'A1', category: 'X', current_stock: 5, total_used: 10, unit_cost: 100 },
       b: { name: 'B', sku: 'B1', category: 'Y', current_stock: 3, total_used: 5,  unit_cost: 200 },
     };
     // a subtotal: 10*100=1000, b subtotal: 5*200=1000
 
-    printService.generateReplenishmentReport({}, dateRange, summary);
+    await printService.generateReplenishmentReport({}, dateRange, summary);
 
     const rows = capturedAutoTableCalls[0].body;
     const subtotals = rows.map(r => r[6]);
@@ -99,13 +99,13 @@ describe('printService.generateReplenishmentReport — totalCost calculation', (
 });
 
 describe('printService.generateReplenishmentReport — table rows', () => {
-  it('maps each summary item to correct column order', () => {
+  it('maps each summary item to correct column order', async () => {
     const summary = {
       p: { name: 'Tornillo X', sku: 'TX-01', category: 'Ortopedia', current_stock: 20, total_used: 10, unit_cost: 150 },
     };
     const dateRange = { start: '2026-05-01', end: '2026-05-11' }; // 10 days
 
-    printService.generateReplenishmentReport({}, dateRange, summary);
+    await printService.generateReplenishmentReport({}, dateRange, summary);
 
     const rows = capturedAutoTableCalls[0].body;
     expect(rows[0][0]).toBe('Tornillo X');     // name
@@ -132,7 +132,7 @@ describe('printService.generateDeliverySheet — tray table rows', () => {
     surgery_trays: [],
   };
 
-  it('maps surgery_trays to [code, name, procedure_type, OK]', () => {
+  it('maps surgery_trays to [code, name, procedure_type, OK]', async () => {
     const surgery = {
       ...baseSurgery,
       surgery_trays: [
@@ -141,7 +141,7 @@ describe('printService.generateDeliverySheet — tray table rows', () => {
       ],
     };
 
-    printService.generateDeliverySheet(surgery);
+    await printService.generateDeliverySheet(surgery);
 
     const rows = capturedAutoTableCalls[0].body;
     expect(rows).toHaveLength(2);
@@ -149,21 +149,21 @@ describe('printService.generateDeliverySheet — tray table rows', () => {
     expect(rows[1]).toEqual(['BDJ-02', 'Set Trauma', 'Trauma', 'OK']);
   });
 
-  it('shows placeholder row when no trays assigned', () => {
-    printService.generateDeliverySheet(baseSurgery);
+  it('shows placeholder row when no trays assigned', async () => {
+    await printService.generateDeliverySheet(baseSurgery);
 
     const rows = capturedAutoTableCalls[0].body;
     expect(rows).toHaveLength(1);
     expect(rows[0][1]).toBe('No hay bandejas asignadas');
   });
 
-  it('handles tray with missing fields gracefully', () => {
+  it('handles tray with missing fields gracefully', async () => {
     const surgery = {
       ...baseSurgery,
       surgery_trays: [{ tray: {} }],
     };
 
-    printService.generateDeliverySheet(surgery);
+    await printService.generateDeliverySheet(surgery);
 
     const rows = capturedAutoTableCalls[0].body;
     expect(rows[0]).toEqual(['-', 'Set no especificado', '-', 'OK']);

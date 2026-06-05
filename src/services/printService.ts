@@ -17,7 +17,8 @@ interface ReplenishmentItem {
 }
 
 export const printService = {
-  generateDeliverySheet(surgery: Surgery): void {
+  generateDeliverySheet(surgery: Surgery): Promise<void> {
+    return new Promise(resolve => setTimeout(() => {
     const doc = new jsPDF();
     const margin = 20;
     const pageWidth = doc.internal.pageSize.width;
@@ -126,9 +127,12 @@ export const printService = {
     );
 
     doc.save(`Hoja_Entrega_${surgery.patient_name.replace(/\s+/g, '_')}.pdf`);
+    resolve();
+    }, 0));
   },
 
-  generateReplenishmentReport(data: unknown, dateRange: DateRange, summary: Record<string, ReplenishmentItem>): void {
+  generateReplenishmentReport(data: unknown, dateRange: DateRange, summary: Record<string, ReplenishmentItem>): Promise<void> {
+    return new Promise(resolve => setTimeout(() => {
     const doc = new jsPDF();
     const margin = 20;
     const pageWidth = doc.internal.pageSize.width;
@@ -189,5 +193,7 @@ export const printService = {
     );
 
     doc.save(`Reporte_Reposicion_${dateRange.start}_${dateRange.end}.pdf`);
+    resolve();
+    }, 0));
   },
 };

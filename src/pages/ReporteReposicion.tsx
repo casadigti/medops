@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { SurgeryConsumption } from '../types/domain';
-import { ShoppingCart, Download, Search, FileText, RefreshCw, FileSpreadsheet } from 'lucide-react';
+import { ShoppingCart, Download, Search, FileText, RefreshCw, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { implantService } from '../services/implantService';
 import { printService } from '../services/printService';
 import { useToast } from '../components/ui/Toast';
@@ -15,6 +15,7 @@ export const ReporteReposicion: React.FC = () => {
   const [view, setView] = useState('material');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [data, setData] = useState<SurgeryConsumption[]>([]);
   const [currentStock, setCurrentStock] = useState<Record<string, number>>({});
   const [dateRange, setDateRange] = useState({
@@ -150,11 +151,13 @@ export const ReporteReposicion: React.FC = () => {
     );
   };
 
-  const handleDownloadPDF = () => {
-    if (view === 'material') {
-      printService.generateReplenishmentReport(data, dateRange, materialSummary);
-      return;
-    }
+  const handleDownloadPDF = async () => {
+    setPdfLoading(true);
+    try {
+      if (view === 'material') {
+        await printService.generateReplenishmentReport(data, dateRange, materialSummary);
+        return;
+      }
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
@@ -194,6 +197,9 @@ export const ReporteReposicion: React.FC = () => {
     doc.text(`Total del período: RD$ ${totalCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, pageWidth - margin, finalY + 8, { align: 'right' });
 
     doc.save(`reporte-cirugias-${dateRange.start}_${dateRange.end}.pdf`);
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   return (
@@ -212,9 +218,11 @@ export const ReporteReposicion: React.FC = () => {
           </button>
           <button
             onClick={handleDownloadPDF}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all shadow-sm shadow-emerald-200 flex items-center gap-2"
+            disabled={pdfLoading}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all shadow-sm shadow-emerald-200 flex items-center gap-2 disabled:opacity-60"
           >
-            <Download size={18} /> Descargar PDF
+            {pdfLoading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+            {pdfLoading ? 'Generando...' : 'Descargar PDF'}
           </button>
           <button
             onClick={fetchReport}

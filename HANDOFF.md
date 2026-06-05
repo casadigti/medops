@@ -1,5 +1,5 @@
 # MedOps — Handoff Document
-**Fecha:** 2026-06-01 | **Rama activa:** `feat/impersonation` | **Último PR:** #45 (en producción)
+**Fecha:** 2026-06-03 | **Rama activa:** `feat/impersonation` | **Último PR:** #56 (en producción)
 
 ---
 
@@ -65,6 +65,7 @@ Patrón: todos aplican `getImpersonatedOrgId()` para multi-tenancy.
 | `0007_floorplan.sql` | ✅ |
 | `0008_shelf_facing.sql` | ✅ |
 | `0009_room_objects.sql` | ✅ |
+| `0010_tray_items.sql` | ✅ |
 | `fix_notification_trigger_org_scope.sql` | ✅ |
 | `ALTER storage_shelves org_id default` | ✅ |
 
@@ -94,6 +95,16 @@ Patrón: todos aplican `getImpersonatedOrgId()` para multi-tenancy.
 
 **Baja prioridad:**
 - Security scan: Grado B (89/100) — denyList en `.claude/settings.json`
+
+---
+
+## Refactors aplicados (2026-06-03) — PR #56
+
+| Cambio | Detalle |
+|--------|---------|
+| `NavItem` unificado | Movido a `domain.ts`; eliminado de `Layout.tsx` y `Sidebar.tsx`. Usar versión de Sidebar (incluye `showStockAlert`, `isPreview`, `platformOnly`) |
+| `Toast` ErrorBoundary | `ToastErrorBoundary` rodea el contenedor — crash en render no tumba la app |
+| `Toast` useMemo | Métodos `.success/.error/.warning/.info` dentro de `useMemo`, no mutados en cada render |
 
 ---
 
@@ -131,4 +142,4 @@ Admin check: `userProfile?.role === 'Administrador' || userProfile?.role === 'Su
 
 ## Skills instaladas
 
-`caveman` · `superpowers` · `agent-browser` · `ui-ux-pro-max` · `ecc` · `napkin`
+`caveman` · `superpowers` · `agent-browser` · `ui-ux-pro-max` · `ecc` · `napkin` · `graphify`

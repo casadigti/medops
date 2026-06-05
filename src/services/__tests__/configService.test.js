@@ -13,7 +13,7 @@ vi.mock('../auditService', () => ({
 }));
 
 import { supabase } from '../../lib/supabase';
-import { configService } from '../configService';
+import { configService, _resetSettingsCacheForTests } from '../configService';
 
 function mockChain(resolvedValue) {
   const chain = {
@@ -31,7 +31,7 @@ function mockChain(resolvedValue) {
   return chain;
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => { vi.clearAllMocks(); _resetSettingsCacheForTests(); });
 
 // ─── getSettings ──────────────────────────────────────────────────────────────
 

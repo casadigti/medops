@@ -11,7 +11,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { StatusBadge } from '../components/ui/Badge';
 import { PageLoader, EmptyState } from '../components/ui/Spinner';
 import { SURGERY_STATUSES, STATUS_COLORS } from '../data/catalogo';
-import { Stethoscope, Plus, Pencil, Trash2, Search, ChevronDown, Calendar, User, Building2, Package, Printer, AlertTriangle } from 'lucide-react';
+import { Stethoscope, Plus, Pencil, Trash2, Search, ChevronDown, Calendar, User, Building2, Package, Printer, AlertTriangle, Loader2 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { printService } from '../services/printService';
 import { implantService } from '../services/implantService';
@@ -470,6 +470,7 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
   const [modal, setModal]         = useState<{ data: Surgery | null } | null>(null);
   const [consumptionModal, setConsumptionModal] = useState<Surgery | null>(null);
   const [confirm, setConfirm]     = useState<{ id: string; name: string } | null>(null);
+  const [printingId, setPrintingId] = useState<string | null>(null);
 
   const isSurgeon = userProfile?.role === 'Cirujano';
   const mySurgeonId = (userProfile as any)?.surgeon_id;
@@ -727,11 +728,16 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-1">
                             <button
-                              onClick={() => printService.generateDeliverySheet(s)}
+                              onClick={async () => {
+                                setPrintingId(s.id);
+                                await printService.generateDeliverySheet(s);
+                                setPrintingId(null);
+                              }}
+                              disabled={printingId === s.id}
                               title="Imprimir Hoja de Entrega"
-                              className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-900 transition-colors"
+                              className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-900 transition-colors disabled:opacity-50"
                             >
-                              <Printer size={15} />
+                              {printingId === s.id ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />}
                             </button>
                             <button
                                onClick={() => setConsumptionModal(s)}
