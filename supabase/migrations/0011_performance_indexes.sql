@@ -17,8 +17,8 @@ CREATE INDEX IF NOT EXISTS idx_surgery_consumption_surgery_id
   ON public.surgery_consumption(surgery_id);
 
 -- implant_lots: expiry alert scans
-CREATE INDEX IF NOT EXISTS idx_implant_lots_expiry_date
-  ON public.implant_lots(expiry_date);
+CREATE INDEX IF NOT EXISTS idx_implant_lots_expiration_date
+  ON public.implant_lots(expiration_date);
 
 -- audit_logs: queried by date range (grows unbounded)
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at
