@@ -15,6 +15,8 @@ function _setCache(data: OrganizationSettings | null) {
   _cache.set(_cacheKey(), { data, ts: Date.now() });
 }
 function _clearCache() { _cache.delete(_cacheKey()); }
+/** For tests only — wipes the entire cache across all orgs. */
+export function _resetSettingsCacheForTests() { _cache.clear(); }
 
 const ALLOWED_USER_FIELDS: Array<keyof UserProfile | 'password'> = [
   'full_name', 'email', 'role', 'is_active', 'password', 'must_change_password',
