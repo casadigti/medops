@@ -3,6 +3,19 @@ import { auditService } from './auditService';
 import { getImpersonatedOrgId } from '../utils/impersonation';
 import type { OrganizationSettings, UserProfile, UserRole } from '../types/domain';
 
+// ── Settings cache (TTL 5 min, keyed by org) ────────────────────────────────
+const SETTINGS_TTL = 5 * 60 * 1000;
+const _cache = new Map<string, { data: OrganizationSettings | null; ts: number }>();
+function _cacheKey() { return getImpersonatedOrgId() ?? '__own__'; }
+function _getCache() {
+  const e = _cache.get(_cacheKey());
+  return e && Date.now() - e.ts < SETTINGS_TTL ? e.data : null;
+}
+function _setCache(data: OrganizationSettings | null) {
+  _cache.set(_cacheKey(), { data, ts: Date.now() });
+}
+function _clearCache() { _cache.delete(_cacheKey()); }
+
 const ALLOWED_USER_FIELDS: Array<keyof UserProfile | 'password'> = [
   'full_name', 'email', 'role', 'is_active', 'password', 'must_change_password',
 ];
@@ -20,6 +33,8 @@ interface UpdateUserInput extends Partial<UserProfile> {
 
 export const configService = {
   async getSettings(): Promise<OrganizationSettings | null> {
+    const cached = _getCache();
+    if (cached !== null) return cached;
     const { data, error } = await supabase
       .from('organization_settings')
       .select('*')
@@ -27,10 +42,12 @@ export const configService = {
     // PGRST116 = "no rows found" — maybeSingle ya lo maneja devolviendo null,
     // pero si llegara por otra vía lo tratamos igual: null, no throw.
     if (error && (error as { code?: string }).code !== 'PGRST116') throw error;
+    _setCache(data);
     return data;
   },
 
   async updateSettings(settings: Partial<OrganizationSettings>): Promise<OrganizationSettings[]> {
+    _clearCache();
     // Multi-tenancy: la fila de settings se identifica por org_id (único).
     // org_id lo llena el DEFAULT get_my_org_id() en INSERT; RLS impide tocar
     // settings de otra organización.
@@ -43,6 +60,8 @@ export const configService = {
   },
 
   async getRoomConfig(): Promise<{ room_width: number; room_height: number }> {
+    const cached = _getCache();
+    if (cached) return { room_width: cached.room_width ?? 30, room_height: cached.room_height ?? 20 };
     const { data } = await supabase
       .from('organization_settings')
       .select('room_width, room_height')
@@ -51,6 +70,7 @@ export const configService = {
   },
 
   async saveRoomConfig(width: number, height: number): Promise<void> {
+    _clearCache();
     const { error } = await supabase
       .from('organization_settings')
       .upsert({ room_width: width, room_height: height }, { onConflict: 'org_id' });

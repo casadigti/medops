@@ -54,7 +54,10 @@ function pickAllowed(surgeryData: Partial<Surgery>): Partial<Surgery> {
 }
 
 export const surgeryService = {
-  async getAll(surgeonId: string | null = null): Promise<Surgery[]> {
+  async getAll(
+    surgeonId: string | null = null,
+    { limit, fromDate }: { limit?: number; fromDate?: string } = {}
+  ): Promise<Surgery[]> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
 
@@ -68,6 +71,8 @@ export const surgeryService = {
 
       if (surgeonId)   query = query.eq('surgeon_id', surgeonId);
       if (orgOverride) query = query.eq('org_id', orgOverride);
+      if (fromDate)    query = query.gte('surgery_date', fromDate);
+      if (limit)       query = query.limit(limit);
 
       const { data, error } = await query;
       clearTimeout(timeout);
@@ -81,6 +86,8 @@ export const surgeryService = {
         const params: Record<string, string> = { order: 'surgery_date.asc' };
         if (surgeonId)    params['surgeon_id'] = `eq.${surgeonId}`;
         if (orgOverride2) params['org_id']     = `eq.${orgOverride2}`;
+        if (fromDate)     params['surgery_date'] = `gte.${fromDate}`;
+        if (limit)        params['limit'] = String(limit);
         return restGet('surgeries', params, '*');
       }
       throw err;
