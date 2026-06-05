@@ -1,5 +1,5 @@
 # MedOps — Handoff Document
-**Fecha:** 2026-06-03 | **Rama activa:** `feat/impersonation` | **Último PR:** #56 (en producción)
+**Fecha:** 2026-06-05 | **Rama activa:** `feat/impersonation` | **Último PR:** #57 (en producción)
 
 ---
 
@@ -95,6 +95,19 @@ Patrón: todos aplican `getImpersonatedOrgId()` para multi-tenancy.
 
 **Baja prioridad:**
 - Security scan: Grado B (89/100) — denyList en `.claude/settings.json`
+
+---
+
+## Performance aplicado (2026-06-05) — PR #57
+
+| Cambio | Detalle |
+|--------|---------|
+| `configService` TTL cache | 5 min, keyed por org. `getSettings`/`getRoomConfig` no hacen query en cada mount. Invalidado en writes. |
+| `surgeryService.getAll()` | Acepta `{ limit?, fromDate? }` — backward-compatible. Úsalo en vistas que no necesitan toda la historia. |
+| `printService` async | Ambos métodos retornan `Promise<void>` + `setTimeout(0)`. Callers pueden `await` y mostrar spinner. |
+| Migration `0011` | Índices: `surgeries(org_id,surgery_date)`, `surgery_date`, `surgeon_id`, `status`; join indexes en `surgery_trays`/`surgery_consumption`; `implant_lots.expiry_date`; `audit_logs.created_at`; `notifications.is_read` |
+| `Cirugias.tsx` print btn | Spinner `Loader2` mientras genera PDF, botón deshabilitado durante generación. |
+| `ReporteReposicion.tsx` PDF btn | "Generando..." con spinner, `disabled` durante generación. |
 
 ---
 
