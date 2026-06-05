@@ -84,11 +84,6 @@ Patrón: todos aplican `getImpersonatedOrgId()` para multi-tenancy.
 ## Pendientes
 
 **Media prioridad:**
-- **Platform admin `org_id = NULL`** — bloquea auto-seed en orgs futuras. Ejecutar:
-  ```sql
-  UPDATE profiles SET org_id = '12799f3f-1ab9-4a78-accf-9d88d6a58679'
-  WHERE is_platform_admin = true AND org_id IS NULL;
-  ```
 - Búsqueda global no resalta/filtra resultado específico al navegar
 - `AlmacenMap`: objetos de sala sin edición de label (solo se puede borrar y recrear)
 - `AlmacenMap`: sin resize de objetos de sala (tamaño fijo por tipo)

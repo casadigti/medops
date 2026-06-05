@@ -404,6 +404,7 @@ export const InventarioQuirurgico: React.FC = () => {
   useEffect(() => {
     fetchImplants();
   }, []);
+  useEffect(() => { const q = searchParams.get('q'); if (q !== null) setSearch(q); }, [searchParams]);
 
   const handleSaveImplant = async (formData: any) => {
     setActionLoading(true);

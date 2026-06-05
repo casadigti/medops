@@ -230,6 +230,7 @@ export const Bandejas: React.FC = () => {
 
   const fetchTrays = async () => { setLoading(true); const d = await trayService.getAll(); setTrays(d); setLoading(false); };
   useEffect(() => { fetchTrays(); }, []);
+  useEffect(() => { const q = searchParams.get('q'); if (q !== null) setSearch(q); }, [searchParams]);
 
   const filtered = trays.filter(t => {
     const matchSearch = t.name?.toLowerCase().includes(search.toLowerCase()) || t.code?.toLowerCase().includes(search.toLowerCase());
