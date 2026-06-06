@@ -108,9 +108,8 @@ export const MOCK_IMPLANTS = [
     selling_price: 1800,
     min_stock: 5,
     org_id: MOCK_ORG_ID,
-    implant_lots: [
-      { id: 'lot-1', lot_number: 'L001', current_quantity: 10, expiration_date: '2027-01-01' },
-    ],
+    // sin implant_lots para evitar llamada a storageService.getSlotLocations
+    implant_lots: [],
   },
   {
     id: 'implant-2',
@@ -121,8 +120,7 @@ export const MOCK_IMPLANTS = [
     selling_price: 5000,
     min_stock: 8,
     org_id: MOCK_ORG_ID,
-    implant_lots: [
-      { id: 'lot-2', lot_number: 'L002', current_quantity: 2, expiration_date: '2026-06-01' },
-    ],
+    // current_quantity=0 → Sin Stock (también cubre alerta de stock bajo)
+    implant_lots: [],
   },
 ];

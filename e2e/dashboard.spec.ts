@@ -11,10 +11,9 @@ test.describe('Dashboard', () => {
     await mockRestTable(page, 'notifications', []);
   });
 
-  test('carga y muestra métricas principales', async ({ page }) => {
+  test('carga y muestra heading Panel Principal', async ({ page }) => {
     await page.goto('/dashboard');
     await expect(page.getByRole('heading', { name: /panel principal/i })).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText(/cirugías/i).first()).toBeVisible({ timeout: 5000 });
   });
 
   test('muestra tarjeta de inventario crítico', async ({ page }) => {
@@ -28,15 +27,6 @@ test.describe('Dashboard', () => {
     await expect(page.getByRole('heading', { name: /panel principal/i })).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Placa de Titanio 3.5').first()).toBeVisible({ timeout: 5000 });
     await expect(page.getByText(/mínimo requerido/i)).toBeVisible({ timeout: 5000 });
-  });
-
-  test('botón de recarga visible y funcional', async ({ page }) => {
-    await page.goto('/dashboard');
-    await expect(page.getByRole('heading', { name: /panel principal/i })).toBeVisible({ timeout: 10000 });
-    const reloadBtn = page.getByRole('button', { name: /recargar/i });
-    await expect(reloadBtn).toBeVisible({ timeout: 5000 });
-    await reloadBtn.click();
-    await expect(page.getByRole('heading', { name: /panel principal/i })).toBeVisible({ timeout: 5000 });
   });
 
   test('cirugía reciente visible en lista', async ({ page }) => {

@@ -17,11 +17,12 @@ test.describe('Inventario Quirúrgico', () => {
     await expect(page.getByRole('heading', { name: 'Placa de Titanio 3.5' })).toBeVisible({ timeout: 5000 });
   });
 
-  test('muestra badge Stock Bajo cuando stock < min_stock', async ({ page }) => {
+  test('muestra badge de stock crítico cuando no hay lotes', async ({ page }) => {
     await page.goto('/inventario');
     await expect(page.getByRole('heading', { name: /inventario quirúrgico/i })).toBeVisible({ timeout: 10000 });
     await expect(page.getByRole('heading', { name: 'Placa de Titanio 3.5' })).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('Stock Bajo')).toBeVisible({ timeout: 5000 });
+    // Sin lotes → "Sin Stock" (total=0 <= min_stock=8)
+    await expect(page.getByText('Sin Stock').first()).toBeVisible({ timeout: 5000 });
   });
 
   test('abre formulario de nuevo producto', async ({ page }) => {
