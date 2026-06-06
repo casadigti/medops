@@ -85,9 +85,6 @@ Patrón: todos aplican `getImpersonatedOrgId()` para multi-tenancy.
 
 **Media prioridad:**
 - Búsqueda global no resalta/filtra resultado específico al navegar
-- `AlmacenMap`: objetos de sala sin edición de label (solo se puede borrar y recrear)
-- `AlmacenMap`: sin resize de objetos de sala (tamaño fijo por tipo)
-
 **Baja prioridad:**
 - Security scan: Grado B (89/100) — denyList en `.claude/settings.json`
 
