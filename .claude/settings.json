@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "deny": [
+     "Bash(git push --force origin main)",
+      "Bash(git push --force origin master)",
+      "Bash(git reset --hard HEAD~*)",
+      "Bash(rm -rf *)",
+      "Bash(sudo *)",
+      "Bash(chmod 7* *)",
+      "Bash(ssh *)",
+      "Bash(> /dev/*)"
+      "Bash(chmod 777 *)"
+    ]
+  }
+}

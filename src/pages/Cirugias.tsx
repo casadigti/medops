@@ -19,6 +19,7 @@ import { useToast } from '../components/ui/Toast';
 import { ShoppingCart, CheckCircle2, FileText } from 'lucide-react';
 import { generateActaQuirurgica } from '../utils/pdfGenerator';
 import type { UserProfile, Surgery, Surgeon, Hospital, ARS, Implant, SurgeryConsumption, TrayWithAvailability, SurgeryStatus, ProcedureType } from '../types/domain';
+import { useRealtimeSurgeries } from '../hooks/useRealtimeSurgeries';
 
 // ─── Consumption Form ─────────────────────────────────────────────────────────
 const ConsumptionForm = ({ surgery, onSave, onCancel, loading }: { surgery: Surgery; onSave: (data: any) => void; onCancel: () => void; loading: boolean }) => {
@@ -504,6 +505,8 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
   useEffect(() => {
     if (userProfile) fetchAll();
   }, [userProfile]);
+
+  useRealtimeSurgeries(setSurgeries, toast);
 
   useEffect(() => {
     const q = searchParams.get('q');

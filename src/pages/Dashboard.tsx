@@ -9,6 +9,8 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '../utils/cn';
 import { supabase } from '../lib/supabase';
 import type { Surgery, ImplantLot, Implant } from '../types/domain';
+import { useToast } from '../components/ui/Toast';
+import { useRealtimeSurgeries } from '../hooks/useRealtimeSurgeries';
 
 const MetricCard = ({ icon: Icon, label, value, sub, color = 'text-primary', bg = 'bg-blue-50' }: { icon: React.ElementType; label: string; value: React.ReactNode; sub?: React.ReactNode; color?: string; bg?: string }) => (
   <div className="card flex items-center gap-4">
@@ -25,12 +27,15 @@ const MetricCard = ({ icon: Icon, label, value, sub, color = 'text-primary', bg 
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [surgeries, setSurgeries] = useState<Surgery[]>([]);
   const [expiringLots, setExpiringLots] = useState<any[]>([]);
   const [lowStock, setLowStock] = useState<Implant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  useRealtimeSurgeries(setSurgeries, toast);
 
   useEffect(() => {
     let mounted = true;
