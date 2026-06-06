@@ -10,6 +10,7 @@ import { Calendar, Loader2, User } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useToast } from '../components/ui/Toast';
 import type { UserProfile, Surgery, Surgeon } from '../types/domain';
+import { useRealtimeSurgeries } from '../hooks/useRealtimeSurgeries';
 import './Calendario.css';
 
 interface CalendarioProps {
@@ -32,6 +33,8 @@ export const Calendario: React.FC<CalendarioProps> = ({ userProfile }) => {
       fetchSurgeons();
     }
   }, [userProfile]);
+
+  useRealtimeSurgeries(setSurgeries, toast);
 
   const fetchSurgeons = async () => {
     try {
