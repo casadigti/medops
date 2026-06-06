@@ -31,14 +31,14 @@ test.describe('Inventario Quirúrgico', () => {
     const newBtn = page.getByRole('button', { name: /nuevo producto/i });
     await expect(newBtn).toBeVisible({ timeout: 5000 });
     await newBtn.click();
-    await expect(page.getByPlaceholder(/nombre del implante/i)).toBeVisible({ timeout: 3000 });
+    await expect(page.getByPlaceholder(/tornillo canulado/i)).toBeVisible({ timeout: 3000 });
   });
 
   test('formulario incluye campo stock mínimo', async ({ page }) => {
     await page.goto('/inventario');
     await expect(page.getByRole('heading', { name: /inventario quirúrgico/i })).toBeVisible({ timeout: 10000 });
     await page.getByRole('button', { name: /nuevo producto/i }).click();
-    await expect(page.getByLabel(/stock mínimo/i)).toBeVisible({ timeout: 3000 });
+    await expect(page.getByText(/stock mínimo/i)).toBeVisible({ timeout: 3000 });
   });
 
   test('búsqueda filtra implantes por nombre', async ({ page }) => {

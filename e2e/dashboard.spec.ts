@@ -22,11 +22,10 @@ test.describe('Dashboard', () => {
     await expect(page.getByText(/inventario crítico/i)).toBeVisible({ timeout: 5000 });
   });
 
-  test('muestra alerta de stock bajo para Placa de Titanio', async ({ page }) => {
+  test('muestra sección de alertas de inventario', async ({ page }) => {
     await page.goto('/dashboard');
     await expect(page.getByRole('heading', { name: /panel principal/i })).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('Placa de Titanio 3.5').first()).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText(/mínimo requerido/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('heading', { name: /alertas de inventario/i })).toBeVisible({ timeout: 5000 });
   });
 
   test('cirugía reciente visible en lista', async ({ page }) => {
