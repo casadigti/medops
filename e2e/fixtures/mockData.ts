@@ -97,3 +97,32 @@ export const MOCK_PROCEDURE_TYPES = [
   { id: 'proc-1', name: 'Artroplastia de Cadera', is_active: true },
   { id: 'proc-2', name: 'Artroplastia de Rodilla', is_active: true },
 ];
+
+export const MOCK_IMPLANTS = [
+  {
+    id: 'implant-1',
+    name: 'Tornillo Tibial 6mm',
+    sku: 'TT-006',
+    category: 'Ortopedia',
+    unit_cost: 1200,
+    selling_price: 1800,
+    min_stock: 5,
+    org_id: MOCK_ORG_ID,
+    implant_lots: [
+      { id: 'lot-1', lot_number: 'L001', current_quantity: 10, expiration_date: '2027-01-01' },
+    ],
+  },
+  {
+    id: 'implant-2',
+    name: 'Placa de Titanio 3.5',
+    sku: 'PT-35',
+    category: 'Trauma',
+    unit_cost: 3500,
+    selling_price: 5000,
+    min_stock: 8,
+    org_id: MOCK_ORG_ID,
+    implant_lots: [
+      { id: 'lot-2', lot_number: 'L002', current_quantity: 2, expiration_date: '2026-06-01' },
+    ],
+  },
+];
