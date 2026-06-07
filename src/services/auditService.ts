@@ -36,7 +36,9 @@ export const auditService = {
           details: sanitizeDetails(details),
         });
 
-      if (error) console.error('Error recording audit log:', error);
+      // 42501 = RLS violation (e.g. surgeon role has no audit insert grant).
+      // Audit is best-effort; don't pollute the console for expected denials.
+      if (error && error.code !== '42501') console.error('Error recording audit log:', error);
     } catch (err) {
       console.error('Audit Service Error:', err);
     }

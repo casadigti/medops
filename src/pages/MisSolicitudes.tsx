@@ -135,7 +135,7 @@ export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
               <span className="px-2 py-0.5 bg-white/20 rounded-full text-[10px] font-black uppercase tracking-widest backdrop-blur-md">Portal de Cirujanos</span>
             </div>
             <h1 className="text-4xl font-black tracking-tight mb-2">
-              ¡Hola, Dr. {surgeonProfile?.full_name?.split(' ')[0] || 'Especialista'}!
+              ¡Hola, {surgeonProfile?.full_name || 'Dr. Especialista'}!
             </h1>
             <p className="text-blue-100 font-medium max-w-md">
               Solicita equipos, revisa el estado de tus requerimientos y tu historial de cirugías.
