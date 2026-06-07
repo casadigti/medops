@@ -18,8 +18,9 @@ import { implantService } from '../services/implantService';
 import { useToast } from '../components/ui/Toast';
 import { ShoppingCart, CheckCircle2, FileText } from 'lucide-react';
 import { generateActaQuirurgica } from '../utils/pdfGenerator';
-import type { UserProfile, Surgery, Surgeon, Hospital, ARS, Implant, SurgeryConsumption, TrayWithAvailability, SurgeryStatus, ProcedureType } from '../types/domain';
+import type { UserProfile, Surgery, Surgeon, Hospital, ARS, Implant, SurgeryConsumption, TrayWithAvailability, SurgeryStatus, ProcedureType, SurgeryRequest } from '../types/domain';
 import { useRealtimeSurgeries } from '../hooks/useRealtimeSurgeries';
+import { surgeryRequestService } from '../services/surgeryRequestService';
 
 // ─── Consumption Form ─────────────────────────────────────────────────────────
 const ConsumptionForm = ({ surgery, onSave, onCancel, loading }: { surgery: Surgery; onSave: (data: any) => void; onCancel: () => void; loading: boolean }) => {
@@ -474,9 +475,14 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
   const [printingId, setPrintingId] = useState<string | null>(null);
 
   const isSurgeon = userProfile?.role === 'Cirujano';
+  const isAdmin = userProfile?.role === 'Administrador' || userProfile?.role === 'Superadmin';
   const mySurgeonId = (userProfile as any)?.surgeon_id;
 
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [pendingRequests, setPendingRequests] = useState<SurgeryRequest[]>([]);
+  const [requestsExpanded, setRequestsExpanded] = useState(true);
+  const [rejectModal, setRejectModal] = useState<{ request: SurgeryRequest; notes: string } | null>(null);
+  const [requestAction, setRequestAction] = useState<string | null>(null); // requestId being acted on
 
   const fetchAll = async () => {
     setLoading(true);
@@ -494,6 +500,10 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
       setHospitals(hosp || []);
       setArsList(ars || []);
       setProcedureTypes(procs || []);
+      if (isAdmin) {
+        const reqs = await surgeryRequestService.getPending();
+        setPendingRequests(reqs);
+      }
     } catch (err) {
       console.error('Cirugias: Error cargando datos:', err);
       setFetchError('No se pudieron cargar los datos. Intenta recargar.');
@@ -611,6 +621,35 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
     return { label: `En ${diff} días`, color: 'text-slate-500' };
   };
 
+  const handleApproveRequest = async (req: SurgeryRequest) => {
+    setRequestAction(req.id);
+    try {
+      await surgeryRequestService.approve(req.id);
+      toast.success(`Solicitud de ${req.patient_name} aprobada. Cirugía creada.`);
+      setPendingRequests(prev => prev.filter(r => r.id !== req.id));
+      fetchAll();
+    } catch (err) {
+      toast.error('Error al aprobar: ' + (err as Error).message);
+    } finally {
+      setRequestAction(null);
+    }
+  };
+
+  const handleRejectRequest = async () => {
+    if (!rejectModal) return;
+    setRequestAction(rejectModal.request.id);
+    try {
+      await surgeryRequestService.reject(rejectModal.request.id, rejectModal.notes);
+      toast.success('Solicitud rechazada.');
+      setPendingRequests(prev => prev.filter(r => r.id !== rejectModal.request.id));
+      setRejectModal(null);
+    } catch (err) {
+      toast.error('Error al rechazar: ' + (err as Error).message);
+    } finally {
+      setRequestAction(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {fetchError && (
@@ -622,6 +661,71 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
           </button>
         </div>
       )}
+      {/* Pending surgery requests panel — admin only */}
+      {isAdmin && pendingRequests.length > 0 && (
+        <div className="border border-amber-200 bg-amber-50 rounded-2xl overflow-hidden">
+          <button
+            onClick={() => setRequestsExpanded(v => !v)}
+            className="w-full flex items-center justify-between px-5 py-3 hover:bg-amber-100/60 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={16} className="text-amber-600" />
+              <span className="font-bold text-amber-800 text-sm">
+                {pendingRequests.length} solicitud{pendingRequests.length !== 1 ? 'es' : ''} de cirujanos pendiente{pendingRequests.length !== 1 ? 's' : ''} de revisión
+              </span>
+            </div>
+            <ChevronDown size={16} className={cn('text-amber-600 transition-transform', requestsExpanded ? 'rotate-180' : '')} />
+          </button>
+
+          {requestsExpanded && (
+            <div className="divide-y divide-amber-200/60 border-t border-amber-200">
+              {pendingRequests.map(req => (
+                <div key={req.id} className="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 bg-white/60">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-slate-900">{req.patient_name}</span>
+                      <span className="text-xs text-slate-500">·</span>
+                      <span className="text-sm text-slate-600">{req.procedure_type}</span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-500 flex-wrap">
+                      <span className="flex items-center gap-1">
+                        <User size={11} /> Dr. {req.surgeon?.full_name ?? '—'}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Building2 size={11} /> {req.hospital?.name ?? '—'}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Calendar size={11} />
+                        {new Date(req.surgery_date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                    </div>
+                    {req.notes && (
+                      <p className="text-xs text-slate-400 italic mt-0.5 truncate">"{req.notes}"</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      disabled={requestAction === req.id}
+                      onClick={() => setRejectModal({ request: req, notes: '' })}
+                      className="btn text-sm bg-white border border-red-200 text-red-600 hover:bg-red-50 px-3 py-1.5"
+                    >
+                      Rechazar
+                    </button>
+                    <button
+                      disabled={requestAction === req.id}
+                      onClick={() => handleApproveRequest(req)}
+                      className="btn text-sm bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5"
+                    >
+                      {requestAction === req.id ? 'Procesando...' : 'Aprobar'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Gestión de Cirugías</h1>
@@ -791,6 +895,37 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
         isOpen={!!confirm} onClose={() => setConfirm(null)} onConfirm={handleDelete}
         title="¿Eliminar cirugía?" message={`¿Estás seguro de eliminar la cirugía de "${confirm?.name}"?`}
       />
+
+      {/* Reject request modal */}
+      {rejectModal && (
+        <Modal isOpen={!!rejectModal} onClose={() => setRejectModal(null)} title="Rechazar solicitud" size="sm">
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">
+              Estás rechazando la solicitud de <span className="font-bold">{rejectModal.request.patient_name}</span> del Dr. {rejectModal.request.surgeon?.full_name}.
+            </p>
+            <div>
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Motivo (requerido)</label>
+              <textarea
+                rows={3}
+                className="input resize-none"
+                placeholder="Ej: Fecha no disponible, equipo en mantenimiento..."
+                value={rejectModal.notes}
+                onChange={e => setRejectModal(m => m ? { ...m, notes: e.target.value } : m)}
+              />
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setRejectModal(null)} className="btn btn-secondary flex-1">Cancelar</button>
+              <button
+                disabled={!rejectModal.notes.trim() || requestAction === rejectModal.request.id}
+                onClick={handleRejectRequest}
+                className="btn flex-1 bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {requestAction === rejectModal.request.id ? 'Rechazando...' : 'Confirmar rechazo'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };
