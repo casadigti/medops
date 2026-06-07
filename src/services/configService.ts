@@ -136,7 +136,16 @@ export const configService = {
     const { data, error } = await supabase.functions.invoke('manage-users', {
       body: { action: 'update', userId, userData: cleanUpdates },
     });
-    if (error) throw error;
+    if (error) {
+      // Surface real error from function body (context is the raw Response)
+      try {
+        const body = await (error as any).context?.json?.();
+        throw new Error(body?.error || error.message);
+      } catch (parseErr: any) {
+        if (parseErr?.message && parseErr.message !== error.message) throw parseErr;
+        throw error;
+      }
+    }
 
     const profileUpdate: Record<string, unknown> = {
       full_name: updates.full_name,
