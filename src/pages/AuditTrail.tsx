@@ -9,8 +9,9 @@ import { cn } from '../utils/cn';
 const PAGE_SIZE = 50;
 
 const ENTITY_TYPES = [
-  'surgery', 'implant', 'implant_lot', 'tray', 'user', 'organization',
-  'hospital', 'surgeon', 'configuration', 'storage',
+  'surgeries', 'implants', 'implant_lots', 'trays', 'profiles', 'organizations',
+  'hospitals', 'surgeons', 'procedure_types', 'organization_settings',
+  'storage_slots', 'notifications',
 ];
 
 function formatDate(iso: string): string {
