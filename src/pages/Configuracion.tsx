@@ -85,12 +85,18 @@ const UserForm = ({ onSave, onCancel, loading, initialData }: { onSave: (data: a
             <input
               type="text"
               className="input bg-white text-xs"
-              placeholder="Nueva temporal (opcional)"
+              placeholder="Nueva temporal (opcional, mín. 12 caracteres)"
+              minLength={12}
               value={form.password}
               onChange={e => set('password', e.target.value)}
             />
           </div>
-          <p className="text-[10px] text-amber-700 mt-1">Si escribes una contraseña, se forzará el cambio al entrar.</p>
+          <p className="text-[10px] text-amber-700 mt-1">
+            Si escribes una contraseña, se forzará el cambio al entrar. Mínimo 12 caracteres.
+            {form.password && form.password.length > 0 && form.password.length < 12 && (
+              <span className="text-red-600 font-bold ml-1">({form.password.length}/12)</span>
+            )}
+          </p>
         </div>
       )}
       <div className="flex gap-3 pt-2">
