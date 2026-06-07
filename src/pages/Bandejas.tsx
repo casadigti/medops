@@ -7,7 +7,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { StatusBadge } from '../components/ui/Badge';
 import { PageLoader, EmptyState } from '../components/ui/Spinner';
 import { TRAY_STATUSES, MAX_STERILIZATIONS } from '../data/catalogo';
-import { Package, Plus, Pencil, Trash2, Search, AlertTriangle, Wrench, Stethoscope, MapPin, ChevronDown, ChevronUp, X, ListChecks } from 'lucide-react';
+import { Package, Plus, Pencil, Trash2, Search, AlertTriangle, Wrench, Stethoscope, MapPin, ChevronDown, ChevronUp, X, ListChecks, Printer } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useToast } from '../components/ui/Toast';
 import { implantService } from '../services/implantService';
@@ -86,7 +86,7 @@ const TrayForm = ({ initial, onSave, onCancel, loading }: { initial: Partial<Tra
 };
 
 // ─── TrayItemsPanel ──────────────────────────────────────────────────────────
-const TrayItemsPanel: React.FC<{ trayId: string; canEdit: boolean }> = ({ trayId, canEdit }) => {
+const TrayItemsPanel: React.FC<{ trayId: string; canEdit: boolean; trayName: string; trayCode?: string }> = ({ trayId, canEdit, trayName, trayCode }) => {
   const toast = useToast();
   const [items, setItems] = useState<TrayItem[]>([]);
   const [allImplants, setAllImplants] = useState<Implant[]>([]);
@@ -140,6 +140,71 @@ const TrayItemsPanel: React.FC<{ trayId: string; canEdit: boolean }> = ({ trayId
     catch { toast.error('Error actualizando cantidad'); trayService.getTrayItems(trayId).then(setItems); }
   };
 
+  const handlePrint = () => {
+    const date = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+    const rows = items.map(item => `
+      <tr>
+        <td>${item.implant?.name ?? '—'}</td>
+        <td class="sku">${item.implant?.sku ?? '—'}</td>
+        <td class="qty">${item.quantity}</td>
+        <td class="check"></td>
+      </tr>`).join('');
+
+    const win = window.open('', '_blank', 'width=800,height=600');
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+      <title>Componentes — ${trayName}</title>
+      <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Segoe UI',Arial,sans-serif;color:#1e293b;padding:32px}
+        .hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1e40af;padding-bottom:16px;margin-bottom:24px}
+        .brand{font-size:20px;font-weight:900;color:#1e40af}
+        .sub{font-size:11px;color:#64748b;margin-top:2px}
+        .meta{text-align:right;font-size:12px;color:#64748b}
+        .meta b{display:block;font-size:15px;color:#1e293b;font-weight:800;margin-bottom:2px}
+        .meta code{font-size:11px;font-family:monospace;background:#f1f5f9;padding:2px 6px;border-radius:4px}
+        h2{font-size:14px;font-weight:700;color:#334155;margin-bottom:16px}
+        table{width:100%;border-collapse:collapse;font-size:13px}
+        thead tr{background:#1e40af;color:#fff}
+        th{padding:9px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+        th.qty,td.qty{text-align:center;width:70px}
+        th.check,td.check{text-align:center;width:60px}
+        td{padding:9px 12px;border-bottom:1px solid #f1f5f9}
+        td.sku{font-family:monospace;color:#64748b;font-size:12px}
+        tr:nth-child(even) td{background:#f8fafc}
+        .check-box{display:inline-block;width:18px;height:18px;border:2px solid #cbd5e1;border-radius:3px}
+        .footer{margin-top:28px;display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px}
+        .sig{text-align:center;margin-top:40px}
+        .sig-line{border-top:1px solid #334155;width:200px;margin:0 auto;padding-top:6px;font-size:11px;color:#64748b}
+        @media print{body{padding:16px}}
+      </style></head><body>
+      <div class="hdr">
+        <div><div class="brand">MedOps</div><div class="sub">Gestión Médica Quirúrgica</div></div>
+        <div class="meta">
+          <b>${trayName}</b>
+          ${trayCode ? `<code>${trayCode}</code>` : ''}
+          <div style="margin-top:4px">${date}</div>
+        </div>
+      </div>
+      <h2>Lista de Componentes (${items.length} ítems)</h2>
+      <table>
+        <thead><tr>
+          <th>Componente</th><th>SKU</th><th class="qty">Cant.</th><th class="check">✓</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="sig">
+        <div class="sig-line">Preparado por: _______________________</div>
+      </div>
+      <div class="footer">
+        <span>MedOps · Hoja de preparación de bandeja</span>
+        <span>Generado: ${new Date().toLocaleString('es-ES')}</span>
+      </div>
+      </body></html>`);
+    win.document.close();
+    setTimeout(() => { win.focus(); win.print(); }, 300);
+  };
+
   if (loadingItems) return <div className="py-3 text-xs text-slate-400">Cargando componentes…</div>;
 
   return (
@@ -181,6 +246,15 @@ const TrayItemsPanel: React.FC<{ trayId: string; canEdit: boolean }> = ({ trayId
         <p className="text-xs text-slate-400 italic">{canEdit ? 'Busca y agrega componentes desde el inventario.' : 'Sin componentes registrados.'}</p>
       ) : (
         <div className="space-y-1">
+          <div className="flex justify-end mb-1">
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-primary transition-colors px-2 py-1 rounded-lg hover:bg-slate-100"
+            >
+              <Printer size={13} />
+              Imprimir hoja
+            </button>
+          </div>
           {items.map(item => (
             <div key={item.id} className="flex items-center gap-2 group py-1 px-2 rounded-lg hover:bg-slate-50">
               <div className="flex-1 min-w-0">
@@ -388,7 +462,7 @@ export const Bandejas: React.FC = () => {
                     {expandedItems === t.id ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                   </button>
                   {expandedItems === t.id && (
-                    <TrayItemsPanel trayId={t.id} canEdit={isAdmin} />
+                    <TrayItemsPanel trayId={t.id} canEdit={isAdmin} trayName={t.name} trayCode={t.code} />
                   )}
                 </div>
               );
