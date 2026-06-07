@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Stethoscope, Package, Users, BarChart3, Settings,
-  LogOut, Wrench, CalendarDays, Shield, Box, ShoppingCart, History, Building2, Warehouse, ClipboardList,
+  LogOut, Wrench, CalendarDays, Shield, Box, ShoppingCart, History, Building2, Warehouse, ClipboardList, ClipboardCheck,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { supabase } from '../../lib/supabase';
@@ -13,6 +13,7 @@ const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: 'Mi Portal',        path: '/mis-solicitudes',   roles: ['Cirujano'] },
   { icon: CalendarDays,    label: 'Calendario',        path: '/calendario',        roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
   { icon: Stethoscope,     label: 'Cirugías',          path: '/cirugias',          roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
+  { icon: ClipboardCheck,  label: 'Prep. Bandejas',    path: '/preparacion',       roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
   { icon: Package,         label: 'Bandejas / Sets',   path: '/bandejas',          roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
   { icon: Box,             label: 'Inventario',         path: '/inventario',        roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'], showStockAlert: true },
   { icon: ShoppingCart,    label: 'Reporte de Gasto',  path: '/reporte-reposicion',roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
