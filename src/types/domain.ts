@@ -196,6 +196,25 @@ export interface AuditLog {
   created_at: string;
 }
 
+export type SurgeryRequestStatus = 'Pendiente' | 'Aprobada' | 'Rechazada';
+
+export interface SurgeryRequest {
+  id: string;
+  org_id?: string;
+  surgeon_id: string;
+  patient_name: string;
+  surgery_date: string;
+  hospital_id: string;
+  procedure_type: string;
+  notes?: string;
+  status: SurgeryRequestStatus;
+  admin_notes?: string;
+  surgery_id?: string;
+  created_at?: string;
+  surgeon?: Pick<Surgeon, 'id' | 'full_name' | 'specialty'>;
+  hospital?: Pick<Hospital, 'id' | 'name'>;
+}
+
 export interface MaintenanceLog {
   id: string;
   tray_id: string;
