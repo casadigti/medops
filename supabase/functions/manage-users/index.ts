@@ -122,7 +122,13 @@ serve(async (req) => {
       const updates: any = {
         user_metadata: { full_name, role },
       }
-      if (password) updates.password = password
+      if (password) {
+        updates.password = password
+        // Al resetear la contraseña desde el panel admin, confirmar el email.
+        // Si el usuario quedó "Waiting for verification", signInWithPassword
+        // falla aunque la contraseña sea correcta. Confirmarlo permite el login.
+        updates.email_confirm = true
+      }
 
       const { data, error } = await supabaseAdmin.auth.admin.updateUserById(userId, updates)
 
