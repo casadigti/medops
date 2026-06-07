@@ -62,9 +62,9 @@ export const surgeryRequestService = {
       .select(REQUEST_SELECT)
       .single();
     if (error) throw error;
-    await auditService.log('REQUEST_CREATE', 'surgery_requests', data.id, {
-      patient: request.patient_name,
-    });
+    // No audit here: create() is only invoked by surgeons, whose role has no
+    // audit_logs INSERT grant (RLS 42501). The approve/reject paths (admins)
+    // still record audit entries.
     return data as unknown as SurgeryRequest;
   },
 
