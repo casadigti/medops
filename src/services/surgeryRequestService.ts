@@ -6,7 +6,8 @@ import type { SurgeryRequest, SurgeryRequestStatus } from '../types/domain';
 const REQUEST_SELECT = `
   *,
   surgeon:surgeons(id,full_name,specialty),
-  hospital:hospitals(id,name)
+  hospital:hospitals(id,name),
+  ars:ars(id,name)
 `;
 
 export const surgeryRequestService = {
@@ -54,6 +55,8 @@ export const surgeryRequestService = {
         surgery_date:   request.surgery_date,
         hospital_id:    request.hospital_id,
         procedure_type: request.procedure_type,
+        ars_id:         request.ars_id ?? null,
+        nss:            request.nss ?? null,
         notes:          request.notes ?? null,
       })
       .select(REQUEST_SELECT)
@@ -83,6 +86,8 @@ export const surgeryRequestService = {
         surgeon_id:     req.surgeon_id,
         hospital_id:    req.hospital_id,
         procedure_type: req.procedure_type,
+        ars_id:         req.ars_id ?? null,
+        nss:            req.nss ?? null,
         notes:          req.notes,
         status:         'Pendiente',
       })

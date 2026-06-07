@@ -206,6 +206,8 @@ export interface SurgeryRequest {
   surgery_date: string;
   hospital_id: string;
   procedure_type: string;
+  ars_id?: string;
+  nss?: string;
   notes?: string;
   status: SurgeryRequestStatus;
   admin_notes?: string;
@@ -213,6 +215,7 @@ export interface SurgeryRequest {
   created_at?: string;
   surgeon?: Pick<Surgeon, 'id' | 'full_name' | 'specialty'>;
   hospital?: Pick<Hospital, 'id' | 'name'>;
+  ars?: Pick<ARS, 'id' | 'name'>;
 }
 
 export interface MaintenanceLog {
