@@ -66,7 +66,7 @@ export const surgeryService = {
       let query = supabase
         .from('surgeries')
         .select(SURGERY_SELECT)
-        .order('surgery_date', { ascending: true })
+        .order('surgery_date', { ascending: false })
         .abortSignal(controller.signal);
 
       if (surgeonId)   query = query.eq('surgeon_id', surgeonId);
@@ -83,7 +83,7 @@ export const surgeryService = {
       if ((err as Error).name === 'AbortError') {
         console.warn('surgeryService.getAll: timed out, falling back to REST...');
         const orgOverride2 = getImpersonatedOrgId();
-        const params: Record<string, string> = { order: 'surgery_date.asc' };
+        const params: Record<string, string> = { order: 'surgery_date.desc' };
         if (surgeonId)    params['surgeon_id'] = `eq.${surgeonId}`;
         if (orgOverride2) params['org_id']     = `eq.${orgOverride2}`;
         if (fromDate)     params['surgery_date'] = `gte.${fromDate}`;
