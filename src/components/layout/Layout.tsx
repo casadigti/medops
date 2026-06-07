@@ -3,7 +3,7 @@ import { Sidebar } from './Sidebar';
 import { ImpersonationBanner } from '../ImpersonationBanner';
 import { SessionTimeoutModal } from '../SessionTimeoutModal';
 import { useSessionTimeout } from '../../hooks/useSessionTimeout';
-import { Bell, LayoutDashboard, CalendarDays, Stethoscope, Package, Users, BarChart3, Settings, Wrench, Box, ShoppingCart, History, Warehouse, ClipboardList } from 'lucide-react';
+import { Bell, LayoutDashboard, CalendarDays, Stethoscope, Package, Users, BarChart3, Settings, Wrench, Box, ShoppingCart, History, Warehouse, ClipboardList, ClipboardCheck } from 'lucide-react';
 import { GlobalSearch } from './GlobalSearch';
 import { surgeryService } from '../../services/surgeryService';
 import { implantService } from '../../services/implantService';
@@ -20,6 +20,7 @@ const MobileNav: React.FC<{ role?: string }> = ({ role }) => {
     { icon: LayoutDashboard, path: '/',              label: role === 'Cirujano' ? 'Portal' : 'Inicio', roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
     { icon: CalendarDays,    path: '/calendario',    label: 'Agenda',    roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
     { icon: Stethoscope,     path: '/cirugias',      label: 'Cirugías',  roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
+    { icon: ClipboardCheck,  path: '/preparacion',   label: 'Prep.',     roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
     { icon: Package,         path: '/bandejas',      label: 'Sets',      roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
     { icon: Wrench,          path: '/mantenimiento', label: 'Mant.',     roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
     { icon: Users,           path: '/directorio',    label: 'Dir.',      roles: ['Superadmin', 'Administrador', 'Técnico', 'Cirujano', 'Editor', 'Lector'] },
