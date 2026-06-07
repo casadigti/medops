@@ -113,7 +113,7 @@ serve(async (req) => {
 
     // 2. ACTUALIZAR USUARIO
     if (action === 'update') {
-      const { password, full_name, role } = userData
+      const { password, full_name, role, email } = userData
 
       // NO incluir `email` en el payload de updateUserById.
       // Cambiar el email dispara el flujo "Secure email change" de Supabase,
@@ -122,14 +122,32 @@ serve(async (req) => {
       const updates: any = {
         user_metadata: { full_name, role },
       }
-      if (password) updates.password = password
+      if (password) {
+        updates.password = password
+        // Al resetear la contraseña desde el panel admin, confirmar el email.
+        // Si el usuario quedó "Waiting for verification", signInWithPassword
+        // falla aunque la contraseña sea correcta. Confirmarlo permite el login.
+        updates.email_confirm = true
+      }
 
       const { data, error } = await supabaseAdmin.auth.admin.updateUserById(userId, updates)
 
-      // El password update es crítico: si falla, propagar el error real
-      // para no dar un falso "éxito" al usuario.
-      if (error && !error.message.toLowerCase().includes('not found')) throw error
+      // Si el usuario NO existe en auth.users (perfil creado sin cuenta auth),
+      // updateUserById devuelve "not found". ANTES este error se tragaba en
+      // silencio y el toast mentía "actualizado correctamente" mientras la
+      // contraseña nunca se aplicaba y el login seguía fallando.
+      // Ahora se propaga un mensaje claro para que el admin recree el usuario.
+      if (error) {
+        if (error.message.toLowerCase().includes('not found')) {
+          throw new Error(
+            'Este usuario no tiene cuenta de acceso (auth). Elimínalo y créalo de nuevo con "Nuevo Usuario" para que pueda iniciar sesión.'
+          )
+        }
+        throw error
+      }
 
+      // Marcador defensivo: si por alguna razón no hay data ni error, avisar.
+      void email
       return new Response(JSON.stringify(data ?? { success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 

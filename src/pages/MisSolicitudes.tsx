@@ -3,11 +3,13 @@ import { surgeryRequestService } from '../services/surgeryRequestService';
 import { Modal } from '../components/ui/Modal';
 import { PageLoader, EmptyState } from '../components/ui/Spinner';
 import { procedureTypeService } from '../services/procedureTypeService';
+import { hospitalService } from '../services/hospitalService';
+import { arsService } from '../services/arsService';
 import { Plus, Calendar, Building2, Clock, ShieldCheck, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ui/Toast';
 import { cn } from '../utils/cn';
-import type { UserProfile, Surgeon, Hospital, ProcedureType, SurgeryRequest, SurgeryRequestStatus } from '../types/domain';
+import type { UserProfile, Surgeon, Hospital, ProcedureType, ARS, SurgeryRequest, SurgeryRequestStatus } from '../types/domain';
 
 interface MisSolicitudesProps {
   userProfile?: Partial<UserProfile> | null;
@@ -36,19 +38,20 @@ export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
   const [surgeonProfile, setSurgeonProfile] = useState<Surgeon | null>(null);
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [procedureTypes, setProcedureTypes] = useState<ProcedureType[]>([]);
+  const [arsList, setArsList] = useState<ARS[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
     patient_name:   '',
     surgery_date:   '',
+    surgery_time:   '',
     hospital_id:    '',
     procedure_type: '',
+    ars_id:         '',
+    nss:            '',
     notes:          '',
   });
-
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-  const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
   const fetchData = async (mounted: boolean) => {
     try {
@@ -56,38 +59,26 @@ export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session || !mounted) return;
 
-      const headers = {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${session.access_token}`,
-        Accept: 'application/json',
-      };
-
-      // Fetch surgeon profile
-      const surgeonRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/surgeons?user_id=eq.${session.user.id}&select=*&limit=1`,
-        { headers }
-      );
-      const surgeonArr = await surgeonRes.json();
-      const surgeonData: Surgeon | null = Array.isArray(surgeonArr) && surgeonArr.length > 0 ? surgeonArr[0] : null;
+      const { data: surgeonArr } = await supabase
+        .from('surgeons')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .limit(1);
+      const surgeonData: Surgeon | null = surgeonArr && surgeonArr.length > 0 ? surgeonArr[0] : null;
       if (!mounted) return;
       setSurgeonProfile(surgeonData);
 
-      // Fetch this surgeon's requests
-      if (surgeonData) {
-        const reqs = await surgeryRequestService.getMySurgeonRequests(surgeonData.id);
-        if (!mounted) return;
-        setRequests(reqs);
-      }
-
-      // Fetch hospitals & procedure types
-      const [hospitalsRes, procs] = await Promise.all([
-        fetch(`${SUPABASE_URL}/rest/v1/hospitals?select=id,name&order=name.asc`, { headers }),
+      const [reqs, hospitalsArr, procs, ars] = await Promise.all([
+        surgeonData ? surgeryRequestService.getMySurgeonRequests(surgeonData.id) : Promise.resolve([]),
+        hospitalService.getAll(),
         procedureTypeService.getAll(),
+        arsService.getAll(),
       ]);
-      const hospitalsArr = await hospitalsRes.json();
       if (!mounted) return;
-      setHospitals(Array.isArray(hospitalsArr) ? hospitalsArr : []);
+      setRequests(reqs);
+      setHospitals(hospitalsArr);
       setProcedureTypes(procs || []);
+      setArsList(ars || []);
     } catch (err) {
       console.error('MisSolicitudes: Error fetching data:', err);
     } finally {
@@ -106,12 +97,21 @@ export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
     if (!surgeonProfile) return;
     setSaving(true);
     try {
+      const surgery_date = form.surgery_time
+        ? `${form.surgery_date}T${form.surgery_time}:00`
+        : `${form.surgery_date}T00:00:00`;
       await surgeryRequestService.create({
-        ...form,
+        patient_name:   form.patient_name,
+        hospital_id:    form.hospital_id,
+        procedure_type: form.procedure_type,
+        ars_id:         form.ars_id || undefined,
+        nss:            form.nss || undefined,
+        notes:          form.notes,
+        surgery_date,
         surgeon_id: surgeonProfile.id,
       });
       setIsModalOpen(false);
-      setForm({ patient_name: '', surgery_date: '', hospital_id: '', procedure_type: '', notes: '' });
+      setForm({ patient_name: '', surgery_date: '', surgery_time: '', hospital_id: '', procedure_type: '', ars_id: '', nss: '', notes: '' });
       toast.success('Solicitud enviada. El equipo de logística la revisará pronto.');
       await fetchData(true);
     } catch (err) {
@@ -277,12 +277,24 @@ export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
               <label className="block text-sm font-semibold text-slate-700 mb-1">Fecha de Cirugía *</label>
               <input
                 required
-                type="datetime-local"
+                type="date"
                 className="input"
                 value={form.surgery_date}
                 onChange={e => setForm({ ...form, surgery_date: e.target.value })}
               />
             </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Hora (Opcional)</label>
+              <input
+                type="time"
+                className="input"
+                value={form.surgery_time}
+                onChange={e => setForm({ ...form, surgery_time: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">Procedimiento *</label>
               <select
@@ -295,19 +307,42 @@ export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
                 {procedureTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Hospital / Centro Médico *</label>
+              <select
+                required
+                className="input"
+                value={form.hospital_id}
+                onChange={e => setForm({ ...form, hospital_id: e.target.value })}
+              >
+                <option value="">Seleccionar hospital...</option>
+                {hospitals.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+              </select>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Hospital / Centro Médico *</label>
-            <select
-              required
-              className="input"
-              value={form.hospital_id}
-              onChange={e => setForm({ ...form, hospital_id: e.target.value })}
-            >
-              <option value="">Seleccionar hospital...</option>
-              {hospitals.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
-            </select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Aseguradora (Opcional)</label>
+              <select
+                className="input"
+                value={form.ars_id}
+                onChange={e => setForm({ ...form, ars_id: e.target.value })}
+              >
+                <option value="">Seleccionar ARS...</option>
+                {arsList.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">No. NSS (Opcional)</label>
+              <input
+                type="text"
+                className="input"
+                value={form.nss}
+                onChange={e => setForm({ ...form, nss: e.target.value })}
+                placeholder="Ej: 001-0000000-0"
+              />
+            </div>
           </div>
 
           <div>
