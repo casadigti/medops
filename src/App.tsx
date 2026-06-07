@@ -19,6 +19,7 @@ import { ReporteReposicion } from './pages/ReporteReposicion';
 import { ReporteLotes } from './pages/ReporteLotes';
 import { Organizaciones } from './pages/Organizaciones';
 import { AlmacenMap } from './pages/AlmacenMap';
+import { AuditTrail } from './pages/AuditTrail';
 import { ForcePasswordChange } from './components/auth/ForcePasswordChange';
 import { InventoryChat } from './components/chat/InventoryChat';
 import type { Session } from '@supabase/supabase-js';
@@ -176,6 +177,7 @@ function App() {
                     <Route path="/reporte-lotes" element={!isSurgeon ? <ReporteLotes /> : <Navigate to="/mis-solicitudes" replace />} />
                     <Route path="/mis-solicitudes" element={<MisSolicitudes userProfile={userProfile} />} />
                     <Route path="/almacen" element={!isSurgeon ? <AlmacenMap userProfile={userProfile} /> : <Navigate to="/mis-solicitudes" replace />} />
+                    <Route path="/auditoria" element={(userProfile?.role === 'Administrador' || userProfile?.role === 'Superadmin') ? <AuditTrail /> : <Navigate to="/" replace />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </Layout>

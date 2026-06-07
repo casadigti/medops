@@ -56,12 +56,14 @@ export const auditService = {
     dateFrom,
     dateTo,
     action,
+    entityType,
     limit = 50,
     offset = 0,
   }: {
     dateFrom?: string;
     dateTo?: string;
     action?: string;
+    entityType?: string;
     limit?: number;
     offset?: number;
   } = {}): Promise<{ data: AuditLog[]; count: number }> {
@@ -78,6 +80,7 @@ export const auditService = {
       query = query.lte('created_at', end.toISOString());
     }
     if (action) query = query.ilike('action', `%${action}%`);
+    if (entityType) query = query.eq('entity_type', entityType);
 
     const { data, error, count } = await query;
     if (error) throw error;
