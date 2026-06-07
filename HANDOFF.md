@@ -1,5 +1,5 @@
 # MedOps — Handoff Document
-**Fecha:** 2026-06-05 | **Rama activa:** `feat/impersonation` | **Último PR:** #57 (en producción)
+**Fecha:** 2026-06-06 | **Rama activa:** `feat/impersonation` | **Último PR:** #70 (+ commits manage-users desplegados)
 
 ---
 
@@ -25,15 +25,19 @@ React 19.2.5 + Vite 8 + TypeScript 6 + Tailwind 4 + Supabase JS 2 + React Router
 | `ReporteReposicion.tsx` | Reporte consumo por material/cirugía, snapshot stock |
 | `Configuracion.tsx` | Settings org: identidad, ARS, tipos procedimiento, usuarios, backup |
 | `Organizaciones.tsx` | Admin multi-tenant: crear/desactivar orgs, impersonación |
-| `MisSolicitudes.tsx` | Portal cirujano: ver propias cirugías (read-only) |
-| `AlmacenMap.tsx` | Mapa visual almacén: floor plan 2D drag-and-drop, facing 4 estados, objetos de sala, tarjetas adaptativas |
-| `Login.tsx` | Auth con throttle 5 intentos, force-change-password |
+| `MisSolicitudes.tsx` | Portal cirujano: crea solicitudes de cirugía + historial con estado (Pendiente/Aprobada/Rechazada) |
+| `AlmacenMap.tsx` | Mapa visual almacén: floor plan 2D drag-and-drop, facing 4 estados, objetos de sala, tarjetas adaptativas. Al asignar bandeja a celda → auto-actualiza `trays.location` |
+| `PreparacionBandeja.tsx` | Panel técnico `/preparacion`: KPIs, alertas, cambio de estado inline, realtime |
+| `AuditTrail.tsx` | `/auditoria`: log auditoría paginado, filtros (fecha/acción/entidad), export XLSX. Admin-only |
+| `Login.tsx` | Auth con throttle 5 intentos (localStorage `medops_login_throttle`), force-change-password |
 
 ---
 
 ## Servicios (src/services/)
 
-`surgeryService` · `surgeonService` · `hospitalService` · `trayService` · `implantService` · `arsService` · `procedureTypeService` · `organizationService` · `configService` · `notificationService` · `auditService` · `backupService` · `printService` · `storageService` · `roomObjectService`
+`surgeryService` · `surgeryRequestService` · `surgeonService` · `hospitalService` · `trayService` · `implantService` · `arsService` · `procedureTypeService` · `organizationService` · `configService` · `notificationService` · `auditService` · `backupService` · `printService` · `storageService` · `roomObjectService`
+
+`surgeryRequestService`: portal cirujano. `create`/`getPending`/`getMySurgeonRequests`/`approve` (crea cirugía real + link) / `reject` (motivo).
 
 Patrón: todos aplican `getImpersonatedOrgId()` para multi-tenancy.
 
@@ -45,7 +49,7 @@ Patrón: todos aplican `getImpersonatedOrgId()` para multi-tenancy.
 |---------|-----------|
 | `inventory-search` | Bot Telegram: voz→texto (Groq Whisper) + búsqueda inventario. Deploy con `--no-verify-jwt` |
 | `manage-orgs` | Crear/eliminar org + auto-seed ARS & procedure_types de org del platform admin |
-| `manage-users` | Crear usuarios con rol, reset password, asignar org |
+| `manage-users` | Crear usuarios con rol, reset password, asignar org. Reset → `email_confirm=true` (evita "Waiting for verification" que bloquea login) + error honesto si perfil sin auth user. Redesplegado 2026-06-06 |
 | `send-surgery-alert` | Notificaciones push en cambios de estado de cirugía |
 
 ---
@@ -66,6 +70,8 @@ Patrón: todos aplican `getImpersonatedOrgId()` para multi-tenancy.
 | `0008_shelf_facing.sql` | ✅ |
 | `0009_room_objects.sql` | ✅ |
 | `0010_tray_items.sql` | ✅ |
+| `0011_performance_indexes.sql` | ✅ |
+| `0012_surgery_requests.sql` | ✅ (2026-06-06) tabla solicitudes cirujano + RLS |
 | `fix_notification_trigger_org_scope.sql` | ✅ |
 | `ALTER storage_shelves org_id default` | ✅ |
 
@@ -83,10 +89,32 @@ Patrón: todos aplican `getImpersonatedOrgId()` para multi-tenancy.
 
 ## Pendientes
 
+**Merge pendiente:** PRs #67, #68, #69, #70 → casadigti/medops (verificar cuáles ya mergeados).
 **Media prioridad:**
 - Búsqueda global no resalta/filtra resultado específico al navegar
+- CLI Supabase 403 al deploy (cuenta sin privilegios) → deploys via Dashboard o `supabase login`
 **Baja prioridad:**
 - Security scan: Grado B (89/100) — denyList en `.claude/settings.json`
+
+**Ideas roadmap (sin empezar):** checklist esterilización · alertas mantenimiento preventivo · comentarios por cirugía · costo real por cirugía · módulo proveedores/OC · facturación · preferencias implantes por cirujano.
+
+---
+
+## Trabajo sesión 2026-06-06 — PRs #66–#70 + deploy manage-users
+
+| PR / commit | Detalle |
+|-------------|---------|
+| #66 | Bandejas: botón "Imprimir hoja" — checklist componentes + firma |
+| #67 | Almacén: al asignar/liberar bandeja en celda → auto-sync `trays.location` (`storageService.assignSlot/clearSlot`) |
+| #68 | **Portal solicitudes cirugía**: tabla `surgery_requests` (mig 0012) + `surgeryRequestService`. Cirujano crea solicitud; admin Aprueba (crea cirugía)/Rechaza (motivo) desde panel ámbar en `Cirugias.tsx` |
+| #69 | `configService.updateUser`: lee `error.context.json()` para mostrar error real (antes "non-2xx status code" genérico) |
+| #70 | Configuración: validación `minLength=8` + contador en reset contraseña; fix placeholder en `e2e/password-reset.spec.ts` |
+| deploy | `manage-users`: `email_confirm=true` en reset + no tragar "not found". **Desplegado via Dashboard** (CLI dio 403) |
+
+**Bug login resuelto:** usuarios "Waiting for verification" (email sin confirmar) no podían entrar aunque la contraseña fuera correcta. Reset desde Configuración ahora confirma el email. Limpiar bloqueo cliente: `localStorage.removeItem('medops_login_throttle')`.
+
+**Analytics movido:** charts ARS agregados a `Reportes.tsx` (no Dashboard). Logs duplicados eliminados de `Configuracion.tsx` (vive en `AuditTrail.tsx`).
+**Sort cirugías:** `surgeryService.getAll` ahora descendente (más reciente primero).
 
 ---
 
