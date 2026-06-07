@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { surgeryService } from '../services/surgeryService';
 import { implantService } from '../services/implantService';
 import { StatusBadge } from '../components/ui/Badge';
 import { PageLoader } from '../components/ui/Spinner';
 import { Stethoscope, Calendar, Package, AlertTriangle, TrendingUp, CheckCircle2, Clock, Wifi } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../utils/cn';
 import { supabase } from '../lib/supabase';
@@ -159,52 +159,6 @@ export const Dashboard: React.FC = () => {
       }).length
     };
   });
-
-  // ─── Analytics (computed from existing surgeries — no extra fetch) ───────────
-  const analytics = useMemo(() => {
-    const n = new Date();
-
-    // Monthly trend — last 6 months (all surgeries, not just upcoming)
-    const monthKeys: string[] = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(n.getFullYear(), n.getMonth() - i, 1);
-      monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-    }
-    const monthCounts: Record<string, number> = Object.fromEntries(monthKeys.map(k => [k, 0]));
-    surgeries.forEach(s => {
-      const parts = s.surgery_date.split('T')[0].split('-');
-      const key = `${parts[0]}-${parts[1]}`;
-      if (key in monthCounts) monthCounts[key]++;
-    });
-    const monthlyData = monthKeys.map(k => ({
-      name: new Date(`${k}-01`).toLocaleDateString('es-ES', { month: 'short', year: '2-digit' }),
-      cirugías: monthCounts[k],
-    }));
-
-    const topN = (map: Record<string, number>, n = 5) =>
-      Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, n)
-        .map(([name, cirugías]) => ({ name: name.length > 22 ? name.slice(0, 21) + '…' : name, cirugías }));
-
-    const byHospital: Record<string, number> = {};
-    const bySurgeon:  Record<string, number> = {};
-    const byARS:      Record<string, number> = {};
-
-    surgeries.forEach(s => {
-      const hosp = (s as any).hospital?.name || 'Sin hospital';
-      const surg = (s as any).surgeon?.full_name || 'Sin asignar';
-      const ars  = (s as any).ars?.name || 'Sin ARS';
-      byHospital[hosp] = (byHospital[hosp] || 0) + 1;
-      bySurgeon[surg]  = (bySurgeon[surg]  || 0) + 1;
-      byARS[ars]       = (byARS[ars]       || 0) + 1;
-    });
-
-    return {
-      monthlyData,
-      hospitalData: topN(byHospital),
-      surgeonData:  topN(bySurgeon),
-      arsData:      topN(byARS),
-    };
-  }, [surgeries]);
 
   if (loading) return <PageLoader />;
 
@@ -403,98 +357,6 @@ export const Dashboard: React.FC = () => {
           )
         }
       </div>
-      {/* ── Analytics ─────────────────────────────────────────────────────── */}
-      <div>
-        <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <TrendingUp size={18} className="text-primary" />
-          Analytics
-        </h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-          {/* Tendencia mensual */}
-          <div className="card">
-            <p className="text-sm font-semibold text-slate-700 mb-4">Cirugías — Últimos 6 Meses</p>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={analytics.monthlyData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                  cursor={{ stroke: '#e2e8f0' }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="cirugías"
-                  stroke="#1e40af"
-                  strokeWidth={2.5}
-                  dot={{ fill: '#1e40af', r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Por Hospital */}
-          <div className="card">
-            <p className="text-sm font-semibold text-slate-700 mb-4">Top Hospitales</p>
-            {analytics.hospitalData.length === 0
-              ? <p className="text-slate-400 text-sm text-center py-8">Sin datos</p>
-              : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={analytics.hospitalData} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} cursor={{ fill: '#f1f5f9' }} />
-                    <Bar dataKey="cirugías" fill="#0ea5e9" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )
-            }
-          </div>
-
-          {/* Por Cirujano */}
-          <div className="card">
-            <p className="text-sm font-semibold text-slate-700 mb-4">Top Cirujanos</p>
-            {analytics.surgeonData.length === 0
-              ? <p className="text-slate-400 text-sm text-center py-8">Sin datos</p>
-              : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={analytics.surgeonData} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} cursor={{ fill: '#f1f5f9' }} />
-                    <Bar dataKey="cirugías" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )
-            }
-          </div>
-
-          {/* Por ARS */}
-          <div className="card">
-            <p className="text-sm font-semibold text-slate-700 mb-4">Top ARS</p>
-            {analytics.arsData.length === 0
-              ? <p className="text-slate-400 text-sm text-center py-8">Sin datos</p>
-              : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={analytics.arsData} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} cursor={{ fill: '#f1f5f9' }} />
-                    <Bar dataKey="cirugías" fill="#10b981" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )
-            }
-          </div>
-
-        </div>
-      </div>
-
     </div>
   );
 };

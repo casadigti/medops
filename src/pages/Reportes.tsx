@@ -117,6 +117,20 @@ export const Reportes: React.FC = () => {
     total: filtered.filter(s => s.hospital_id === h.id).length,
   })).filter(d => d.total > 0).sort((a,b) => b.total - a.total);
 
+  const byARS = (() => {
+    const counts: Record<string, number> = {};
+    filtered.forEach(s => {
+      const name = (s as any).ars?.name || 'Sin ARS';
+      counts[name] = (counts[name] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, total]) => ({
+        name: name.length > 22 ? name.slice(0, 21) + '…' : name,
+        total,
+      }));
+  })();
+
   const trayUsage = trays.map(t => ({
     name: t.name?.split(' ').slice(0,3).join(' '),
     usos: filtered.filter(s => s.surgery_trays?.some((st: any) => st.tray?.id === t.id)).length,
@@ -548,6 +562,23 @@ export const Reportes: React.FC = () => {
                       <YAxis type="category" dataKey="name" width={130} tick={{ fontSize:11, fill:'#475569' }} axisLine={false} tickLine={false} />
                       <Tooltip contentStyle={{ borderRadius:12, border:'none', boxShadow:'0 4px 20px rgba(0,0,0,.1)', fontSize:12 }} />
                       <Bar dataKey="total" name="Cirugías" fill="#10b981" radius={[0,6,6,0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+            </div>
+
+            <div className="card lg:col-span-2">
+              <SectionTitle>Cirugías por ARS</SectionTitle>
+              {byARS.length === 0
+                ? <div className="flex items-center justify-center h-[200px] text-slate-400 text-sm">Sin datos de ARS en el período</div>
+                : (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={byARS} layout="vertical" margin={{ top:0, right:16, bottom:0, left:10 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                      <XAxis type="number" allowDecimals={false} tick={{ fontSize:11, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="name" width={160} tick={{ fontSize:11, fill:'#475569' }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ borderRadius:12, border:'none', boxShadow:'0 4px 20px rgba(0,0,0,.1)', fontSize:12 }} />
+                      <Bar dataKey="total" name="Cirugías" fill="#f59e0b" radius={[0,6,6,0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
