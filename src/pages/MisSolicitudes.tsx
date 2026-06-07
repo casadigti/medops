@@ -45,7 +45,6 @@ export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
   const [form, setForm] = useState({
     patient_name:   '',
     surgery_date:   '',
-    surgery_time:   '',
     hospital_id:    '',
     procedure_type: '',
     ars_id:         '',
@@ -68,17 +67,18 @@ export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
       if (!mounted) return;
       setSurgeonProfile(surgeonData);
 
-      const [reqs, hospitalsArr, procs, ars] = await Promise.all([
+      const [reqsRes, hospitalsRes, procsRes, arsRes] = await Promise.allSettled([
         surgeonData ? surgeryRequestService.getMySurgeonRequests(surgeonData.id) : Promise.resolve([]),
         hospitalService.getAll(),
         procedureTypeService.getAll(),
         arsService.getAll(),
       ]);
       if (!mounted) return;
-      setRequests(reqs);
-      setHospitals(hospitalsArr);
-      setProcedureTypes(procs || []);
-      setArsList(ars || []);
+      if (reqsRes.status === 'fulfilled') setRequests(reqsRes.value);
+      if (hospitalsRes.status === 'fulfilled') setHospitals(hospitalsRes.value);
+      else console.error('Hospitals load failed:', (hospitalsRes as PromiseRejectedResult).reason);
+      if (procsRes.status === 'fulfilled') setProcedureTypes(procsRes.value || []);
+      if (arsRes.status === 'fulfilled') setArsList(arsRes.value || []);
     } catch (err) {
       console.error('MisSolicitudes: Error fetching data:', err);
     } finally {
@@ -97,9 +97,6 @@ export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
     if (!surgeonProfile) return;
     setSaving(true);
     try {
-      const surgery_date = form.surgery_time
-        ? `${form.surgery_date}T${form.surgery_time}:00`
-        : `${form.surgery_date}T00:00:00`;
       await surgeryRequestService.create({
         patient_name:   form.patient_name,
         hospital_id:    form.hospital_id,
@@ -107,11 +104,11 @@ export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
         ars_id:         form.ars_id || undefined,
         nss:            form.nss || undefined,
         notes:          form.notes,
-        surgery_date,
-        surgeon_id: surgeonProfile.id,
+        surgery_date:   form.surgery_date,
+        surgeon_id:     surgeonProfile.id,
       });
       setIsModalOpen(false);
-      setForm({ patient_name: '', surgery_date: '', surgery_time: '', hospital_id: '', procedure_type: '', ars_id: '', nss: '', notes: '' });
+      setForm({ patient_name: '', surgery_date: '', hospital_id: '', procedure_type: '', ars_id: '', nss: '', notes: '' });
       toast.success('Solicitud enviada. El equipo de logística la revisará pronto.');
       await fetchData(true);
     } catch (err) {
@@ -272,26 +269,15 @@ export const MisSolicitudes: React.FC<MisSolicitudesProps> = () => {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Fecha de Cirugía *</label>
-              <input
-                required
-                type="date"
-                className="input"
-                value={form.surgery_date}
-                onChange={e => setForm({ ...form, surgery_date: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Hora (Opcional)</label>
-              <input
-                type="time"
-                className="input"
-                value={form.surgery_time}
-                onChange={e => setForm({ ...form, surgery_time: e.target.value })}
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Fecha y Hora *</label>
+            <input
+              required
+              type="datetime-local"
+              className="input"
+              value={form.surgery_date ? form.surgery_date.slice(0, 16) : ''}
+              onChange={e => setForm({ ...form, surgery_date: e.target.value })}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
