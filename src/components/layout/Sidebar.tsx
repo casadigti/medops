@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Stethoscope, Package, Users, BarChart3, Settings,
-  LogOut, Wrench, CalendarDays, Shield, Box, ShoppingCart, History, Building2, Warehouse,
+  LogOut, Wrench, CalendarDays, Shield, Box, ShoppingCart, History, Building2, Warehouse, ClipboardList,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { supabase } from '../../lib/supabase';
@@ -21,6 +21,7 @@ const navItems: NavItem[] = [
   { icon: Wrench,          label: 'Mantenimiento',     path: '/mantenimiento',     roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor'] },
   { icon: Users,           label: 'Directorio',        path: '/directorio',        roles: ['Superadmin', 'Administrador', 'Técnico', 'Editor', 'Lector'] },
   { icon: BarChart3,       label: 'Reportes',          path: '/reportes',          roles: ['Superadmin', 'Administrador'] },
+  { icon: ClipboardList,   label: 'Auditoría',          path: '/auditoria',         roles: ['Superadmin', 'Administrador'] },
   { icon: Settings,        label: 'Configuración',     path: '/configuracion',     roles: ['Superadmin', 'Administrador'] },
   { icon: Building2,       label: 'Organizaciones',    path: '/organizaciones',    roles: [], platformOnly: true },
   { icon: Shield,          label: 'Portal Cirujano',   path: '/mis-solicitudes',   roles: ['Superadmin', 'Administrador'], isPreview: true },

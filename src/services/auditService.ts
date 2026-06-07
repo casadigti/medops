@@ -56,12 +56,14 @@ export const auditService = {
     dateFrom,
     dateTo,
     action,
+    entityType,
     limit = 50,
     offset = 0,
   }: {
     dateFrom?: string;
     dateTo?: string;
     action?: string;
+    entityType?: string;
     limit?: number;
     offset?: number;
   } = {}): Promise<{ data: AuditLog[]; count: number }> {
@@ -71,13 +73,13 @@ export const auditService = {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (dateFrom) query = query.gte('created_at', new Date(dateFrom).toISOString());
-    if (dateTo) {
-      const end = new Date(dateTo);
-      end.setHours(23, 59, 59, 999);
-      query = query.lte('created_at', end.toISOString());
-    }
+    // Append time without 'Z' so Date() parses in local timezone, not UTC.
+    // new Date('2026-06-06') = midnight UTC (wrong for RD/UTC-4 users).
+    // new Date('2026-06-06T00:00:00') = midnight local time (correct).
+    if (dateFrom) query = query.gte('created_at', new Date(`${dateFrom}T00:00:00`).toISOString());
+    if (dateTo)   query = query.lte('created_at', new Date(`${dateTo}T23:59:59.999`).toISOString());
     if (action) query = query.ilike('action', `%${action}%`);
+    if (entityType) query = query.eq('entity_type', entityType);
 
     const { data, error, count } = await query;
     if (error) throw error;
