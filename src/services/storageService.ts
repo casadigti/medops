@@ -159,14 +159,43 @@ export const storageService = {
       .update({ item_type: itemType, item_id: itemId, notes: notes ?? null })
       .eq('id', slotId);
     if (error) throw error;
+
+    // Auto-update tray location when assigning a tray to a slot
+    if (itemType === 'tray') {
+      const { data: slotInfo } = await supabase
+        .from('storage_slots')
+        .select('row_index, col_index, storage_shelves!shelf_id(name)')
+        .eq('id', slotId)
+        .single();
+      if (slotInfo) {
+        const shelfData = slotInfo.storage_shelves as { name: string } | { name: string }[] | null;
+        const shelfName = Array.isArray(shelfData) ? shelfData[0]?.name : shelfData?.name;
+        if (shelfName) {
+          const locationStr = `${shelfName} · Celda ${cellLabel(slotInfo.row_index, slotInfo.col_index)}`;
+          await supabase.from('trays').update({ location: locationStr }).eq('id', itemId);
+        }
+      }
+    }
   },
 
   async clearSlot(slotId: string): Promise<void> {
+    // Fetch current occupant before clearing (to update tray location)
+    const { data: slotInfo } = await supabase
+      .from('storage_slots')
+      .select('item_type, item_id')
+      .eq('id', slotId)
+      .single();
+
     const { error } = await supabase
       .from('storage_slots')
       .update({ item_type: null, item_id: null, notes: null })
       .eq('id', slotId);
     if (error) throw error;
+
+    // Clear location on the tray when removed from its slot
+    if (slotInfo?.item_type === 'tray' && slotInfo?.item_id) {
+      await supabase.from('trays').update({ location: null }).eq('id', slotInfo.item_id);
+    }
   },
 
   async getSlotLocations(itemIds: string[]): Promise<Record<string, string>> {
