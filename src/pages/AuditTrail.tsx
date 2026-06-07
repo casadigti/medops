@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Shield, Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Download, RefreshCw } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { auditService } from '../services/auditService';
 import type { AuditLog } from '../types/domain';
 import { useToast } from '../components/ui/Toast';
@@ -107,25 +108,24 @@ export const AuditTrail: React.FC = () => {
     setAppliedFilters({ dateFrom: '', dateTo: '', action: '', entityType: '' });
   }
 
-  function exportCSV() {
+  function exportXLSX() {
     if (logs.length === 0) return;
-    const header = ['Fecha', 'Usuario', 'Acción', 'Entidad', 'ID Entidad', 'Detalles'];
-    const rows = logs.map(l => [
-      formatDate(l.created_at),
-      l.user_email,
-      l.action,
-      l.entity_type,
-      l.entity_id ?? '',
-      JSON.stringify(l.details),
-    ]);
-    const csv = [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `audit_trail_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const rows = logs.map(l => ({
+      Fecha: formatDate(l.created_at),
+      Usuario: l.user_email,
+      'Acción': l.action,
+      Entidad: l.entity_type,
+      'ID Entidad': l.entity_id ?? '',
+      Detalles: JSON.stringify(l.details),
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    // Column widths
+    ws['!cols'] = [
+      { wch: 22 }, { wch: 28 }, { wch: 30 }, { wch: 18 }, { wch: 16 }, { wch: 50 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Auditoría');
+    XLSX.writeFile(wb, `audit_trail_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -147,12 +147,12 @@ export const AuditTrail: React.FC = () => {
           </div>
         </div>
         <button
-          onClick={exportCSV}
+          onClick={exportXLSX}
           disabled={logs.length === 0}
           className="btn btn-secondary flex items-center gap-2 text-sm"
         >
           <Download size={16} />
-          Exportar CSV
+          Exportar Excel
         </button>
       </div>
 
