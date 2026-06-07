@@ -81,7 +81,7 @@ test.describe('Password Reset (admin)', () => {
     await page.getByRole('row').filter({ hasText: 'Dr. Otro' }).getByRole('button', { name: 'Editar' }).click();
 
     await expect(page.getByText('Editar Usuario')).toBeVisible({ timeout: 5000 });
-    await expect(page.getByPlaceholder('Nueva temporal (opcional)')).toBeVisible();
+    await expect(page.getByPlaceholder('Nueva temporal (opcional, mín. 8 caracteres)')).toBeVisible();
   });
 
   test('campo password vacío no envía password al guardar', async ({ page }) => {
@@ -122,9 +122,9 @@ test.describe('Password Reset (admin)', () => {
     await expect(page.getByText('Dr. Otro')).toBeVisible({ timeout: 10000 });
 
     await page.getByRole('row').filter({ hasText: 'Dr. Otro' }).getByRole('button', { name: 'Editar' }).click();
-    await expect(page.getByPlaceholder('Nueva temporal (opcional)')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByPlaceholder('Nueva temporal (opcional, mín. 8 caracteres)')).toBeVisible({ timeout: 5000 });
 
-    await page.getByPlaceholder('Nueva temporal (opcional)').fill('NuevaClave2026');
+    await page.getByPlaceholder('Nueva temporal (opcional, mín. 8 caracteres)').fill('NuevaClave2026');
     // Scope to modal form to avoid ambiguity with page-level "Guardar Cambios" button
     await page.locator('form').getByRole('button', { name: /guardar cambios/i }).click();
 
@@ -139,13 +139,13 @@ test.describe('Password Reset (admin)', () => {
     await expect(page.getByText('Dr. Otro')).toBeVisible({ timeout: 10000 });
 
     await page.getByRole('row').filter({ hasText: 'Dr. Otro' }).getByRole('button', { name: 'Editar' }).click();
-    await expect(page.getByPlaceholder('Nueva temporal (opcional)')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByPlaceholder('Nueva temporal (opcional, mín. 8 caracteres)')).toBeVisible({ timeout: 5000 });
 
-    await page.getByPlaceholder('Nueva temporal (opcional)').fill('abc');
+    await page.getByPlaceholder('Nueva temporal (opcional, mín. 8 caracteres)').fill('WeakPass1');
     // Scope to modal form to avoid ambiguity with page-level "Guardar Cambios" button
     await page.locator('form').getByRole('button', { name: /guardar cambios/i }).click();
 
-    // Error toast — not success
+    // Error toast — not success (mock returns { error: 'Password too weak' })
     await expect(page.getByText('Usuario actualizado correctamente.')).not.toBeVisible({ timeout: 3000 });
   });
 });
