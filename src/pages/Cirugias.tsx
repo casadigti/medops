@@ -731,9 +731,11 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Gestión de Cirugías</h1>
           <p className="text-slate-500">{surgeries.length} cirugías registradas</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setModal({ data: null })}>
-          <Plus size={18} />Nueva Cirugía
-        </button>
+        {!isSurgeon && (
+          <button className="btn btn-primary" onClick={() => setModal({ data: null })}>
+            <Plus size={18} />Nueva Cirugía
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -774,8 +776,9 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
       </div>
 
       {loading ? <PageLoader /> : filtered.length === 0
-        ? <EmptyState icon={Stethoscope} title="Sin cirugías registradas" description="Crea la primera cirugía con el botón superior"
-            action={<button className="btn btn-primary" onClick={() => setModal({ data: null })}><Plus size={16} />Nueva Cirugía</button>} />
+        ? <EmptyState icon={Stethoscope} title="Sin cirugías registradas"
+            description={isSurgeon ? "Aún no tienes cirugías registradas" : "Crea la primera cirugía con el botón superior"}
+            action={!isSurgeon ? <button className="btn btn-primary" onClick={() => setModal({ data: null })}><Plus size={16} />Nueva Cirugía</button> : undefined} />
         : (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
