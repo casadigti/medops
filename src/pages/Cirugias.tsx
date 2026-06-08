@@ -689,7 +689,7 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
                     </div>
                     <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-500 flex-wrap">
                       <span className="flex items-center gap-1">
-                        <User size={11} /> Dr. {req.surgeon?.full_name ?? '—'}
+                        <User size={11} /> {req.surgeon?.full_name ?? '—'}
                       </span>
                       <span className="flex items-center gap-1">
                         <Building2 size={11} /> {req.hospital?.name ?? '—'}
@@ -901,7 +901,7 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
         <Modal isOpen={!!rejectModal} onClose={() => setRejectModal(null)} title="Rechazar solicitud" size="sm">
           <div className="space-y-4">
             <p className="text-sm text-slate-600">
-              Estás rechazando la solicitud de <span className="font-bold">{rejectModal.request.patient_name}</span> del Dr. {rejectModal.request.surgeon?.full_name}.
+              Estás rechazando la solicitud de <span className="font-bold">{rejectModal.request.patient_name}</span> del {rejectModal.request.surgeon?.full_name}.
             </p>
             <div>
               <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Motivo (requerido)</label>
