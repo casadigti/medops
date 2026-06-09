@@ -803,6 +803,7 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
                           <span className="text-[11px] font-bold px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md whitespace-nowrap uppercase">
                             {arsList.find(a => a.id === s.ars_id)?.name || 'Sin ARS'}
                           </span>
+                          {s.nss && <p className="text-[10px] text-slate-400 mt-0.5">NSS: {s.nss}</p>}
                         </td>
                         <td className="px-4 py-3.5 text-sm text-slate-600 max-w-[220px]">
                           <div className="flex flex-wrap gap-1">
