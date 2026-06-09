@@ -145,34 +145,33 @@ export const SolicitudesAdmin: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap gap-2 items-center">
+        <div className="relative w-48">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input
-            className="input pl-9 text-sm"
-            placeholder="Buscar paciente, cirujano, procedimiento..."
+            className="input pl-8 text-sm w-full"
+            placeholder="Buscar..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <select className="input text-sm" value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}>
+        <select className="input text-sm w-36" value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}>
           <option value="">Todos los estados</option>
           <option value="Pendiente">Pendiente</option>
           <option value="Aprobada">Aprobada</option>
           <option value="Rechazada">Rechazada</option>
         </select>
-        <select className="input text-sm" value={filterSurgeon} onChange={e => setFilterSurgeon(e.target.value)}>
+        <select className="input text-sm w-52" value={filterSurgeon} onChange={e => setFilterSurgeon(e.target.value)}>
           <option value="">Todos los cirujanos</option>
           {surgeons.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
         </select>
-        <div className="flex items-center gap-2">
-          <Calendar size={14} className="text-slate-400" />
-          <input type="date" className="input text-sm" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+        <div className="flex items-center gap-1.5">
+          <input type="date" className="input text-sm w-36" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
           <span className="text-slate-400 text-sm">—</span>
-          <input type="date" className="input text-sm" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+          <input type="date" className="input text-sm w-36" value={dateTo} onChange={e => setDateTo(e.target.value)} />
         </div>
         {(search || filterStatus || filterSurgeon || dateFrom || dateTo) && (
-          <button className="text-xs text-slate-500 hover:text-red-500 underline" onClick={() => { setSearch(''); setFilterStatus(''); setFilterSurgeon(''); setDateFrom(''); setDateTo(''); }}>
+          <button className="text-xs text-slate-500 hover:text-red-500 underline whitespace-nowrap" onClick={() => { setSearch(''); setFilterStatus(''); setFilterSurgeon(''); setDateFrom(''); setDateTo(''); }}>
             Limpiar filtros
           </button>
         )}
