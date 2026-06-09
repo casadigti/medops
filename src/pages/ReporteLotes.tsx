@@ -37,7 +37,6 @@ export const ReporteLotes: React.FC = () => {
     try {
       setLoading(true);
       const data = await implantService.getAllLotsDetailed();
-      console.log('Lots loaded:', data);
       setLots(data || []);
       if (data && data.length > 0) {
         toast.success(`${data.length} lotes cargados`);
