@@ -156,20 +156,20 @@ export const SolicitudesAdmin: React.FC = () => {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <select className="input text-sm shrink-0" value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}>
+        <select className="input text-sm w-36 shrink-0" value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}>
           <option value="">Todos los estados</option>
           <option value="Pendiente">Pendiente</option>
           <option value="Aprobada">Aprobada</option>
           <option value="Rechazada">Rechazada</option>
         </select>
-        <select className="input text-sm shrink-0" value={filterSurgeon} onChange={e => setFilterSurgeon(e.target.value)}>
+        <select className="input text-sm w-40 shrink-0" value={filterSurgeon} onChange={e => setFilterSurgeon(e.target.value)}>
           <option value="">Todos los cirujanos</option>
           {surgeons.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
         </select>
         <div className="flex items-center gap-1.5 shrink-0">
-          <input type="date" className="input text-sm" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+          <input type="date" className="input text-sm w-32" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
           <span className="text-slate-400 text-sm">—</span>
-          <input type="date" className="input text-sm" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+          <input type="date" className="input text-sm w-32" value={dateTo} onChange={e => setDateTo(e.target.value)} />
         </div>
         {(search || filterStatus || filterSurgeon || dateFrom || dateTo) && (
           <button className="text-xs text-slate-500 hover:text-red-500 underline whitespace-nowrap" onClick={() => { setSearch(''); setFilterStatus(''); setFilterSurgeon(''); setDateFrom(''); setDateTo(''); }}>
