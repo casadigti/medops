@@ -146,30 +146,30 @@ export const SolicitudesAdmin: React.FC = () => {
 
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-nowrap gap-2 items-center overflow-x-auto">
-        <div className="relative w-48 shrink-0">
+        <div className="relative flex-1 min-w-0">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input
-            className="input text-xs w-full"
+            className="input text-sm w-full"
             style={{ paddingLeft: '2rem' }}
-            placeholder="Buscar paciente, cirujano..."
+            placeholder="Buscar paciente, cirujano, procedimiento..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <select className="input text-xs w-24 shrink-0" value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}>
-          <option value="">Estado</option>
+        <select className="input text-sm shrink-0" value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}>
+          <option value="">Todos los estados</option>
           <option value="Pendiente">Pendiente</option>
           <option value="Aprobada">Aprobada</option>
           <option value="Rechazada">Rechazada</option>
         </select>
-        <select className="input text-xs w-28 shrink-0" value={filterSurgeon} onChange={e => setFilterSurgeon(e.target.value)}>
-          <option value="">Cirujano</option>
+        <select className="input text-sm shrink-0" value={filterSurgeon} onChange={e => setFilterSurgeon(e.target.value)}>
+          <option value="">Todos los cirujanos</option>
           {surgeons.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
         </select>
-        <div className="flex items-center gap-1 shrink-0">
-          <input type="date" className="input text-xs w-28" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-          <span className="text-slate-400 text-xs">—</span>
-          <input type="date" className="input text-xs w-28" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+        <div className="flex items-center gap-1.5 shrink-0">
+          <input type="date" className="input text-sm" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+          <span className="text-slate-400 text-sm">—</span>
+          <input type="date" className="input text-sm" value={dateTo} onChange={e => setDateTo(e.target.value)} />
         </div>
         {(search || filterStatus || filterSurgeon || dateFrom || dateTo) && (
           <button className="text-xs text-slate-500 hover:text-red-500 underline whitespace-nowrap" onClick={() => { setSearch(''); setFilterStatus(''); setFilterSurgeon(''); setDateFrom(''); setDateTo(''); }}>
