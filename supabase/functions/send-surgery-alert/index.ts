@@ -2,8 +2,9 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,6 +28,26 @@ serve(async (req) => {
   }
 
   try {
+    // Verificar autenticación JWT antes de procesar cualquier dato
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'No authorization header' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      })
+    }
+
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    })
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized: Invalid token' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      })
+    }
+
     const { surgery } = await req.json()
 
     // 1. Conectar a Supabase como Administrador (Service Role)
