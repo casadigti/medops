@@ -146,22 +146,23 @@ export const SolicitudesAdmin: React.FC = () => {
 
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-nowrap gap-2 items-center overflow-x-auto">
-        <div className="relative w-48">
+        <div className="relative w-72 shrink-0">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input
-            className="input pl-8 text-sm w-full"
-            placeholder="Buscar..."
+            className="input text-sm w-full"
+            style={{ paddingLeft: '2rem' }}
+            placeholder="Buscar paciente, cirujano..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <select className="input text-sm w-36" value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}>
+        <select className="input text-sm w-36 shrink-0" value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}>
           <option value="">Todos los estados</option>
           <option value="Pendiente">Pendiente</option>
           <option value="Aprobada">Aprobada</option>
           <option value="Rechazada">Rechazada</option>
         </select>
-        <select className="input text-sm w-52" value={filterSurgeon} onChange={e => setFilterSurgeon(e.target.value)}>
+        <select className="input text-sm w-44 shrink-0" value={filterSurgeon} onChange={e => setFilterSurgeon(e.target.value)}>
           <option value="">Todos los cirujanos</option>
           {surgeons.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
         </select>
