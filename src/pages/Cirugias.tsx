@@ -16,7 +16,7 @@ import { cn } from '../utils/cn';
 import { printService } from '../services/printService';
 import { implantService } from '../services/implantService';
 import { useToast } from '../components/ui/Toast';
-import { ShoppingCart, CheckCircle2, FileText } from 'lucide-react';
+import { ShoppingCart, CheckCircle2, FileText, Clock } from 'lucide-react';
 import { generateActaQuirurgica } from '../utils/pdfGenerator';
 import type { UserProfile, Surgery, Surgeon, Hospital, ARS, Implant, SurgeryConsumption, TrayWithAvailability, SurgeryStatus, ProcedureType, SurgeryRequest } from '../types/domain';
 import { useRealtimeSurgeries } from '../hooks/useRealtimeSurgeries';
@@ -470,6 +470,7 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo]     = useState('');
   const [modal, setModal]         = useState<{ data: Surgery | null } | null>(null);
+  const [statusHistory, setStatusHistory] = useState<Array<{ id: string; old_status: string | null; new_status: string; created_at: string }>>([]);
   const [consumptionModal, setConsumptionModal] = useState<Surgery | null>(null);
   const [confirm, setConfirm]     = useState<{ id: string; name: string } | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
@@ -877,7 +878,7 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
                                <FileText size={15} />
                              </button>
                              {!isSurgeon && <>
-                               <button onClick={() => setModal({ data: s })} className="p-2 hover:bg-blue-50 rounded-lg text-slate-400 hover:text-blue-600 transition-colors"><Pencil size={15} /></button>
+                               <button onClick={async () => { setModal({ data: s }); setStatusHistory(await surgeryService.getStatusHistory(s.id)); }} className="p-2 hover:bg-blue-50 rounded-lg text-slate-400 hover:text-blue-600 transition-colors"><Pencil size={15} /></button>
                                <button onClick={() => setConfirm({ id: s.id, name: s.patient_name })} className="p-2 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={15} /></button>
                              </>}
                            </div>
@@ -891,8 +892,23 @@ export const Cirugias: React.FC<CirugiasProps> = ({ userProfile }) => {
            </div>
          )}
 
-       <Modal isOpen={!!modal} onClose={() => setModal(null)} title={modal?.data ? 'Editar Cirugía' : 'Nueva Cirugía'} size="lg">
-         <SurgeryForm initial={modal?.data} surgeons={surgeons} hospitals={hospitals} arsList={arsList} procedureTypes={procedureTypes} onSave={handleSave} onCancel={() => setModal(null)} loading={saving} />
+       <Modal isOpen={!!modal} onClose={() => { setModal(null); setStatusHistory([]); }} title={modal?.data ? 'Editar Cirugía' : 'Nueva Cirugía'} size="lg">
+         <SurgeryForm initial={modal?.data} surgeons={surgeons} hospitals={hospitals} arsList={arsList} procedureTypes={procedureTypes} onSave={handleSave} onCancel={() => { setModal(null); setStatusHistory([]); }} loading={saving} />
+         {modal?.data && statusHistory.length > 0 && (
+           <div className="mt-6 pt-4 border-t border-slate-100">
+             <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1"><Clock size={12} />Historial de Estados</p>
+             <div className="space-y-2">
+               {statusHistory.map((h, i) => (
+                 <div key={h.id} className="flex items-center gap-3 text-xs">
+                   <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                   <span className="text-slate-400">{new Date(h.created_at).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                   {h.old_status && <><span className="text-slate-400 line-through">{h.old_status}</span><span className="text-slate-400">→</span></>}
+                   <span className="font-bold text-slate-700">{h.new_status}</span>
+                 </div>
+               ))}
+             </div>
+           </div>
+         )}
        </Modal>
        <Modal isOpen={!!consumptionModal} onClose={() => setConsumptionModal(null)} title={`Reportar Gasto: ${consumptionModal?.patient_name}`} size="md">
          {consumptionModal && <ConsumptionForm surgery={consumptionModal} onSave={handleConsumptionReport} onCancel={() => setConsumptionModal(null)} loading={saving} />}
