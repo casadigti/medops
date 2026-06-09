@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 import { cn } from '../utils/cn';
 import {
   CheckCircle, XCircle, AlertCircle, ClipboardList,
-  Calendar, Building2, User, Search, Filter, ChevronDown,
+  Calendar, Building2, Search,
 } from 'lucide-react';
 import type { SurgeryRequest, SurgeryRequestStatus, Surgeon } from '../types/domain';
 
@@ -147,7 +147,7 @@ export const SolicitudesAdmin: React.FC = () => {
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[200px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input
             className="input pl-9 text-sm"
             placeholder="Buscar paciente, cirujano, procedimiento..."
@@ -155,24 +155,16 @@ export const SolicitudesAdmin: React.FC = () => {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <div className="relative">
-          <Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <select className="input pl-10 pr-8 text-sm appearance-none" value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}>
-            <option value="">Todos los estados</option>
-            <option value="Pendiente">Pendiente</option>
-            <option value="Aprobada">Aprobada</option>
-            <option value="Rechazada">Rechazada</option>
-          </select>
-          <ChevronDown size={13} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-        </div>
-        <div className="relative">
-          <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <select className="input pl-10 pr-8 text-sm appearance-none" value={filterSurgeon} onChange={e => setFilterSurgeon(e.target.value)}>
-            <option value="">Todos los cirujanos</option>
-            {surgeons.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
-          </select>
-          <ChevronDown size={13} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-        </div>
+        <select className="input text-sm" value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}>
+          <option value="">Todos los estados</option>
+          <option value="Pendiente">Pendiente</option>
+          <option value="Aprobada">Aprobada</option>
+          <option value="Rechazada">Rechazada</option>
+        </select>
+        <select className="input text-sm" value={filterSurgeon} onChange={e => setFilterSurgeon(e.target.value)}>
+          <option value="">Todos los cirujanos</option>
+          {surgeons.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+        </select>
         <div className="flex items-center gap-2">
           <Calendar size={14} className="text-slate-400" />
           <input type="date" className="input text-sm" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
