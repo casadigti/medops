@@ -157,7 +157,7 @@ export const SolicitudesAdmin: React.FC = () => {
         </div>
         <div className="relative">
           <Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <select className="input pl-8 pr-8 text-sm appearance-none" value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}>
+          <select className="input pl-10 pr-8 text-sm appearance-none" value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}>
             <option value="">Todos los estados</option>
             <option value="Pendiente">Pendiente</option>
             <option value="Aprobada">Aprobada</option>
@@ -167,7 +167,7 @@ export const SolicitudesAdmin: React.FC = () => {
         </div>
         <div className="relative">
           <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <select className="input pl-8 pr-8 text-sm appearance-none" value={filterSurgeon} onChange={e => setFilterSurgeon(e.target.value)}>
+          <select className="input pl-10 pr-8 text-sm appearance-none" value={filterSurgeon} onChange={e => setFilterSurgeon(e.target.value)}>
             <option value="">Todos los cirujanos</option>
             {surgeons.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
           </select>
