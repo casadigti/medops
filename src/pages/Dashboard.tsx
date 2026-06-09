@@ -75,12 +75,10 @@ export const Dashboard: React.FC = () => {
           if (mounted) {
             surgeryService.getAll()
               .then(d => { if (mounted) setSurgeries(d || []); })
-              .catch(console.error);
+              .catch(() => {});
           }
         })
-        .subscribe((status) => {
-          console.log('Dashboard: Realtime status:', status);
-        });
+        .subscribe();
     };
 
     const realtimeTimer = setTimeout(setupRealtime, 2000);

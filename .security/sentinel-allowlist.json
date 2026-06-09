@@ -1,5 +1,5 @@
 {
-  "paths": ["import.meta.env", ".env.local", "process.env.CI", "SECURITY_AUDIT.md", "process.env.SUPABASE_URL", "process.env.SUPABASE_PROJECT_REF", "process.env.E2E_SUPABASE_URL", "process.env.E2E_SUPABASE_PROJECT_REF", "Deno.env.get", "supabase/functions/inventory-search/index.ts", ".env.get"],
+  "paths": ["import.meta.env", ".env.local", "process.env.CI", "SECURITY_AUDIT.md", "process.env.SUPABASE_URL", "process.env.SUPABASE_PROJECT_REF", "process.env.E2E_SUPABASE_URL", "process.env.E2E_SUPABASE_PROJECT_REF", "Deno.env.get", "supabase/functions/inventory-search/index.ts", "supabase/functions/send-surgery-alert/index.ts", "supabase/functions/manage-users/index.ts", "supabase/functions/manage-orgs/index.ts", ".env.get"],
   "domains": [],
   "commands": ["settings.json deny rules"]
 }
