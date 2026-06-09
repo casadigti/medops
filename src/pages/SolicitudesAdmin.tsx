@@ -145,7 +145,7 @@ export const SolicitudesAdmin: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap gap-2 items-center">
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-nowrap gap-2 items-center overflow-x-auto">
         <div className="relative w-48">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input
