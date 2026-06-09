@@ -2,6 +2,12 @@
 -- Notifica al cirujano (campana in-app) cuando su solicitud es Aprobada/Rechazada.
 -- Patrón: trigger SECURITY DEFINER (igual que notify_surgery_status_change),
 -- porque la tabla notifications NO tiene policy INSERT para clientes (RLS).
+--
+-- ROLLBACK (ejecutar en SQL Editor si necesitas deshacer):
+--   DROP TRIGGER IF EXISTS trg_notify_surgeon_request_decision ON public.surgery_requests;
+--   DROP FUNCTION IF EXISTS public.notify_surgeon_request_decision();
+-- Efecto: las notificaciones in-app ya generadas no se eliminan; solo se detiene
+-- la generación de nuevas al aprobar/rechazar solicitudes.
 
 CREATE OR REPLACE FUNCTION public.notify_surgeon_request_decision()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$

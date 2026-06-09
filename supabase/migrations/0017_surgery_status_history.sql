@@ -1,4 +1,8 @@
 -- Track every status change on a surgery: who changed it, from what, to what.
+--
+-- ROLLBACK (ejecutar en SQL Editor si necesitas deshacer):
+--   DROP TABLE IF EXISTS surgery_status_history;
+-- No hay datos de negocio críticos en esta tabla; es historial auditable.
 
 CREATE TABLE IF NOT EXISTS surgery_status_history (
   id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),

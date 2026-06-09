@@ -119,7 +119,12 @@ serve(async (req) => {
       // Cambiar el email dispara el flujo "Secure email change" de Supabase,
       // que requiere SMTP configurado y falla con 400 si no lo hay.
       // El email se persiste solo en la tabla `profiles` desde el cliente.
-      const updates: any = {
+      type AdminUpdatePayload = {
+        user_metadata: { full_name: string; role: string }
+        password?: string
+        email_confirm?: boolean
+      }
+      const updates: AdminUpdatePayload = {
         user_metadata: { full_name, role },
       }
       if (password) {
