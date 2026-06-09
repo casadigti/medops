@@ -21,6 +21,7 @@ import { Organizaciones } from './pages/Organizaciones';
 import { AlmacenMap } from './pages/AlmacenMap';
 import { AuditTrail } from './pages/AuditTrail';
 import { PreparacionBandeja } from './pages/PreparacionBandeja';
+import { SolicitudesAdmin } from './pages/SolicitudesAdmin';
 import { ForcePasswordChange } from './components/auth/ForcePasswordChange';
 import { InventoryChat } from './components/chat/InventoryChat';
 import type { Session } from '@supabase/supabase-js';
@@ -179,6 +180,7 @@ function App() {
                     <Route path="/mis-solicitudes" element={<MisSolicitudes userProfile={userProfile} />} />
                     <Route path="/almacen" element={!isSurgeon ? <AlmacenMap userProfile={userProfile} /> : <Navigate to="/mis-solicitudes" replace />} />
                     <Route path="/auditoria" element={(userProfile?.role === 'Administrador' || userProfile?.role === 'Superadmin') ? <AuditTrail /> : <Navigate to="/" replace />} />
+                    <Route path="/solicitudes-admin" element={!isSurgeon ? <SolicitudesAdmin /> : <Navigate to="/mis-solicitudes" replace />} />
                     <Route path="/preparacion" element={!isSurgeon ? <PreparacionBandeja /> : <Navigate to="/mis-solicitudes" replace />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>

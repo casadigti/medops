@@ -140,11 +140,38 @@ export const surgeryService = {
   },
 
   async updateStatus(id: string, status: SurgeryStatus): Promise<Surgery> {
+    // Fetch current status to record old value in history
+    const { data: current } = await supabase
+      .from('surgeries').select('status').eq('id', id).single();
+
     const { data, error } = await supabase
       .from('surgeries').update({ status }).eq('id', id).select().single();
     if (error) throw error;
-    await auditService.log('SURGERY_STATUS_CHANGE', 'surgeries', id, { new_status: status });
+
+    // Log to surgery_status_history (best-effort)
+    await supabase.from('surgery_status_history').insert({
+      surgery_id: id,
+      old_status: current?.status ?? null,
+      new_status: status,
+    });
+
+    await auditService.log('SURGERY_STATUS_CHANGE', 'surgeries', id, {
+      old_status: current?.status,
+      new_status: status,
+    });
     return data;
+  },
+
+  async getStatusHistory(surgeryId: string): Promise<Array<{
+    id: string; old_status: string | null; new_status: string; created_at: string;
+  }>> {
+    const { data, error } = await supabase
+      .from('surgery_status_history')
+      .select('id, old_status, new_status, created_at')
+      .eq('surgery_id', surgeryId)
+      .order('created_at', { ascending: true });
+    if (error) return [];
+    return data ?? [];
   },
 
   async updateDate(id: string, newDate: string): Promise<Surgery> {
