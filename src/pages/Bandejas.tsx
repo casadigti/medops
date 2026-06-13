@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 import { trayService } from '../services/trayService';
 import { getLocalDateString } from '../utils/dateUtils';
 import { Modal } from '../components/ui/Modal';
@@ -144,16 +153,16 @@ const TrayItemsPanel: React.FC<{ trayId: string; canEdit: boolean; trayName: str
     const date = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
     const rows = items.map(item => `
       <tr>
-        <td>${item.implant?.name ?? '—'}</td>
-        <td class="sku">${item.implant?.sku ?? '—'}</td>
-        <td class="qty">${item.quantity}</td>
+        <td>${escapeHtml(item.implant?.name ?? '—')}</td>
+        <td class="sku">${escapeHtml(item.implant?.sku ?? '—')}</td>
+        <td class="qty">${escapeHtml(item.quantity)}</td>
         <td class="check"></td>
       </tr>`).join('');
 
     const win = window.open('', '_blank', 'width=800,height=600');
     if (!win) return;
     win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
-      <title>Componentes — ${trayName}</title>
+      <title>Componentes — ${escapeHtml(trayName)}</title>
       <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:'Segoe UI',Arial,sans-serif;color:#1e293b;padding:32px}
@@ -181,9 +190,9 @@ const TrayItemsPanel: React.FC<{ trayId: string; canEdit: boolean; trayName: str
       <div class="hdr">
         <div><div class="brand">MedOps</div><div class="sub">Gestión Médica Quirúrgica</div></div>
         <div class="meta">
-          <b>${trayName}</b>
-          ${trayCode ? `<code>${trayCode}</code>` : ''}
-          <div style="margin-top:4px">${date}</div>
+          <b>${escapeHtml(trayName)}</b>
+          ${trayCode ? `<code>${escapeHtml(trayCode)}</code>` : ''}
+          <div style="margin-top:4px">${escapeHtml(date)}</div>
         </div>
       </div>
       <h2>Lista de Componentes (${items.length} ítems)</h2>

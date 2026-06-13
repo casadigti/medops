@@ -69,9 +69,12 @@ serve(async (req) => {
     // 3. Extraer solo los correos
     let emails = admins?.map(a => a.email).filter(Boolean) || []
     
-    // Si por alguna razón no hay admins configurados, usa un fallback
+    // No hay admins activos en esta org → no enviar correo (evita filtrar PHI a un email externo)
     if (emails.length === 0) {
-      emails = ['casadigti@gmail.com']
+      return new Response(JSON.stringify({ skipped: true, reason: 'no_active_admins' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
     }
 
     const subject = `🚨 ALERTA: Nueva Cirugía - ${surgery.patient_name}`
