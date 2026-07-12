@@ -180,7 +180,8 @@ describe('auditService.getFiltered', () => {
 
     await auditService.getFiltered({ dateFrom: '2026-01-01' });
 
-    expect(chain.gte).toHaveBeenCalledWith('created_at', new Date('2026-01-01').toISOString());
+    // Local midnight, not UTC — auditService appends T00:00:00 without Z on purpose (RD/UTC-4)
+    expect(chain.gte).toHaveBeenCalledWith('created_at', new Date('2026-01-01T00:00:00').toISOString());
   });
 
   it('applies lte filter for dateTo at end of day', async () => {
