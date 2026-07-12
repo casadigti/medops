@@ -322,8 +322,8 @@ de plataforma). Se usa `is_platform_admin`, no `role === 'Superadmin'`, porque
 (ver `CLAUDE.md` → Roles), consistente con cómo el resto del código (`manage-orgs`,
 todas las policies RLS) ya distingue "plataforma" de "rol".
 
-**Estado:** ✅ Corregido en código. **Pendiente:** redesplegar
-(`npm run deploy:functions`, toca infraestructura — acción manual).
+**Estado:** ✅ Corregido en código y redesplegado a producción vía Supabase
+Dashboard (2026-07-12).
 
 ---
 
@@ -366,7 +366,7 @@ tomar control total de esa cuenta desde cualquier `Administrador`.
 
 | ID | Severidad | Estado |
 |----|-----------|--------|
-| F-18 | 🔴 CRITICO | ✅ Corregido en código · ⏳ redeploy pendiente |
+| F-18 | 🔴 CRITICO | ✅ Corregido en código y redesplegado a producción |
 | F-19 | 🔴 CRITICO | ✅ Corregido en código y build |
 | A-1  | 🟠 ALTO | ⏳ Pendiente — decisión del usuario |
 

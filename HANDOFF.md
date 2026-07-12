@@ -90,10 +90,8 @@ Patrón: todos aplican `getImpersonatedOrgId()` para multi-tenancy.
 ## Pendientes
 
 **Seguridad (ver `SECURITY_AUDIT.md` Fase 5, 2026-07-12) — ALTA prioridad:**
-- **Redesplegar `manage-users`** (`npm run deploy:functions`) — el fix de F-18
-  (cross-tenant account takeover: un `Administrador` podía resetear/borrar
-  usuarios de OTRA organización) está corregido en código local pero NO en
-  producción hasta el redeploy.
+- **F-18 (cross-tenant account takeover en `manage-users`)** — corregido en
+  código y **redesplegado a producción** vía Supabase Dashboard (2026-07-12).
 - **F-19 (Stored XSS en `Bandejas.tsx`)** — corregido en código, se despliega
   con el build normal de frontend (Vercel), sin acción extra.
 - **A-1 pendiente de decisión:** `scripts/assign_admin.js` tiene un UID/email
@@ -122,7 +120,7 @@ misma sesión) sobre `feat/impersonation`. Detalle completo en
 
 | Hallazgo | Severidad | Fix |
 |----------|-----------|-----|
-| F-18: `manage-users` `update`/`delete` sin check de org cruzada | 🔴 Crítico | `assertSameOrgAsTarget()` en `supabase/functions/manage-users/index.ts` — bypass solo para `is_platform_admin`, no para `role==='Superadmin'`. **Falta redeploy.** |
+| F-18: `manage-users` `update`/`delete` sin check de org cruzada | 🔴 Crítico | `assertSameOrgAsTarget()` en `supabase/functions/manage-users/index.ts` — bypass solo para `is_platform_admin`, no para `role==='Superadmin'`. Redesplegado a producción 2026-07-12. |
 | F-19: XSS sin escapar en impresión de bandejas (regresión de F-01) | 🔴 Crítico | `escapeHtml()` extraída a `src/utils/escapeHtml.ts` (compartida con `Reportes.tsx`), aplicada en `src/pages/Bandejas.tsx`. `tsc --noEmit` limpio. |
 | A-1: Superadmin real hardcodeado en `scripts/assign_admin.js` | 🟠 Alto | Sin resolver — pendiente decisión de usuario. |
 
