@@ -1,5 +1,5 @@
 # MedOps — Handoff Document
-**Fecha:** 2026-07-12 | **Rama activa:** `feat/impersonation` | **Último PR:** #70 (+ commits manage-users desplegados)
+**Fecha:** 2026-07-12 | **Rama activa:** `feat/impersonation` (mergeada a `main` vía PR #82, en Production) | **Último PR:** #82
 
 ---
 
@@ -100,7 +100,7 @@ Patrón: todos aplican `getImpersonatedOrgId()` para multi-tenancy.
   Dashboard (su identidad ya quedó expuesta en el historial independientemente
   del fix de F-18).
 
-**Merge pendiente:** PRs #67, #68, #69, #70 → casadigti/medops (verificar cuáles ya mergeados).
+**Merge:** PR #82 (`feat/impersonation` → `main`) mergeado y en Production (`ad29db1`).
 **Media prioridad:**
 - Búsqueda global no resalta/filtra resultado específico al navegar
 - CLI Supabase 403 al deploy (cuenta sin privilegios) → deploys via Dashboard o `supabase login`
@@ -134,6 +134,37 @@ implica acceso a otras orgs por sí solo — así lo trata el resto del código
 seguridad específico de MedOps (secretos → validación de entrada → multi-tenancy
 → inyección/XSS → logs sensibles → dependencias), con archivos/líneas reales
 del proyecto. Invocar con `/chequeo-seguridad`.
+
+**Merge con el fork:** `fork/feat/impersonation` (jolumax) tenía un commit
+(`99ca0e6`) no presente en local: fix RLS de `surgery_requests` (fuga cross-org
+de PHI, migración `0019_fix_surgery_requests_rls.sql`), el mismo fix de XSS en
+`Bandejas.tsx` hecho de forma independiente (inline), quitado el email
+hardcodeado de fallback en `send-surgery-alert`, y bump de `react-router` por
+CVE. Se mergeó con `git merge fork/feat/impersonation`; el único conflicto real
+(`escapeHtml` duplicado en `Bandejas.tsx`, definido inline por el fork Y
+importado del util compartido por esta sesión) se resolvió a favor del util
+compartido (`0986548`).
+
+**Errores de consola en preview (Vercel Deployment Protection):**
+| Error | Causa | Fix |
+|-------|-------|-----|
+| CSP `violates ... default-src 'self'` para `vercel.com`/`vercel.live` | El toolbar/feedback de preview de Vercel no estaba en la allowlist del CSP de `vercel.json` | `vercel.com`/`vercel.live` añadidos solo a `script-src`, `connect-src`, `img-src`, `manifest-src`, nuevo `frame-src` (`27db462`) |
+| `CORS ... No Access-Control-Allow-Origin` + `307` en `manifest.webmanifest` | `vite-plugin-pwa` inyecta el `<link rel="manifest">` sin `crossorigin`; sin cookie, Vercel SSO gate lo redirige y el fetch cross-origin falla CORS | `useCredentials: true` en `VitePWA()` (`vite.config.js`) → inyecta `crossorigin="use-credentials"` (`1079caf`) |
+
+Ambos solo afectan previews protegidos por SSO; producción no tiene ese gate.
+
+**Skill nueva:** `.claude/skills/fixer/SKILL.md` — metodología de arreglo de
+bugs específica de MedOps (reproducir → causa raíz → arreglo mínimo → probar
+con evidencia → contra el "ya quedó" → reporte fiel), con los comandos reales
+del proyecto (`npx vitest run ... -t "..."`, `npx playwright test e2e/...`,
+`npx tsc --noEmit`). Invocar con `/fixer`. Además, skill global (no versionada
+en este repo) `~/.claude/skills/fable-fixer/SKILL.md` con la misma filosofía,
+reusable en cualquier proyecto.
+
+**Demostrada la skill fixer en esta sesión:** test `auditService.getFiltered
+> applies gte filter for dateFrom` fallaba por expectativa UTC desactualizada
+(el servicio parsea fechas en local time a propósito, RD/UTC-4); corregido en
+`src/services/__tests__/auditService.test.js` (`aaea08c`).
 
 ---
 
@@ -212,4 +243,4 @@ Admin check: `userProfile?.role === 'Administrador' || userProfile?.role === 'Su
 
 ## Skills instaladas
 
-`caveman` · `superpowers` · `agent-browser` · `ui-ux-pro-max` · `ecc` · `napkin` · `graphify` · `chequeo-seguridad` (propia del proyecto, `.claude/skills/chequeo-seguridad/SKILL.md`)
+`caveman` · `superpowers` · `agent-browser` · `ui-ux-pro-max` · `ecc` · `napkin` · `graphify` · `chequeo-seguridad` (propia del proyecto) · `fixer` (propia del proyecto, `/fixer`) · `fable-fixer` (global, `~/.claude/skills/`, misma metodología reusable en cualquier proyecto)
