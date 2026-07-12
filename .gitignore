@@ -35,3 +35,16 @@ Thumbs.db
 
 # Vite cache
 .vite/
+
+# Test artifacts
+playwright-report/
+test-results/
+
+# Local Supabase CLI cache (project ref, pooler URL, tool versions)
+supabase/.temp/
+
+# Local git worktrees (created by Claude Code sessions)
+.claude/worktrees/
+
+# Local knowledge-graph output (graphify skill)
+graphify-out/

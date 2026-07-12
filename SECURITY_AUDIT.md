@@ -292,3 +292,97 @@ DB sin escapar en el HTML del email (`${surgery.patient_name}` etc.) y
 usa `Access-Control-Allow-Origin: '*'`. Bajo impacto (los clientes de
 correo no ejecutan JS), pero conviene escapar y restringir CORS. Requiere
 editar y redesplegar el Edge Function (acción manual de infraestructura).
+
+---
+
+## FASE 5 — Chequeo 2026-07-12 (skill `chequeo-seguridad`, rama `feat/impersonation`)
+
+Chequeo dirigido tras cambios acumulados desde Fase 4 (impersonation, portal
+cirujano, mapa de almacén, auditoría). Metodología: `.claude/skills/chequeo-seguridad/SKILL.md`.
+
+---
+
+### 🔴 CRITICO — F-18: Cross-tenant account takeover en `manage-users`
+**OWASP:** A01:2021 Broken Access Control | **Archivo:** `supabase/functions/manage-users/index.ts` (acciones `update`/`delete`)
+
+Las acciones `update` y `delete` validaban solo `profile.role ∈ {Superadmin, Administrador}`,
+sin comparar el `org_id` del que llama contra el `org_id` del `userId` objetivo.
+Como ambas operan con la **service role** (`auth.admin.updateUserById`,
+`auth.admin.deleteUser`, `profiles.delete`), bypasean RLS por completo.
+
+**PoC:** un `Administrador` de la Org A llama la función con
+`{action:'update', userId:'<uuid de un usuario de la Org B>', userData:{password:'X', role:'Superadmin'}}`
+y resetea la contraseña/escala el rol de una cuenta ajena; con `action:'delete'`
+puede borrarla. Sin relación con impersonation ni con ningún check de frontend.
+
+**Fix aplicado:** `assertSameOrgAsTarget()` — exige que `targetProfile.org_id === profile.org_id`
+antes de `update`/`delete`, salvo `profile.is_platform_admin === true` (mantenimiento
+de plataforma). Se usa `is_platform_admin`, no `role === 'Superadmin'`, porque
+`Superadmin` en este proyecto es el tope de la jerarquía **dentro** de una org
+(ver `CLAUDE.md` → Roles), consistente con cómo el resto del código (`manage-orgs`,
+todas las policies RLS) ya distingue "plataforma" de "rol".
+
+**Estado:** ✅ Corregido en código y redesplegado a producción vía Supabase
+Dashboard (2026-07-12).
+
+---
+
+### 🔴 CRITICO — F-19: Stored XSS en impresión de bandejas (regresión de F-01)
+**OWASP:** A03:2021 Injection (XSS) | **Archivo:** `src/pages/Bandejas.tsx:145-198`
+
+El fix de F-01 (`escapeHtml`) se aplicó en `Reportes.tsx` pero nunca se llevó
+a `Bandejas.tsx`, que tiene el mismo patrón: `item.implant?.name`, `item.implant?.sku`,
+`item.quantity`, `trayName`, `trayCode` se interpolaban sin escapar en
+`win.document.write(...)`.
+
+**PoC:** un `Editor`/`Técnico` (no solo Admin) nombra un implante o bandeja
+`<img src=x onerror=alert(document.cookie)>`; el JS ejecuta en la ventana de
+impresión de cualquier otro usuario de la org que imprima esa bandeja.
+
+**Fix aplicado:** `escapeHtml()` extraída a `src/utils/escapeHtml.ts` (antes
+duplicada solo en `Reportes.tsx`, ahora compartida) y aplicada a los 6 valores
+interpolados en `Bandejas.tsx`. `tsc --noEmit` verificado limpio.
+
+**Estado:** ✅ Corregido en código y build.
+
+---
+
+### 🟠 ALTO — A-1 (pendiente, sin ID F- porque no es un bug de código): Superadmin real committeado en git
+**Archivo:** `scripts/assign_admin.js:9`
+
+UID (`bb27f2e7-…`) y email (`admin@medops.com`) reales de una cuenta `Superadmin`
+hardcodeados en un script versionado, en un repo con fork externo
+(`jolumax/medops`). Combinado con F-18 (antes del fix), esto habría permitido
+tomar control total de esa cuenta desde cualquier `Administrador`.
+
+**Acción pendiente (no aplicada — requiere decisión del usuario):**
+1. Eliminar o parametrizar `scripts/assign_admin.js` (nunca hardcodear UIDs/emails reales).
+2. Rotar la contraseña de esa cuenta Superadmin en Supabase Dashboard, ya que su
+   identidad quedó expuesta en el historial de git independientemente del fix de F-18.
+
+---
+
+## RESUMEN — Fase 5
+
+| ID | Severidad | Estado |
+|----|-----------|--------|
+| F-18 | 🔴 CRITICO | ✅ Corregido en código y redesplegado a producción |
+| F-19 | 🔴 CRITICO | ✅ Corregido en código y build |
+| A-1  | 🟠 ALTO | ⏳ Pendiente — decisión del usuario |
+
+### Descartado durante verificación (Fase 5)
+- Fuga cross-org en `notify_surgery_status_change`: el hotfix suelto
+  `supabase/fix_notification_trigger_org_scope.sql` ya está reflejado en el
+  baseline actual (`0000_baseline_schema.sql:144-168` tiene el filtro `org_id`).
+- Advisories de `npm audit` (`dompurify`, `react-router`, `ws`): ninguno alcanza
+  una ruta de código realmente ejecutada por MedOps (ver detalle en el chequeo
+  de sesión — `jsPDF.html()` nunca se llama, la app es SPA sin servidor de
+  React Router, `ws` solo se usa como cliente saliente).
+
+### NO revisado en Fase 5
+- Matriz completa RLS (4 operaciones × ~20 tablas) — solo se verificó el patrón
+  en `profiles`, `notifications`, `organizations`.
+- `AlmacenMap.tsx`, `Organizaciones.tsx`, `AuditTrail.tsx`, `InventoryChat.tsx`,
+  `SessionTimeoutModal.tsx` línea por línea.
+- Settings de Supabase Dashboard (rate limiting, MFA, password policy — ver F-04/F-07/F-13).
+- Si el webhook de Telegram tiene `secret_token` configurado.

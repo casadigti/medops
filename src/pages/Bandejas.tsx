@@ -1,14 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-
-function escapeHtml(value: unknown): string {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 import { trayService } from '../services/trayService';
 import { getLocalDateString } from '../utils/dateUtils';
 import { Modal } from '../components/ui/Modal';
@@ -20,6 +11,7 @@ import { Package, Plus, Pencil, Trash2, Search, AlertTriangle, Wrench, Stethosco
 import { cn } from '../utils/cn';
 import { useToast } from '../components/ui/Toast';
 import { implantService } from '../services/implantService';
+import { escapeHtml } from '../utils/escapeHtml';
 import type { Tray, TrayItem, Implant } from '../types/domain';
 
 const TrayForm = ({ initial, onSave, onCancel, loading }: { initial: Partial<Tray> | null; onSave: (data: any) => void; onCancel: () => void; loading: boolean }) => {

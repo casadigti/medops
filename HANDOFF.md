@@ -1,5 +1,5 @@
 # MedOps — Handoff Document
-**Fecha:** 2026-06-06 | **Rama activa:** `feat/impersonation` | **Último PR:** #70 (+ commits manage-users desplegados)
+**Fecha:** 2026-07-12 | **Rama activa:** `feat/impersonation` | **Último PR:** #70 (+ commits manage-users desplegados)
 
 ---
 
@@ -49,7 +49,7 @@ Patrón: todos aplican `getImpersonatedOrgId()` para multi-tenancy.
 |---------|-----------|
 | `inventory-search` | Bot Telegram: voz→texto (Groq Whisper) + búsqueda inventario. Deploy con `--no-verify-jwt` |
 | `manage-orgs` | Crear/eliminar org + auto-seed ARS & procedure_types de org del platform admin |
-| `manage-users` | Crear usuarios con rol, reset password, asignar org. Reset → `email_confirm=true` (evita "Waiting for verification" que bloquea login) + error honesto si perfil sin auth user. Redesplegado 2026-06-06 |
+| `manage-users` | Crear usuarios con rol, reset password, asignar org. Reset → `email_confirm=true` (evita "Waiting for verification" que bloquea login) + error honesto si perfil sin auth user. `update`/`delete` ahora exigen misma org que el caller salvo `is_platform_admin` (fix F-18, 2026-07-12). **Redeploy pendiente** — código local no reflejado en producción todavía. |
 | `send-surgery-alert` | Notificaciones push en cambios de estado de cirugía |
 
 ---
@@ -89,6 +89,17 @@ Patrón: todos aplican `getImpersonatedOrgId()` para multi-tenancy.
 
 ## Pendientes
 
+**Seguridad (ver `SECURITY_AUDIT.md` Fase 5, 2026-07-12) — ALTA prioridad:**
+- **F-18 (cross-tenant account takeover en `manage-users`)** — corregido en
+  código y **redesplegado a producción** vía Supabase Dashboard (2026-07-12).
+- **F-19 (Stored XSS en `Bandejas.tsx`)** — corregido en código, se despliega
+  con el build normal de frontend (Vercel), sin acción extra.
+- **A-1 pendiente de decisión:** `scripts/assign_admin.js` tiene un UID/email
+  reales de una cuenta Superadmin hardcodeados en git. Decidir: eliminar el
+  script vs. parametrizarlo, y rotar la contraseña de esa cuenta en Supabase
+  Dashboard (su identidad ya quedó expuesta en el historial independientemente
+  del fix de F-18).
+
 **Merge pendiente:** PRs #67, #68, #69, #70 → casadigti/medops (verificar cuáles ya mergeados).
 **Media prioridad:**
 - Búsqueda global no resalta/filtra resultado específico al navegar
@@ -96,7 +107,33 @@ Patrón: todos aplican `getImpersonatedOrgId()` para multi-tenancy.
 **Baja prioridad:**
 - Security scan: Grado B (89/100) — denyList en `.claude/settings.json`
 
-**Ideas roadmap (sin empezar):** checklist esterilización · alertas mantenimiento preventivo · comentarios por cirugía · costo real por cirugía · módulo proveedores/OC · facturación · preferencias implantes por cirujano.
+**Ideas roadmap (sin empezar):** checklist esterilización · alertas mantenimiento preventivo · comentarios por cirugía · costo real por cirugía · módulo proveedores/OC (solo proveedores + OC como documento generado; ver veredicto abogado-del-diablo 2026-07-12) · preferencias implantes por cirujano.
+**Descartado (2026-07-12):** facturación — se hace en Odoo. Como mucho, exports que alimenten Odoo.
+
+---
+
+## Trabajo sesión 2026-07-12 — chequeo de seguridad + fixes F-18/F-19
+
+Ejecutada la skill `.claude/skills/chequeo-seguridad/SKILL.md` (creada esta
+misma sesión) sobre `feat/impersonation`. Detalle completo en
+`SECURITY_AUDIT.md` → Fase 5.
+
+| Hallazgo | Severidad | Fix |
+|----------|-----------|-----|
+| F-18: `manage-users` `update`/`delete` sin check de org cruzada | 🔴 Crítico | `assertSameOrgAsTarget()` en `supabase/functions/manage-users/index.ts` — bypass solo para `is_platform_admin`, no para `role==='Superadmin'`. Redesplegado a producción 2026-07-12. |
+| F-19: XSS sin escapar en impresión de bandejas (regresión de F-01) | 🔴 Crítico | `escapeHtml()` extraída a `src/utils/escapeHtml.ts` (compartida con `Reportes.tsx`), aplicada en `src/pages/Bandejas.tsx`. `tsc --noEmit` limpio. |
+| A-1: Superadmin real hardcodeado en `scripts/assign_admin.js` | 🟠 Alto | Sin resolver — pendiente decisión de usuario. |
+
+**Aclaración de roles capturada esta sesión:** `is_platform_admin` (boolean)
+es la bandera real de acceso multi-organización/modo mantenimiento. El texto
+del rol `Superadmin` es el tope de la jerarquía **dentro** de una org, no
+implica acceso a otras orgs por sí solo — así lo trata el resto del código
+(`manage-orgs`, todas las policies RLS) y así se corrigió `manage-users`.
+
+**Skill nueva:** `.claude/skills/chequeo-seguridad/SKILL.md` — chequeo de
+seguridad específico de MedOps (secretos → validación de entrada → multi-tenancy
+→ inyección/XSS → logs sensibles → dependencias), con archivos/líneas reales
+del proyecto. Invocar con `/chequeo-seguridad`.
 
 ---
 
@@ -175,4 +212,4 @@ Admin check: `userProfile?.role === 'Administrador' || userProfile?.role === 'Su
 
 ## Skills instaladas
 
-`caveman` · `superpowers` · `agent-browser` · `ui-ux-pro-max` · `ecc` · `napkin` · `graphify`
+`caveman` · `superpowers` · `agent-browser` · `ui-ux-pro-max` · `ecc` · `napkin` · `graphify` · `chequeo-seguridad` (propia del proyecto, `.claude/skills/chequeo-seguridad/SKILL.md`)

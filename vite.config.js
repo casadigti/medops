@@ -17,6 +17,11 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Inject crossorigin="use-credentials" on the manifest <link> so the
+      // browser sends cookies when fetching /manifest.webmanifest. Without it,
+      // Vercel Deployment Protection 307-redirects the (uncredentialed) manifest
+      // request to its SSO gate, which then fails CORS on protected previews.
+      useCredentials: true,
       includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'MedOps - Gestión Médica',

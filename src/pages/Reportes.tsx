@@ -14,19 +14,9 @@ import * as XLSX from 'xlsx';
 import { cn } from '../utils/cn';
 import { getLocalDateString } from '../utils/dateUtils';
 import { implantService } from '../services/implantService';
+import { escapeHtml } from '../utils/escapeHtml';
 
 const COLORS = ['#1e40af','#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899'];
-
-// Escapes HTML special chars to prevent stored XSS when DB data is
-// interpolated into a document.write() print template (SECURITY F-01).
-function escapeHtml(value: unknown): string {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 const StatCard = ({ icon: Icon, label, value, color = 'text-primary', bg = 'bg-blue-50' }: { icon: React.ElementType; label: string; value: React.ReactNode; color?: string; bg?: string }) => (
   <div className="card flex items-center gap-4">
