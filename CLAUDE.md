@@ -132,8 +132,13 @@ npm run deploy:functions  # deploy all Edge Functions
 ## Git workflow
 
 - Active branch: `feat/impersonation`
-- Fork: `jolumax/medops` → PR to `casadigti/medops`
-- Push to fork: `git push fork feat/impersonation`
+- Two remotes exist: `origin` (`casadigti/medops`) and `fork` (`jolumax/medops`).
+  Push to **`origin`** (`git push origin feat/impersonation`) — that's the
+  account with working credentials in practice. Pushing to `fork` has failed
+  with 401/permission-denied even after re-authenticating; don't loop on it,
+  just use `origin`.
+- PRs are same-repo (`casadigti/medops`, branch → `main`), not cross-fork —
+  GitHub prints the PR link after the push.
 - PR format: `https://github.com/casadigti/medops/pull/N` (plain URL, no markdown)
 - Commits: Conventional Commits (`feat(scope):`, `fix(scope):`, `chore:`)
 
