@@ -11,6 +11,7 @@ import { Package, Plus, Pencil, Trash2, Search, AlertTriangle, Wrench, Stethosco
 import { cn } from '../utils/cn';
 import { useToast } from '../components/ui/Toast';
 import { implantService } from '../services/implantService';
+import { escapeHtml } from '../utils/escapeHtml';
 import type { Tray, TrayItem, Implant } from '../types/domain';
 
 const TrayForm = ({ initial, onSave, onCancel, loading }: { initial: Partial<Tray> | null; onSave: (data: any) => void; onCancel: () => void; loading: boolean }) => {
@@ -144,16 +145,16 @@ const TrayItemsPanel: React.FC<{ trayId: string; canEdit: boolean; trayName: str
     const date = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
     const rows = items.map(item => `
       <tr>
-        <td>${item.implant?.name ?? '—'}</td>
-        <td class="sku">${item.implant?.sku ?? '—'}</td>
-        <td class="qty">${item.quantity}</td>
+        <td>${escapeHtml(item.implant?.name ?? '—')}</td>
+        <td class="sku">${escapeHtml(item.implant?.sku ?? '—')}</td>
+        <td class="qty">${escapeHtml(item.quantity)}</td>
         <td class="check"></td>
       </tr>`).join('');
 
     const win = window.open('', '_blank', 'width=800,height=600');
     if (!win) return;
     win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
-      <title>Componentes — ${trayName}</title>
+      <title>Componentes — ${escapeHtml(trayName)}</title>
       <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:'Segoe UI',Arial,sans-serif;color:#1e293b;padding:32px}
@@ -181,9 +182,9 @@ const TrayItemsPanel: React.FC<{ trayId: string; canEdit: boolean; trayName: str
       <div class="hdr">
         <div><div class="brand">MedOps</div><div class="sub">Gestión Médica Quirúrgica</div></div>
         <div class="meta">
-          <b>${trayName}</b>
-          ${trayCode ? `<code>${trayCode}</code>` : ''}
-          <div style="margin-top:4px">${date}</div>
+          <b>${escapeHtml(trayName)}</b>
+          ${trayCode ? `<code>${escapeHtml(trayCode)}</code>` : ''}
+          <div style="margin-top:4px">${escapeHtml(date)}</div>
         </div>
       </div>
       <h2>Lista de Componentes (${items.length} ítems)</h2>

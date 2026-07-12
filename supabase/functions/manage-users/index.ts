@@ -69,13 +69,34 @@ serve(async (req) => {
     // 2. Validar Autorización (Roles) — solo para acciones de gestión
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('role, org_id')
+      .select('role, org_id, is_platform_admin')
       .eq('id', user.id)
       .single()
 
     if (profileError || !profile) throw new Error('Unauthorized: Profile not found')
     if (!['Superadmin', 'Administrador'].includes(profile.role)) {
       throw new Error('Forbidden: Insufficient permissions')
+    }
+
+    // SECURITY: 'update' y 'delete' operan con la service role (bypass RLS)
+    // sobre auth.users directamente. Sin este check, un Administrador de la
+    // Org A podía pasar el userId de un usuario de la Org B y resetear su
+    // contraseña, escalar su rol o borrar su cuenta. Solo is_platform_admin
+    // (mantenimiento de plataforma) puede cruzar organizaciones — el rol de
+    // texto 'Superadmin' por sí solo NO implica acceso multi-org, es el tope
+    // de la jerarquía DENTRO de una org (igual que el resto de las policies
+    // RLS de este proyecto usan is_platform_admin(), no role = 'Superadmin').
+    async function assertSameOrgAsTarget(targetUserId: string) {
+      if (profile.is_platform_admin) return
+      const { data: targetProfile, error: targetError } = await supabaseAdmin
+        .from('profiles')
+        .select('org_id')
+        .eq('id', targetUserId)
+        .single()
+      if (targetError || !targetProfile) throw new Error('Usuario no encontrado')
+      if (targetProfile.org_id !== profile.org_id) {
+        throw new Error('Forbidden: usuario fuera de tu organización')
+      }
     }
 
     // 1. CREAR USUARIO
@@ -113,6 +134,7 @@ serve(async (req) => {
 
     // 2. ACTUALIZAR USUARIO
     if (action === 'update') {
+      await assertSameOrgAsTarget(userId)
       const { password, full_name, role, email } = userData
 
       // NO incluir `email` en el payload de updateUserById.
@@ -158,6 +180,7 @@ serve(async (req) => {
 
     // 3. ELIMINAR USUARIO
     if (action === 'delete') {
+      await assertSameOrgAsTarget(userId)
       // Intentar eliminar de auth.users; ignorar si el usuario no existe allí
       // (puede ser un perfil creado manualmente sin cuenta auth).
       const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(userId)
